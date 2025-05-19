@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: baby-bianca-00          # ← new name
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    autoDeploy: true
+    plan: free
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/app
+      sizeGB: 1
