@@ -51,4 +51,4 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     if task:
         db.delete(task)
         db.commit()
-    return RedirectResponse("/", status_code=30
+    return RedirectResponse("/", status_code=30)
