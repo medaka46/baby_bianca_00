@@ -2,4 +2,5 @@ fastapi
 uvicorn[standard]
 jinja2
 sqlalchemy
+python-multipart
 
