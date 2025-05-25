@@ -3,11 +3,10 @@ services:
     name: baby-bianca-00          # ← new name
     env: python
     buildCommand: "pip install -r requirements.txt"
-    # startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 
     autoDeploy: true
-    plan: dtarter
+    plan: starter
     disk:
       name: data
       mountPath: /opt/render/project/src/app
