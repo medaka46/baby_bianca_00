@@ -1,0 +1,10 @@
+20250526 07:20
+    checked and confirmed SQLite database in Render was updated.
+    But remotely delete data, error was encountered. 
+    BUt locally deletion has no error and after start refrected he latest status of database.
+
+20250526 12:00
+    After manual deply latest commit, SQlite database data was initialized.
+
+    I noticed that after manual reply based on the latest commit by render, SQLite database in render disks was initialized.
+    Please show me the way to keep the data in SQLite database even after Manual deploy.
