@@ -9,5 +9,5 @@ services:
     plan: starter
     disk:
       name: data
-      mountPath: /opt/render/project/src/app
+      mountPath: /data
       sizeGB: 1
