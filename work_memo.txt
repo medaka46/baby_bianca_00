@@ -8,3 +8,6 @@
 
     I noticed that after manual reply based on the latest commit by render, SQLite database in render disks was initialized.
     Please show me the way to keep the data in SQLite database even after Manual deploy.
+
+20250527 07:00
+    I tried to go back to Git previous version and locally I could run it but I could not push it to GitHub
