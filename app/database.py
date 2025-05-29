@@ -1,13 +1,15 @@
-from sqlalchemy import create_engine
 from pathlib import Path
-
-from pathlib import Path 
+from sqlalchemy import create_engine
 
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 
-DATA_DIR = Path("/data")
-DATABASE_URL = f"sqlite:///{DATA_DIR / 'todo.db'}"
+# DATA_DIR = Path("/data")
+# BASE_DIR = Path(__file__).resolve().parent
+# DATABASE_URL = f"sqlite:///{BASE_DIR / 'todo.db'}"
+DATABASE_URL = f"sqlite:///{'todo.db'}"
+
+
 
 engine = create_engine(
     DATABASE_URL,
