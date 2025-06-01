@@ -8,6 +8,7 @@ import os
 # BASE_DIR = Path(__file__).resolve().parent
 # DATABASE_URL = f"sqlite:///{BASE_DIR / 'todo.db'}"
 DATABASE_URL = f"sqlite:///{'todo.db'}"
+# DATABASE_URL = f"sqlite:///{'data/todo.db'}"
 
 
 
