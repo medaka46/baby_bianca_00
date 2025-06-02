@@ -17,3 +17,4 @@
 
 20250530 12:30
     I could deploy codes by render and it coudl be accessed by several number of devices.
+okokok
