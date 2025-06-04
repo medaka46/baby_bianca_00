@@ -1,6 +1,8 @@
 import sqlite3
+import os
 from sqlalchemy import create_engine, text, inspect
 from sqlalchemy.orm import sessionmaker
+from .database import get_database_path, get_database_url
 
 def get_table_names(db_path: str):
     # Using SQLAlchemy to get table names
@@ -49,44 +51,89 @@ def read_with_sqlalchemy(db_path: str, table_name: str):
     
     session.close()
 
+def get_environment_info():
+    """Display current environment information."""
+    db_path = get_database_path()
+    is_render = bool(os.getenv("RENDER"))
+    
+    print(f"Environment: {'Render (Remote)' if is_render else 'Local'}")
+    print(f"Database path: {db_path}")
+    print(f"Database exists: {os.path.exists(db_path)}")
+    return db_path
+
 def read_tasks_sqlite3():
-    # Connect to the database
-    conn = sqlite3.connect("todo.db")
-    cursor = conn.cursor()
+    """Read tasks using sqlite3 module."""
+    db_path = get_database_path()
     
-    # Read all tasks
-    cursor.execute("SELECT * FROM tasks")
-    tasks = cursor.fetchall()
-    
-    # Print results
-    print("\nTasks from todo.db:")
-    print("ID | Title | Completed")
-    print("-" * 30)
-    for task in tasks:
-        print(f"{task[0]} | {task[1]} | {task[2]}")
-    
-    conn.close()
+    try:
+        # Connect to the database
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Check if tasks table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")
+        if not cursor.fetchone():
+            print("Tasks table does not exist in the database.")
+            conn.close()
+            return
+        
+        # Read all tasks
+        cursor.execute("SELECT * FROM tasks")
+        tasks = cursor.fetchall()
+        
+        # Print results
+        print("\nTasks (using sqlite3):")
+        print("ID | Title | Completed")
+        print("-" * 50)
+        if tasks:
+            for task in tasks:
+                print(f"{task[0]} | {task[1]} | {task[2]}")
+        else:
+            print("No tasks found.")
+        
+        conn.close()
+        
+    except sqlite3.Error as e:
+        print(f"SQLite error: {e}")
+    except Exception as e:
+        print(f"Error: {e}")
 
 def read_tasks_sqlalchemy():
-    # Create engine and session
-    engine = create_engine("sqlite:///todo.db")
-    Session = sessionmaker(bind=engine)
-    session = Session()
+    """Read tasks using SQLAlchemy."""
+    database_url = get_database_url()
     
-    # Read all tasks
-    result = session.execute(text("SELECT * FROM tasks"))
-    tasks = result.fetchall()
-    
-    # Print results
-    print("\nTasks from todo.db (SQLAlchemy):")
-    print("ID | Title | Completed")
-    print("-" * 30)
-    for task in tasks:
-        print(f"{task[0]} | {task[1]} | {task[2]}")
-    
-    session.close()
+    try:
+        # Create engine and session
+        engine = create_engine(database_url)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        
+        # Read all tasks
+        result = session.execute(text("SELECT * FROM tasks"))
+        tasks = result.fetchall()
+        
+        # Print results
+        print("\nTasks (using SQLAlchemy):")
+        print("ID | Title | Completed")
+        print("-" * 50)
+        if tasks:
+            for task in tasks:
+                print(f"{task[0]} | {task[1]} | {task[2]}")
+        else:
+            print("No tasks found.")
+        
+        session.close()
+        
+    except Exception as e:
+        print(f"SQLAlchemy error: {e}")
 
 if __name__ == "__main__":
+    print("SQLite Database Reader")
+    print("=" * 50)
+    
+    # Show environment information
+    get_environment_info()
+    
     # Replace with your actual database path
     db_path = "test_08_db_2.db"
     
