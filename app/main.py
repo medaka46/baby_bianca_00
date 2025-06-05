@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Request, Form, Depends, HTTPException
+from fastapi import FastAPI, Request, Form, Depends, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse, HTMLResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 import os
+import shutil
 from datetime import datetime
 
 from .database import SessionLocal, engine, Base, get_database_path
@@ -50,6 +51,67 @@ def download_database():
         filename=filename,
         media_type="application/octet-stream"
     )
+
+
+@app.post("/upload-db")
+async def upload_database(file: UploadFile = File(...)):
+    """Upload and replace the SQLite database file."""
+    
+    # Validate file extension
+    if not file.filename.endswith(('.db', '.sqlite', '.sqlite3')):
+        raise HTTPException(
+            status_code=400, 
+            detail="Invalid file type. Please upload a SQLite database file (.db, .sqlite, .sqlite3)"
+        )
+    
+    # Get current database path
+    db_path = get_database_path()
+    
+    try:
+        # Create backup of current database if it exists
+        if os.path.exists(db_path):
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = f"{db_path}.backup_{timestamp}"
+            shutil.copy2(db_path, backup_path)
+        
+        # Save uploaded file to database location
+        with open(db_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        # Verify the uploaded file is a valid SQLite database
+        import sqlite3
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = cursor.fetchall()
+            conn.close()
+            
+            # Check if tasks table exists
+            has_tasks_table = any(table[0] == 'tasks' for table in tables)
+            if not has_tasks_table:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Uploaded database does not contain a 'tasks' table"
+                )
+                
+        except sqlite3.Error as e:
+            # If validation fails, restore backup if it exists
+            if os.path.exists(backup_path):
+                shutil.copy2(backup_path, db_path)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid SQLite database file: {str(e)}"
+            )
+        
+        return RedirectResponse("/", status_code=303)
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload database: {str(e)}"
+        )
 
 
 @app.post("/add")
