@@ -9,11 +9,14 @@
     form.inline{display:inline}
     .download-section{margin:20px 0;padding:15px;background:#f5f5f5;border-radius:5px}
     .upload-section{margin:20px 0;padding:15px;background:#e8f4fd;border-radius:5px}
+    .local-upload-section{margin:20px 0;padding:15px;background:#fff3cd;border-radius:5px}
     .download-btn{background:#007bff;color:white;padding:8px 16px;border:none;border-radius:4px;text-decoration:none;display:inline-block}
     .download-btn:hover{background:#0056b3}
     .upload-btn{background:#28a745;color:white;padding:8px 16px;border:none;border-radius:4px;cursor:pointer}
     .upload-btn:hover{background:#218838}
     .upload-btn:disabled{background:#6c757d;cursor:not-allowed}
+    .local-btn{background:#ffc107;color:#212529;padding:8px 16px;border:none;border-radius:4px;text-decoration:none;display:inline-block}
+    .local-btn:hover{background:#e0a800}
     .environment-info{font-size:12px;color:#666;margin-bottom:10px}
     .file-input{margin:10px 0;padding:8px;border:1px solid #ddd;border-radius:4px;width:100%;box-sizing:border-box}
     .warning{background:#fff3cd;color:#856404;padding:10px;border-radius:4px;margin:10px 0;font-size:12px}
@@ -43,6 +46,23 @@
       A backup will be created automatically before replacement.
     </div>
   </div>
+  {% else %}
+  <div class="local-upload-section">
+    <div class="environment-info">💻 Local Development - Database Upload Available</div>
+    <form class="upload-form" action="/upload-db" method="post" enctype="multipart/form-data" onsubmit="return confirmUpload()">
+      <input type="file" name="file" accept=".db,.sqlite,.sqlite3" class="file-input" required>
+      <button type="submit" class="upload-btn">📤 Upload & Replace Local Database</button>
+    </form>
+    <div style="margin-top:10px;">
+      <a href="/debug-info" class="local-btn" target="_blank">🔍 Debug Info</a>
+      <a href="/download-db" class="download-btn" style="margin-left:10px;">💾 Download Current DB</a>
+      <a href="/test-db-connection" class="local-btn" target="_blank" style="margin-left:10px;">🔗 Test DB Connection</a>
+    </div>
+    <div class="warning">
+      ⚠️ <strong>Local Mode:</strong> This will replace your local database file. 
+      A backup will be created automatically before replacement.
+    </div>
+  </div>
   {% endif %}
 
   <form action="/add" method="post">
@@ -65,12 +85,6 @@
       <p>No tasks yet ✅</p>
     {% endfor %}
   </ul>
-
-  {% if not is_render %}
-  <div style="margin-top:30px;padding:10px;background:#fff3cd;border-radius:5px;font-size:12px;color:#856404">
-    💻 Running locally - Database upload/download not needed (database is already local)
-  </div>
-  {% endif %}
 
   <script>
     function confirmUpload() {
