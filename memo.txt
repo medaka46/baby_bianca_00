@@ -1,0 +1,4 @@
+20250608
+    09:20
+        By 100 : Actual Bianca deploy
+        By 101 : Try to use persistant disk for database
