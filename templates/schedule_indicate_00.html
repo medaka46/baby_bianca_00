@@ -45,9 +45,11 @@
 
 
 
+        {% if condition == "Production" %}
         <form action="/download_db/" method="get" style="margin-left: 10px;">
             <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
         </form>
+        {% endif %}
 
     </div>
 
@@ -62,9 +64,11 @@
         <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
         <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
         <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
-        <form action="/download_db/" method="get" style="margin-left: auto;">
-            <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
-        </form>
+                    {% if condition == "Production" %}
+            <form action="/download_db/" method="get" style="margin-left: auto;">
+                <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
+            </form>
+            {% endif %}
     </form> -->
 
     
@@ -84,9 +88,11 @@
         <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
         <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
     </form>
+    {% if condition == "Production" %}
     <form action="/download_db/" method="get">
         <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
-    </form> -->
+    </form>
+    {% endif %} -->
     <!-- <button onclick="alertFunction()">Click Me!</button> -->
     <!-- ... existing code ... -->
 </header>

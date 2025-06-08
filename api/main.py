@@ -45,7 +45,11 @@ templates = Jinja2Templates(directory="templates")
 # Create the database tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
-condition = ""
+# Set condition based on environment
+if ENVIRONMENT == 'production':
+    condition = "Production"
+else:
+    condition = "Development"
 
 def get_db():
     db = SessionLocal()
@@ -81,12 +85,6 @@ async def login_signup(request: Request):
     
     request.session['project_id_order'] = 1
     
-    
-    if ENVIRONMENT == 'production':
-        condition = "Production"
-    else:
-        condition = "Development"
-        
     
     print(condition)
     
