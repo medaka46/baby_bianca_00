@@ -101,13 +101,19 @@ async def login_signup(request: Request):
 
 @app.get("/download_db/")
 async def download_db(request: Request, db: Session = Depends(get_db)):
-    # Construct the absolute path to the database file
-    db_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'test_08_db_new_pp.db'))
+    from api.database import get_database_path
+    
+    # Get the current database path (works for both local and Render)
+    db_path = get_database_path()
 
     if not os.path.exists(db_path):
         raise HTTPException(status_code=404, detail="Database file not found")
 
-    return FileResponse(db_path, media_type='application/octet-stream', filename="test_08_db_new_pp.db")
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"test_backup_{timestamp}.db"
+
+    return FileResponse(db_path, media_type='application/octet-stream', filename=filename)
 
 
 # @app.get("/download_db/")
@@ -118,6 +124,48 @@ async def download_db(request: Request, db: Session = Depends(get_db)):
 #         raise HTTPException(status_code=404, detail="Database file not found")
 
 #     return FileResponse(db_path, media_type='application/octet-stream', filename="test_08_db_new_pp.db")
+
+# --------------------
+
+@app.get("/debug-info")
+async def debug_info():
+    """Debug endpoint to check database configuration and environment."""
+    from api.database import get_database_path, get_database_url, ENVIRONMENT
+    
+    db_path = get_database_path()
+    is_render = bool(os.getenv("RENDER"))
+    
+    info = {
+        "environment": ENVIRONMENT,
+        "is_render": is_render,
+        "database_path": db_path,
+        "database_url": get_database_url(),
+        "database_exists": os.path.exists(db_path),
+        "current_working_directory": os.getcwd(),
+        "render_env_var": os.getenv("RENDER", "Not set"),
+        "environment_var": os.getenv("ENVIRONMENT", "Not set")
+    }
+    
+    if os.path.exists(db_path):
+        info["database_size"] = os.path.getsize(db_path)
+        
+        # Try to count records in main tables
+        try:
+            db = SessionLocal()
+            user_count = db.query(User).count()
+            schedule_count = db.query(Schedule).count()
+            link_count = db.query(Link).count()
+            db.close()
+            
+            info["table_counts"] = {
+                "users": user_count,
+                "schedules": schedule_count,
+                "links": link_count
+            }
+        except Exception as e:
+            info["database_read_error"] = str(e)
+    
+    return info
 
 # --------------------
 
