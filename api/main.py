@@ -103,16 +103,181 @@ async def download_db(request: Request, db: Session = Depends(get_db)):
     
     # Get the current database path (works for both local and Render)
     db_path = get_database_path()
-
+    
+    # Log download information
+    logger.info(f"Download request - Environment: {ENVIRONMENT}")
+    logger.info(f"Download request - Database path: {db_path}")
+    logger.info(f"Download request - File exists: {os.path.exists(db_path)}")
+    
+    if os.path.exists(db_path):
+        file_size = os.path.getsize(db_path)
+        modified_time = datetime.fromtimestamp(os.path.getmtime(db_path))
+        logger.info(f"Download request - File size: {file_size} bytes")
+        logger.info(f"Download request - Last modified: {modified_time}")
+    
     if not os.path.exists(db_path):
+        logger.error(f"Download request - Database file not found at: {db_path}")
         raise HTTPException(status_code=404, detail="Database file not found")
 
     # Generate filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"test_backup_{timestamp}.db"
+    
+    logger.info(f"Download request - Serving file as: {filename}")
 
     return FileResponse(db_path, media_type='application/octet-stream', filename=filename)
 
+@app.get("/download-db-info")
+async def download_db_info():
+    """Debug endpoint to show what database file would be downloaded."""
+    from api.database import get_database_path
+    
+    db_path = get_database_path()
+    
+    info = {
+        "download_database_path": db_path,
+        "database_exists": os.path.exists(db_path),
+        "is_render": bool(os.getenv("RENDER")),
+        "environment": ENVIRONMENT
+    }
+    
+    if os.path.exists(db_path):
+        import os
+        stat_info = os.stat(db_path)
+        info.update({
+            "database_size": stat_info.st_size,
+            "database_modified": datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
+            "database_created": datetime.fromtimestamp(stat_info.st_ctime).isoformat()
+        })
+        
+        # Sample the database content to verify it's the right one
+        try:
+            db = SessionLocal()
+            schedule_count = db.query(Schedule).count()
+            recent_schedule = db.query(Schedule).order_by(Schedule.id.desc()).first()
+            
+            info["content_verification"] = {
+                "schedule_count": schedule_count,
+                "most_recent_schedule": {
+                    "id": recent_schedule.id if recent_schedule else None,
+                    "name": recent_schedule.name if recent_schedule else None,
+                    "created": recent_schedule.start_datetime.isoformat() if recent_schedule and recent_schedule.start_datetime else None
+                } if recent_schedule else None
+            }
+            db.close()
+        except Exception as e:
+            info["content_verification_error"] = str(e)
+    
+    return info
+
+@app.get("/diagnostic-database")
+async def diagnostic_database():
+    """Comprehensive database diagnostic for troubleshooting."""
+    from api.database import get_database_path, get_database_url, ENVIRONMENT
+    
+    diagnostic = {
+        "timestamp": datetime.now().isoformat(),
+        "environment": ENVIRONMENT,
+        "is_render": bool(os.getenv("RENDER")),
+        "render_env_var": os.getenv("RENDER", "Not set")
+    }
+    
+    # Check multiple potential database locations
+    potential_paths = [
+        ("get_database_path()", get_database_path()),
+        ("./test.db", "./test.db"),
+        ("../test.db", "../test.db"),
+        ("/var/data/test.db", "/var/data/test.db"),
+        ("/tmp/test.db", "/tmp/test.db"),
+        ("./api/../test.db", "./api/../test.db")
+    ]
+    
+    diagnostic["database_files"] = {}
+    
+    for description, path in potential_paths:
+        file_info = {"path": path, "exists": os.path.exists(path)}
+        
+        if os.path.exists(path):
+            try:
+                stat_info = os.stat(path)
+                file_info.update({
+                    "size": stat_info.st_size,
+                    "modified": datetime.fromtimestamp(stat_info.st_mtime).isoformat(),
+                    "created": datetime.fromtimestamp(stat_info.st_ctime).isoformat()
+                })
+                
+                # Try to read the database
+                from sqlalchemy import create_engine
+                temp_engine = create_engine(f"sqlite:///{path}")
+                from sqlalchemy.orm import sessionmaker
+                TempSession = sessionmaker(bind=temp_engine)
+                temp_db = TempSession()
+                
+                try:
+                    from api.models import Schedule, User, Link
+                    schedule_count = temp_db.query(Schedule).count()
+                    user_count = temp_db.query(User).count()
+                    link_count = temp_db.query(Link).count()
+                    
+                    # Get latest schedule
+                    latest_schedule = temp_db.query(Schedule).order_by(Schedule.id.desc()).first()
+                    
+                    file_info["database_content"] = {
+                        "schedules": schedule_count,
+                        "users": user_count,
+                        "links": link_count,
+                        "latest_schedule": {
+                            "id": latest_schedule.id if latest_schedule else None,
+                            "name": latest_schedule.name if latest_schedule else None,
+                            "created": latest_schedule.start_datetime.isoformat() if latest_schedule and latest_schedule.start_datetime else None
+                        } if latest_schedule else None
+                    }
+                except Exception as e:
+                    file_info["database_read_error"] = str(e)
+                finally:
+                    temp_db.close()
+                    
+            except Exception as e:
+                file_info["file_access_error"] = str(e)
+        
+        diagnostic["database_files"][description] = file_info
+    
+    # Check current application database connection
+    try:
+        db = SessionLocal()
+        app_schedule_count = db.query(Schedule).count()
+        app_latest_schedule = db.query(Schedule).order_by(Schedule.id.desc()).first()
+        
+        diagnostic["current_app_database"] = {
+            "schedules": app_schedule_count,
+            "database_url": get_database_url(),
+            "latest_schedule": {
+                "id": app_latest_schedule.id if app_latest_schedule else None,
+                "name": app_latest_schedule.name if app_latest_schedule else None,
+                "created": app_latest_schedule.start_datetime.isoformat() if app_latest_schedule and app_latest_schedule.start_datetime else None
+            } if app_latest_schedule else None
+        }
+        db.close()
+    except Exception as e:
+        diagnostic["current_app_database_error"] = str(e)
+    
+    # Directory listings
+    diagnostic["directory_listings"] = {}
+    
+    directories_to_check = ["/var", "/var/data", ".", "./api", "/tmp"]
+    for dir_path in directories_to_check:
+        try:
+            if os.path.exists(dir_path):
+                files = os.listdir(dir_path)
+                # Filter for database-related files
+                db_files = [f for f in files if f.endswith('.db') or 'test' in f.lower()]
+                diagnostic["directory_listings"][dir_path] = db_files
+            else:
+                diagnostic["directory_listings"][dir_path] = "Directory does not exist"
+        except Exception as e:
+            diagnostic["directory_listings"][dir_path] = f"Error: {str(e)}"
+    
+    return diagnostic
 
 # @app.get("/download_db/")
 # async def download_db(request: Request, db: Session = Depends(get_db)):
@@ -145,7 +310,11 @@ async def debug_info():
     }
     
     if os.path.exists(db_path):
-        info["database_size"] = os.path.getsize(db_path)
+        import os
+        stat_info = os.stat(db_path)
+        info["database_size"] = stat_info.st_size
+        info["database_modified"] = datetime.fromtimestamp(stat_info.st_mtime).isoformat()
+        info["database_created"] = datetime.fromtimestamp(stat_info.st_ctime).isoformat()
         
         # Try to count records in main tables
         try:
@@ -153,6 +322,15 @@ async def debug_info():
             user_count = db.query(User).count()
             schedule_count = db.query(Schedule).count()
             link_count = db.query(Link).count()
+            
+            # Get sample data to verify content
+            recent_schedules = db.query(Schedule).order_by(Schedule.id.desc()).limit(3).all()
+            sample_schedules = [{
+                "id": s.id,
+                "name": s.name,
+                "start_datetime": s.start_datetime.isoformat() if s.start_datetime else None
+            } for s in recent_schedules]
+            
             db.close()
             
             info["table_counts"] = {
@@ -160,8 +338,29 @@ async def debug_info():
                 "schedules": schedule_count,
                 "links": link_count
             }
+            info["sample_recent_schedules"] = sample_schedules
+            
         except Exception as e:
             info["database_read_error"] = str(e)
+    
+    # Check if alternative database files exist
+    alternative_paths = [
+        "./test.db",
+        "../test.db", 
+        "/var/data/test.db",
+        "/tmp/test.db"
+    ]
+    
+    info["alternative_database_files"] = {}
+    for alt_path in alternative_paths:
+        if os.path.exists(alt_path):
+            info["alternative_database_files"][alt_path] = {
+                "exists": True,
+                "size": os.path.getsize(alt_path),
+                "modified": datetime.fromtimestamp(os.path.getmtime(alt_path)).isoformat()
+            }
+        else:
+            info["alternative_database_files"][alt_path] = {"exists": False}
     
     return info
 
