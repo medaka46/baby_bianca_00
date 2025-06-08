@@ -51,54 +51,12 @@
         </form>
         <form id="uploadForm" action="/upload_db/" method="post" enctype="multipart/form-data" style="margin-left: 10px;">
             <input type="file" id="dbFile" name="database_file" accept=".db,.sqlite,.sqlite3" style="display: none;" onchange="handleFileSelect(this)">
-            <button type="button" onclick="document.getElementById('dbFile').click()" style="background-color: #444; color: #ff0;">Upload</button>
+            <button type="button" onclick="document.getElementById('dbFile').click()" style="background-color: #444; color: #0f0;">Upload</button>
         </form>
         {% endif %}
 
     </div>
 
-
-    <!-- <form action="/schedule/add_task/" method="post" style="display: flex; align-items: center; width: 100%">
-        <input type="hidden" name="time_zone" value="{{ time_zone }}">
-        <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-        <input id="input_date" type="date" name="date1" placeholder="MM/DD/YYYY" style="background-color: #444; color: #888;" onfocus="(this.type='date')">
-        <input type="time" name="start_time" placeholder="start HH:MM" value="00:00" style="background-color: #444; color: #888;" onfocus="(this.type='time')">
-        <input type="time" name="end_time" value="00:00" style="background-color: #444; color: #888;">
-        <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-        <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-        <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-        <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
-                    {% if condition == "Production" %}
-            <form action="/download_db/" method="get" style="margin-left: auto;">
-                <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
-            </form>
-            {% endif %}
-    </form> -->
-
-    
-    <!-- <form action="/schedule/add_task/" method="post">
-        <input type="hidden" name="time_zone" value="{{ time_zone }}">
-
-        <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-       
-        <input id="input_date" type="date" name="date1" placeholder="MM/DD/YYYY"  style="background-color: #444; color: #888;"
-                onfocus="(this.type='date')">
-        <input type="time" name="start_time" placeholder="start HH:MM" value="00:00" style="background-color: #444; color: #888;"
-                onfocus="(this.type='time')">
-        <input type="time" name="end_time" value="00:00" style="background-color: #444; color: #888;">
-                
-        <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-        <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-        <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-        <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
-    </form>
-    {% if condition == "Production" %}
-    <form action="/download_db/" method="get">
-        <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
-    </form>
-    {% endif %} -->
-    <!-- <button onclick="alertFunction()">Click Me!</button> -->
-    <!-- ... existing code ... -->
 </header>
 
 <main class="tab_00">
