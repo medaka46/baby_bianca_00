@@ -137,6 +137,8 @@ async def upload_db(request: Request, database_file: UploadFile = File(...)):
     3. Replace database on persistent disk
     4. Recreate database connections
     """
+    global SessionLocal, engine
+    
     # Only allow in production environment
     if ENVIRONMENT != 'production':
         return templates.TemplateResponse("upload_result.html", {
@@ -236,7 +238,6 @@ async def upload_db(request: Request, database_file: UploadFile = File(...)):
         
         # Step 5: Recreate database connections
         logger.info("Recreating database engine and connections")
-        global SessionLocal, engine
         from sqlalchemy import create_engine
         from sqlalchemy.orm import sessionmaker
         
