@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test_08</title>
+
+   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+
+    <!-- <link rel="stylesheet" href="/static/style.css"> -->
+    <style>
+        .html {
+            margin: 0px;
+            padding: 0;
+        }
+
+        .massage {
+            font-size: 25px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+
+        }
+
+        .title_00 {
+            font-size: 18px;
+            margin-top: 5px;
+            margin-bottom: 5px;
+            margin-left: 5px;
+        }
+
+
+        .tab_00 {
+            background-color: #444;
+            color: #0f0;
+            font-size: 12px;
+            height: auto;
+
+        }
+        .button_01 {
+            font-size: 12px;
+            width: 10em;
+            height: 2em;
+        }
+
+        .screen {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-around;
+            margin:0px 5px 0px 0px;
+            box-sizing: border-box;
+        }
+        .screen_project {
+            /* height: 20px; */
+            display: flex;
+            flex-direction: column;
+            /* justify-content: space-around; */
+            margin:0px 5px 0px 0px;
+            box-sizing: border-box;
+        }
+
+        .screen div ul{
+            text-align: left;
+            width:100%;
+            font-size: 12px; 
+            border-radius: 2px; 
+            border: 1px solid #444444; 
+            margin: 0;
+            padding: 0;
+            /* width: auto; */      
+        }
+
+        .day_group {
+            display: flex;
+            /* margin-top: 5px; */
+        }
+        .day_group div {
+            width: 100%;
+            margin: 5px;
+        }
+      
+     
+
+        .day_active {
+
+        flex: 1;
+        /* flex: 1 1 auto; */
+        border: 1px solid #f00 ;
+        border-radius: 10px;
+        /* width: 200px; */
+        height: auto;
+        min-width: 0; /* Prevents the div from growing beyond its allocated space */
+
+        color: #0f0;
+        margin-left: 5px;
+        margin-bottom: 5px;
+        padding-bottom: 10px;
+        padding-top: 5px;
+        padding-left: 5px;
+        background-color: #555;
+        font-size: 12px;
+        box-shadow: #000 3px 3px 3px;
+        word-wrap: break-word; /* Ensures that long words will wrap and not overflow */
+
+        /* padding: 0; */
+
+        }
+
+        .day {
+
+        flex: 1;
+        /* flex: 1 1 auto; */
+        border: 1px solid #999 ;
+        border-radius: 10px;
+        /* width: 200px; */
+        height: auto;
+        min-width: 0; /* Prevents the div from growing beyond its allocated space */
+
+        color: #0f0;
+        margin-left: 5px;
+        margin-bottom: 5px;
+        padding-bottom: 10px;
+        padding-top: 5px;
+        padding-left: 5px;
+        background-color: #555;
+        font-size: 12px;
+        box-shadow: #000 3px 3px 3px;
+        word-wrap: break-word; /* Ensures that long words will wrap and not overflow */
+
+        /* padding: 0; */
+
+        }
+        .project {
+            display: flex;
+            flex-direction: row;
+
+            /* flex: 1 1 auto; */
+            border: 1px solid #999;
+            border-radius: 5px;
+            /* width: 200px; */
+            height: 20px;
+            /* min-width: 0;  */
+            /* height: 8px; */
+
+            color: #0f0;
+            margin-left: 5px;
+            margin-right: 5px;
+
+            margin-bottom: 5px;
+            
+            background-color: #555;
+            font-size: 12px;
+            box-shadow: #000 3px 3px 3px;
+            word-wrap: break-word; 
+
+        }
+        .project_button {
+            display: flex;
+            flex-direction: row;
+
+        }
+        .project_title {
+            display: flex;
+            flex-direction: row;
+
+            /* flex: 1 1 auto; */
+            border: 1px solid #999;
+            border-radius: 5px;
+            /* width: 200px; */
+            height: 20px;
+            /* min-width: 0;  */
+            /* height: 8px; */
+
+            color: #0f0;
+            margin-left: 5px;
+            margin-right: 5px;
+
+            margin-bottom: 5px;
+            
+            background-color: #555;
+            font-size: 12px;
+            box-shadow: #000 3px 3px 3px;
+            word-wrap: break-word; 
+
+        }
+        .project_area_id {
+            display: flex;
+            flex-direction: row;
+
+            /* flex: 1 1 auto; */
+            border: 1px solid #999;
+            border-radius: 5px;
+            width: 30px;
+            height: 20px;
+            /* min-width: 0;  */
+            /* height: 8px; */
+
+            color: #0f0;
+            margin-left: 5px;
+            margin-right: 5px;
+
+            margin-bottom: 5px;
+            
+            background-color: #555;
+            font-size: 12px;
+            box-shadow: #000 3px 3px 3px;
+            word-wrap: break-word; 
+
+        }
+        .project_area_name {
+            display: flex;
+            flex-direction: row;
+
+            /* flex: 1 1 auto; */
+            border: 1px solid #999;
+            border-radius: 5px;
+            width: 400px;
+            height: 20px;
+            /* min-width: 0;  */
+            /* height: 8px; */
+
+            color: #0f0;
+            margin-left: 5px;
+            margin-right: 5px;
+
+            margin-bottom: 5px;
+            
+            background-color: #555;
+            font-size: 12px;
+            box-shadow: #000 3px 3px 3px;
+            word-wrap: break-word; 
+
+        }
+        .project_area_title {
+            display: flex;
+            flex-direction: row;
+
+            /* flex: 1 1 auto; */
+            border: 1px solid #999;
+            border-radius: 5px;
+            width: 400px;
+            height: 20px;
+            /* min-width: 0;  */
+            /* height: 8px; */
+
+            color: #fff;
+            margin-left: 5px;
+            margin-right: 5px;
+
+            margin-bottom: 5px;
+            
+            background-color: #555;
+            font-size: 12px;
+            box-shadow: #000 3px 3px 3px;
+            word-wrap: break-word; 
+
+        }
+
+        .ul {
+            width: 100%;
+        }
+
+        .li {
+            width: auto;
+            margin-left: 10px;
+        }
+        .li_project {
+            color: #fff;
+           
+        }
+
+        .clock1 {
+            display: flex;
+            font-size: 16px; 
+            margin-top: 3px; 
+            margin-left: auto; 
+            margin-right: 10px;
+            margin-bottom: 3px;
+            border: 1px solid #999; 
+            padding-left: 10px; 
+            padding-right: 10px; 
+            border-radius: 5px;
+            padding-bottom: 0px;
+            background-color: #555;
+        }
+
+        /* body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        } */
+
+        .base {
+            display: flex;
+            background-color: #999;
+            /* border-radius: 20px; */
+            /* box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); */
+
+        }
+
+        .login-container {
+            background-color: black;
+            margin: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            color: #0f0;
+        }
+        .form-input {
+            margin-bottom: 20px;
+        }
+        .form-select {
+            margin-bottom: 20px;
+        }
+        .form-control {
+            padding: 8px 10px; /* Adjust padding as needed */
+            border: 1px solid #ccc; /* Light grey border */
+            border-radius: 4px; /* Rounded corners */
+            background-color: #fff; /* White background */
+            font-size: 16px; /* Font size similar to inputs */
+            color: #333; /* Dark grey text color */
+        }
+        .form-input input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box; /* Makes sure the padding does not affect the overall width */
+        }
+        .login-button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .login-button:hover {
+            background-color: #0056b3;
+        }
+
+        .signup-container {
+            background-color: black;
+            margin: 20px;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            color: #0f0;
+        }
+        .form-input {
+            margin-bottom: 20px;
+        }
+        .form-input input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box; /* Makes sure the padding does not affect the overall width */
+        }
+        .signup-button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .signup-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* -------------- */
+
+        .input-field {
+        background-color: #444;
+        color: #fff; /* White text color by default */
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        box-sizing: border-box; /* M
+        border: none; /* Removes the default border */
+        padding: 8px;
+        margin: 5px 0;
+        width: 100%; /* Full width minus padding */
+        /* width: calc(100% - 200px); Full width minus padding */
+        }
+
+        .input-field::placeholder {
+            color: #888; /* Light grey placeholder */
+        }
+
+        .input-field:focus {
+            color: #fff; /* Keeps text white when focused */
+            outline: none; /* Removes the default focus outline */
+        }
+
+        .button-submit {
+            background-color: #444;
+            color: #0f0; /* Green text color */
+            padding: 10px 20px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;  /* Full height of the viewport */
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-rows: auto 1fr;  /* 1fr takes the remaining space */
+            height: 100vh;  /* Full height of the viewport */
+            margin: 0px
+        }
+
+        .page {
+            color: #000;
+        }
+
+
+
+
+
+
+        
+
+        
+
+        
+    
+    
+
+        /* Add this to your CSS file */
+    .scrollable-content {
+        max-height: calc(100vh - 200px); /* Adjust the value as needed */
+        overflow-y: auto;
+        padding-bottom: 20px; /* Space for pagination controls */
+    }
+
+    .pagination-controls {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+    .live-update-indicator {
+        display: flex;
+        align-items: center;
+        font-family: Arial, sans-serif;
+        color: #0f0;
+    }
+    
+    .antenna {
+        position: relative;
+        width: 1px;
+        height: 1px;
+        background-color: #333;
+        margin-right: 10px;
+    }
+    
+    .wave {
+        position: absolute;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        border: 2px solid #0f0;
+        opacity: 0;
+        animation: wave-animation 3.0s infinite;
+    }
+    
+    .wave1 {
+        animation-delay: 0s;
+    }
+    
+    .wave2 {
+        animation-delay: 0.5s;
+    }
+    
+    .wave3 {
+        animation-delay: 1s;
+    }
+    
+    @keyframes wave-animation {
+        0% {
+            width: 0;
+            height: 0;
+            opacity: 1;
+            transform: translate(-50%, -50%);
+        }
+        100% {
+            width: 30px;
+            height: 30px;
+            opacity: 0;
+            transform: translate(-50%, -50%);
+            color: #0f0;
+
+        }
+    }
+            
+    </style>
+
+
+</head>
+<header class="tab_00">
+    <body class="ok">
+        <div style="display: flex;">
+            <form action="/schedule/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "schedule" else "#aaa" }};">Schedule</button>
+                <!-- <button type="submit" style="background-color: #444; color: #aaa;">Schedule</button> -->
+            </form>
+            <form action="/link_00/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "link_00" else "#aaa" }};">Link</button>
+            </form>
+           
+            
+            <form action="/project/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "project" else "#aaa" }};">Project</button>
+            </form>
+
+            <form action="/action/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "action" else "#aaa" }};">Action</button>
+            </form>
+
+            <form action="/sqlite/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#f00" if tab_page_active == "sqlite" else "#aaa" }};">Sqlite</button>
+            </form>
+
+            
+
+            <form action="/schedule/select_time_zone/" method="post" class="clock1">
+
+                <div>
+                    
+                    <label for="time_zone" style="color: #0f0">{{ time_zone_message }}</label>
+                    <!-- <label for="time_zone" style="color: {{ message_color }}">{{ time_zone_message }}</label> -->
+                    <input type="hidden" name="login_username" value="{{ login_username }}">
+    
+                    <select id="time_zone" name="time_zone" required aria-label="Time Zone Selection" style="color: #0f0; background-color: #444;">
+                        <!-- Option for each time zone -->
+                        <option value="Asia/Singapore" {% if time_zone == "Asia/Singapore" %}selected{% endif %}>Singapore, Philippines, China, Taiwan : +08:00</option>
+                        <option value="Asia/Tokyo" {% if time_zone == "Asia/Tokyo" %}selected{% endif %}>Japan : +9:00</option>
+                        <option value="Asia/Bangkok" {% if time_zone == "Asia/Bangkok" %}selected{% endif %}>Thailand, Indonesia, Vietnam +07:00</option>
+                        <option value="Asia/Dhaka" {% if time_zone == "Asia/Dhaka" %}selected{% endif %}>Bangladesh : +06:00</option>
+                        <option value="Europe/London" {% if time_zone == "Europe/London" %}selected{% endif %}>London : 00:00 or 01:00</option>
+                        <option value="utc" {% if time_zone == "utc" %}selected{% endif %}>Coordinated Universal Time : 00:00</option>
+                    </select>
+                </div>
+                <button type="submit" style="background-color: #444; color: {{ message_color }}">Select</button>
+                <!-- <button type="submit" style="background-color: #444; color: #0f0;">Select</button> -->
+            </form>
+
+
+
+
+
+            
+
+            <!-- <div class="clock1" id="testClick">
+                <div>{{ ENVIRONMENT }}</div>
+            </div> -->
+
+            <div class="clock1" id="testClick">
+                <div style="margin-right: 10px">Login under : {{ login_username }}</div>
+                <!-- <div id="clock"></div> -->
+            </div>
+        </div>
+        <!-- <div class="title_00">Link List {{ today }}</div>
+        <div id="clock"></div> -->
+    </header>
+        {% block content %}{% endblock %}
+
+    <!-- <script src="/static/script.js"></script>    -->
+    <script>
+        var loginUsername = "{{ login_username }}";  // This variable is now available in JavaScript
+        
+
+        document.getElementById('dateClick').addEventListener('click', function() {
+            // console.log('Button was clicked!');
+        });
+
+        console.log("Hello OK")
+        
+        
+        function onclickItem(id, link) {
+            if (event.shiftKey) {
+                // alert(data);
+                // print("ok")
+                // window.location = "/tab_00/edit_task/" + id + "&local_start_date=" + encodeURIComponent(local_start_date) + "&login_username=" + encodeURIComponent(loginUsername);
+                // window.location = "/tab_00/edit_task/" + id + login_usrename;
+                
+                // window.location = "/schedule/edit_task/" + id + "?local_start_date=" + encodeURIComponent(local_start_date);
+                // window.location = "/tab_00/edit_task/" + id
+                window.location = "/schedule/edit_task/" + id
+                // window.location = "/schedule/edit_task/" + id + "?link=" + encodeURIComponent(link);
+                // window.location = "/schedule/edit_task/" + id + "?local_start_date_selected=" + encodeURIComponent(local_start_date_selected.toISOString());
+                // window.location = "/schedule/edit_task/" + id + "?local_start_date_selected=" + encodeURIComponent(local_start_date_selected.toISOString());
+                
+                
+                
+            }else{
+                window.open(link, '_blank');
+             
+
+            }
+        }
+
+        function onclickDate(date) {
+       
+            
+                console.log(date);
+                var inputElement = document.getElementById('input_date');
+                inputElement.value = date;
+
+        }
+       // inputElement.placeholder = date;
+
+        function onclickLinkCategory(category) {
+       
+            
+                console.log(category);
+                var inputElement = document.getElementById('input_category');
+                inputElement.value = category;
+                // inputElement.placeholder = date;
+
+            
+        }
+        // test 
+        document.getElementById('testClick').addEventListener('click', function() {
+            console.log('Button was clicked ok!');
+        });
+
+
+        function onclickLinkItem(id, link) {
+            if (event.shiftKey) {
+                // alert(data);
+                // print("ok")
+                // window.location = "/tab_00/edit_task/" + id + "&local_start_date=" + encodeURIComponent(local_start_date) + "&login_username=" + encodeURIComponent(loginUsername);
+                // window.location = "/tab_00/edit_task/" + id + login_usrename;
+
+                // window.location = "/schedule/edit_task/" + id + "?local_start_date=" + encodeURIComponent(local_start_date);
+                // window.location = "/tab_00/edit_task/" + id
+                window.location = "/link/edit_task/" + id
+                // window.location = "/schedule/edit_task/" + id + "?link=" + encodeURIComponent(link);
+                // window.location = "/schedule/edit_task/" + id + "?local_start_date_selected=" + encodeURIComponent(local_start_date_selected.toISOString());
+                // window.location = "/schedule/edit_task/" + id + "?local_start_date_selected=" + encodeURIComponent(local_start_date_selected.toISOString());
+
+
+
+            }else{
+                window.open(link, '_blank');
+
+            }
+        }
+
+        
+
+        // clock function
+
+        function updateClock() {
+            const now = new Date(); // Get the current date and time
+            const hours = String(now.getHours()).padStart(2, '0');  // Get hours and ensure it's two digits
+            const minutes = String(now.getMinutes()).padStart(2, '0');  // Get minutes and ensure it's two digits
+            const seconds = String(now.getSeconds()).padStart(2, '0');  // Get seconds and ensure it's two digits
+
+            // Format the time as HH:MM:SS
+            // const timeString = `${hours}:${minutes}:${seconds}`;
+            const timeString = `${hours}:${minutes}:${seconds}`;
+
+            // Update the content of the 'clock' element with the formatted time
+            document.getElementById('clock').textContent = timeString;
+        }
+
+        // Call the function once to set the initial time
+        updateClock();
+
+        // Update the clock every 1000 milliseconds (1 second)
+        setInterval(updateClock, 1000);
+
+        function updateClock_02() {
+            const now = new Date(); // Get the current date and time
+            const hours = String(now.getHours()).padStart(2, '0');  // Get hours and ensure it's two digits
+            const minutes = String(now.getMinutes()).padStart(2, '0');  // Get minutes and ensure it's two digits
+            const seconds = String(now.getSeconds()).padStart(2, '0');  // Get seconds and ensure it's two digits
+    
+            const timeString = `${hours}:${minutes}:${seconds}`;
+    
+            // Ensure the element with id 'clock_02' exists
+            const clockElement = document.getElementById('clock_02');
+            if (clockElement) {
+                clockElement.textContent = timeString;
+            } else {
+                console.error("Element with id 'clock_02' not found.");
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateClock_02();
+            setInterval(updateClock_02, 1000);
+        });
+
+        
+        
+        function submitForm() {
+            // Assuming df_project_json is available somehow, e.g., injected by your server-side script
+            document.getElementById('dfProjectInput').value = df_project_json;
+            document.forms[0].submit();
+        }
+
+            // Refresh the page every 5 minutes (300,000 milliseconds)
+        setInterval(function() {
+        location.reload();
+        }, 1000);
+
+
+        async function fetchLinks() {
+            try {
+                const response = await fetch('/api/links');
+                const links = await response.json();
+                updateLinks(links);
+            } catch (error) {
+                console.error('Error fetching links:', error);
+            }
+        }
+
+        function updateLinks(links) {
+            const container = document.getElementById('links-container');
+            container.innerHTML = ''; // Clear existing content
+
+            links.forEach(link => {
+                const linkElement = document.createElement('div');
+                linkElement.textContent = `${link.name}: ${link.url}`;
+                container.appendChild(linkElement);
+            });
+        }
+
+        // Fetch links every 10 seconds
+        setInterval(fetchLinks, 1000);
+
+        // Fetch links immediately on page load
+        window.onload = fetchLinks;
+
+      
+
+    
+
+
+
+
+
+    </script>
+
+</body>
+</html>

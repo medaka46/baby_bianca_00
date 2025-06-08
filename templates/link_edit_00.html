@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <header class="tab_00">
+        <div style="display: flex;">
+            <form action="/link_001/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if link_tab_page_active == "link_001" else "#aaa" }};">Link 001</button>
+            </form>
+
+            <form action="/link_002/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if link_tab_page_active == "link_002" else "#aaa" }};">Link 002</button>
+            </form>
+
+        </div>
+    
+
+        <div style="display: flex;">
+            <div class="title_00">Link    </div>
+            <div class="title_00" style="margin-left: 20px; ">{{ today }}</div>
+            <div id="clock" class="title_00" style="margin-left: 20px; "></div>
+            
+
+        </div>
+
+        
+        <div style="display: flex;">
+
+
+            <!-- <form action="/link/add_task/" method="post"> -->
+            <form action="/link/update_task/{{ item.id }}" method="post">
+                
+                
+                
+                <input type="hidden" name="time_zone" value="{{ time_zone }}">
+                
+                <input type="text" name="name" value="{{ item.name }}" placeholder="Enter Name ..." style="background-color: #444; color: #fff;">
+                <!-- <input type="text" name="name" value="{{ item.name }}" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'"> -->
+                <!-- <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;"> -->
+                
+                <input type="text" name="link" value="{{ item.url }}" placeholder="Enter link..." style="background-color: #444; color: #fff;">
+                <!-- <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">  -->
+                
+                <input id="input_category" type="text" name="category"  value="{{ item.category }}" placeholder="Enter category..."  style="background-color: #444; color: #fff;">
+                <!-- <input id="input_category" type="text" name="category" placeholder="Enter category..."  style="background-color: #444; color: #888;" onfocus="(this.type='category')"> -->
+                
+                <!-- <input type="time"; name="start_time"; placeholder="start HH:MM";  style="background-color: #444; color: #888;"
+                    onfocus="(this.type='time')">
+                    <input type="time" name="end_time"   style="background-color: #444; color: #888;"> -->
+                    
+                    <!-- <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'"> -->
+                <input type="text" name="status" value="{{ item.status }}" placeholder="Enter status..." style="background-color: #444; color: #fff;">
+                <!-- <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'"> -->
+                    <!-- <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button> -->
+                <button type="submit" style="background-color: #444; color: #0f0;">Update Task</button>
+                    
+                    
+            </form>
+                
+            <form action="/link/delete_task/" method="post">
+                <input type="hidden" name="item_id" value="{{ item.id }}">
+                <button type="submit" style="background-color: #444; color: #0f0;">Delete Task</button>
+            </form>
+        </div>
+
+
+    </header>
+
+
+    
+    <main class="tab_00">
+        <div class="scrollable-content">
+
+            
+            {% for ii in range(4) %}
+            <div class="screen">
+            <!-- <div style="color: #fff"> -->
+                {% for i in range(7) %}
+                
+                <!-- {% if link_tab_page_active == "link_001" %}
+                {% set name_items = ["Intra Net", 'Sharepoint', 'Estimation Server', 'Authrities/consultants', 'Sub-contractors/Suppliers', 'Options', 'Others', 'SIN', 'BKK', 'MLY', 'MNL','JKT', 'CHN', 'HK', 'TWN', 'VNM', 'IND', 'BGD', 'ZAM', 'GUM', 'DJI'] %}
+                {% elif link_tab_page_active == "link_002" %}
+                {% set name_items = ["General", 'AI', 'Financial', 'Crypto', 'Military', 'Coding', 'Others'] %}
+                {% endif %} -->
+
+                    {% if link_tab_page_active == "link_001" %}
+                        {% set name_items = ["Intra Net", 'Sharepoint', 'Estimation Server', 'Authrities/consultants', 'Sub-contractors/Suppliers', 'Options', 'Others', 'SIN', 'BKK', 'MLY', 'MNL','JKT', 'CHN', 'HK', 'TWN', 'VNM', 'IND', 'BGD', 'ZAM', 'GUM', 'DJI'] %}
+                    {% elif link_tab_page_active == "link_002" %}
+                        {% set name_items = ["General", 'AI', 'Financial', 'Crypto', 'Military', 'Coding', 'Data & Database', 'Robotics', 'Others'] %}
+                    {% endif %}
+                
+                
+            <!-- </div> -->
+            
+                    
+            
+            <div class="day">
+                <!-- <div class="{{ 'day_active' if dates[i+ii*7] == today else 'day' }}"> -->
+                    <ul class="ul" >
+                        <div id="categoryClick" style="color: #fff; font-size: 14px;" data-category='{{ name_items[i+ii*7] }}' onclick="onclickLinkCategory('{{ name_items[i+ii*7] }}')">
+                            
+                            {{ name_items[i+ii*7] }}
+                        </div>
+                                
+                        
+                        
+                        
+                        {% for item in df_combined %}
+                        
+                                
+                        
+                        
+                        {% if name_items[i+ii*7] == item["category"] %}
+                        
+                        
+                        <li class="li" onclick="onclickLinkItem('{{ item.id }}', '{{ item.link }}')"> 
+                            
+                            
+                            <!-- {{ item["name"] }} -->
+                            {{ item.name }}
+                            <!-- {# {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }} #} -->
+                            <!-- {{ active_meeting}} -->
+                            
+                            
+                            
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+                                        
+                    </ul>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+            <div style="font-size: 20px; margin-left: 5px">
+                
+            </div>
+            
+            
+        </div>
+    </main>
+    <script>
+        // clock function
+
+        function updateClock() {
+          const now = new Date(); // Get the current date and time
+          const hours = String(now.getHours()).padStart(2, '0');  // Get hours and ensure it's two digits
+          const minutes = String(now.getMinutes()).padStart(2, '0');  // Get minutes and ensure it's two digits
+          const seconds = String(now.getSeconds()).padStart(2, '0');  // Get seconds and ensure it's two digits
+
+          // Format the time as HH:MM:SS
+          // const timeString = `${hours}:${minutes}:${seconds}`;
+          const timeString = `${hours}:${minutes}:${seconds}`;
+
+          // Update the content of the 'clock' element with the formatted time
+          document.getElementById('clock').textContent = timeString;
+      }
+
+      // Call the function once to set the initial time
+      updateClock();
+
+      // Update the clock every 1000 milliseconds (1 second)
+      setInterval(updateClock, 1000);
+
+
+  </script>
+
+
+
+
+    
+    
+{% endblock %}

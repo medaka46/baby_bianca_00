@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <header class="tab_00">
+        <div style="display: flex;">
+            <form action="/link_001/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if link_tab_page_active == "link_001" else "#aaa" }};">Link 001</button>
+            </form>
+
+            <form action="/link_002/" method="get">
+                
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if link_tab_page_active == "link_002" else "#aaa" }};">Link 002</button>
+            </form>
+
+        </div>
+    
+
+        <div style="display: flex;">
+            <div class="title_00">Link    </div>
+            <div class="title_00" style="margin-left: 20px; ">{{ today }}</div>
+            <div id="clock" class="title_00" style="margin-left: 20px; "></div>
+            
+
+        </div>
+
+
+      
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+            <form action="/link/add_task_01/" method="post" style="display: flex;">
+                <input type="hidden" name="time_zone" value="{{ time_zone }}">
+                
+                <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+                
+                <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+                
+                <input id="input_category" type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #888;" onfocus="(this.type='category')">
+                
+                <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+                
+                <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
+            </form>
+
+            <div class="live-update-indicator" style="display: flex; align-items: center; margin-left: auto; margin-right: 10px;">
+                <div class="antenna">
+                    <div class="wave wave1"></div>
+                    <div class="wave wave2"></div>
+                    <div class="wave wave3"></div>
+                </div>
+                <span>Live Updating</span>
+            </div>
+        </div>
+
+        
+        <!-- <button onclick="alertFunction()">Click Me!</button> -->
+
+
+
+    </header>
+    <main class="tab_00">
+        <button onclick="reloadData()">Reload Data</button>
+        <div id="data-container">Loading data...</div>
+
+        <!-- <div class="scrollable-content"> -->
+        <div class="scrollable-content">
+        
+
+            
+            
+            {% for ii in range(4) %}
+                <div class="screen">
+                    <!-- <div style="color: #fff"> -->
+                    {% for i in range(7) %}
+                        
+                        
+                        
+                        {% if link_tab_page_active == "link_001" %}
+                            {% set name_items = ["Intra Net", 'Sharepoint', 'Estimation Server', 'Authrities/consultants', 'Sub-contractors/Suppliers', 'Options', 'Others', 'SIN', 'BKK', 'MLY', 'MNL','JKT', 'CHN', 'HK', 'TWN', 'VNM', 'IND', 'BGD', 'ZAM', 'GUM', 'DJI'] %}
+                        {% elif link_tab_page_active == "link_002" %}
+                            {% set name_items = ["General", 'AI', 'Financial', 'Crypto', 'Military', 'Coding', 'Data & Database', 'Robotics', 'Others'] %}
+                        {% endif %}
+                        
+                    <!-- </div> -->
+                    
+                    
+                    
+                        <div class="day">
+                            <!-- <div class="{{ 'day_active' if dates[i+ii*7] == today else 'day' }}"> -->
+                            <ul class="ul" >
+                                <div id="categoryClick" style="color: #fff; font-size: 14px;" data-category='{{ name_items[i+ii*7] }}' onclick="onclickLinkCategory('{{ name_items[i+ii*7] }}')">
+                                    
+                                    {{ name_items[i+ii*7] }}
+                                </div>
+                                
+                                
+                                
+                                
+                                {% for item in df_combined %}
+                                
+                                
+                                
+                                
+                                    {% if name_items[i+ii*7] == item["category"] %}
+                                    
+                                    <!-- <li class="li"> -->
+                                        <!-- <li class="li" onclick="onclickItem('{{ item }}')"> -->
+                                        <li class="li" onclick="onclickLinkItem('{{ item.id }}', '{{ item.link }}')"> 
+                                            
+                                            
+                                            <!-- {{ item["name"] }} -->
+                                            {{ item.name }}
+                                            <!-- {# {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }} #} -->
+                                            <!-- {{ active_meeting}} -->
+                                            
+                                            
+                                            
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                            </ul>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+                        
+        </div>
+    </main>
+    <footer>
+
+    </footer>
+
+    <script>
+        // clock function
+
+        function updateClock() {
+          const now = new Date(); // Get the current date and time
+          const hours = String(now.getHours()).padStart(2, '0');  // Get hours and ensure it's two digits
+          const minutes = String(now.getMinutes()).padStart(2, '0');  // Get minutes and ensure it's two digits
+          const seconds = String(now.getSeconds()).padStart(2, '0');  // Get seconds and ensure it's two digits
+
+          // Format the time as HH:MM:SS
+          // const timeString = `${hours}:${minutes}:${seconds}`;
+          const timeString = `${hours}:${minutes}:${seconds}`;
+
+          // Update the content of the 'clock' element with the formatted time
+          document.getElementById('clock').textContent = timeString;
+        }
+
+        // Call the function once to set the initial time
+        updateClock();
+
+        // Update the clock every 1000 milliseconds (1 second)
+        setInterval(updateClock, 1000);
+
+
+
+        
+
+
+        async function fetchData() {
+            try {
+                const response = await fetch('https://render-test-00.onrender.com/schedule/');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                updatePage(data);
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+    
+        function updatePage(data) {
+            const container = document.getElementById('data-container');
+            container.innerHTML = ''; // Clear existing content
+    
+            data.forEach(item => {
+                const itemElement = document.createElement('div');
+                itemElement.textContent = `${item.name}: ${item.url}`;
+                container.appendChild(itemElement);
+            });
+        }
+    
+        function reloadData() {
+            fetchData(); // Reloads only the data
+        }
+    
+        // Fetch data immediately on page load
+        window.onload = fetchData;
+
+                    // Function to reload the page
+        function autoReload() {
+            location.reload(); // Reloads the current page
+        }
+
+        // Set interval to call the autoReload function every 4000 milliseconds (4 seconds)
+        setInterval(autoReload, 300000);
+
+
+
+
+
+
+
+    </script>
+
+    <style>
+
+        
+        <!-- .scrollable-content {
+            height: 600px; /* Adjust the height as needed */
+            overflow-y: scroll; /* Enables vertical scrolling */
+        } -->
+    </style>
+
+
+    
+{% endblock %}
+
+
+
+
+

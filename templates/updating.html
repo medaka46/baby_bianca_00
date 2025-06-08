@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test_08</title>
+
+   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+</head>
+<body>
+    <div class="live-update-indicator">
+        <div class="antenna">
+            <div class="wave wave1"></div>
+            <div class="wave wave2"></div>
+            <div class="wave wave3"></div>
+        </div>
+        <span>Live Updating</span>
+    </div>
+    
+</body>
+<style>
+    .live-update-indicator {
+        display: flex;
+        align-items: center;
+        font-family: Arial, sans-serif;
+        color: #0f0;
+    }
+    
+    .antenna {
+        position: relative;
+        width: 1px;
+        height: 1px;
+        background-color: #333;
+        margin-right: 10px;
+    }
+    
+    .wave {
+        position: absolute;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        border: 2px solid #0f0;
+        opacity: 0;
+        animation: wave-animation 3.0s infinite;
+    }
+    
+    .wave1 {
+        animation-delay: 0s;
+    }
+    
+    .wave2 {
+        animation-delay: 0.5s;
+    }
+    
+    .wave3 {
+        animation-delay: 1s;
+    }
+    
+    @keyframes wave-animation {
+        0% {
+            width: 0;
+            height: 0;
+            opacity: 1;
+            transform: translate(-50%, -50%);
+        }
+        100% {
+            width: 30px;
+            height: 30px;
+            opacity: 0;
+            transform: translate(-50%, -50%);
+            color: #0f0;
+
+        }
+    }
+    </style>
+</html>

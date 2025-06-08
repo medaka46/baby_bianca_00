@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="tab_00">
+    <div style="display: flex;">
+        <!-- <div class="title_00">Meeting Schedule {{ today }}</div> -->
+        <div class="title_00">Meeting Schedule    </div>
+        <div class="title_00" style="margin-left: 20px; ">{{ today }}</div>
+        <div id="clock_schedule" class="title_00" style="margin-left: 20px; "></div>
+        {# {{ local_start_date}} #}
+        <div style="margin-left: auto;">
+
+            <form action="/schedule/up/" method="post">
+                <button type="submit" style="background-color: #444; color: #0f0;"> -↑- </button>
+            </form>
+            <form action="/schedule/down/" method="post">
+                <button type="submit" style="background-color: #444; color: #0f0;">-↓-</button>
+            </form>
+        </div>
+
+    </div>
+    
+    <div style="display: flex; align-items: center; width: 100%;">
+    
+        <form action="/schedule/add_task/" method="post" style="display: flex; align-items: center; width: 100%;">
+            <input type="hidden" name="time_zone" value="{{ time_zone }}">
+            <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+            <input id="input_date" type="date" name="date1" placeholder="MM/DD/YYYY" style="background-color: #444; color: #888;" onfocus="(this.type='date')">
+            <input type="time" name="start_time" placeholder="start HH:MM" value="00:00" style="background-color: #444; color: #888;" onfocus="(this.type='time')">
+            <input type="time" name="end_time" value="00:00" style="background-color: #444; color: #888;">
+            <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+            <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+            <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+            <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
+        
+        </form>
+        <div class="live-update-indicator">
+            <div class="antenna">
+                <div class="wave wave1"></div>
+                <div class="wave wave2"></div>
+                <div class="wave wave3"></div>
+            </div>
+            <span>Live Updating</span>
+        </div>
+
+
+
+        <form action="/download_db/" method="get" style="margin-left: 10px;">
+            <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
+        </form>
+
+    </div>
+
+
+    <!-- <form action="/schedule/add_task/" method="post" style="display: flex; align-items: center; width: 100%">
+        <input type="hidden" name="time_zone" value="{{ time_zone }}">
+        <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+        <input id="input_date" type="date" name="date1" placeholder="MM/DD/YYYY" style="background-color: #444; color: #888;" onfocus="(this.type='date')">
+        <input type="time" name="start_time" placeholder="start HH:MM" value="00:00" style="background-color: #444; color: #888;" onfocus="(this.type='time')">
+        <input type="time" name="end_time" value="00:00" style="background-color: #444; color: #888;">
+        <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+        <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+        <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+        <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
+        <form action="/download_db/" method="get" style="margin-left: auto;">
+            <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
+        </form>
+    </form> -->
+
+    
+    <!-- <form action="/schedule/add_task/" method="post">
+        <input type="hidden" name="time_zone" value="{{ time_zone }}">
+
+        <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+       
+        <input id="input_date" type="date" name="date1" placeholder="MM/DD/YYYY"  style="background-color: #444; color: #888;"
+                onfocus="(this.type='date')">
+        <input type="time" name="start_time" placeholder="start HH:MM" value="00:00" style="background-color: #444; color: #888;"
+                onfocus="(this.type='time')">
+        <input type="time" name="end_time" value="00:00" style="background-color: #444; color: #888;">
+                
+        <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+        <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+        <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+        <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
+    </form>
+    <form action="/download_db/" method="get">
+        <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
+    </form> -->
+    <!-- <button onclick="alertFunction()">Click Me!</button> -->
+    <!-- ... existing code ... -->
+</header>
+
+<main class="tab_00">
+    <div class="day_group">
+        <div>Mon.</div>
+        <div>Tue.</div>
+        <div>Wed.</div>
+        <div>Thu.</div>
+        <div>Fri.</div>
+        <div>Sat.</div>
+        <div>Sun.</div> 
+    </div>
+    <div class="scrollable-content">
+        {% for ii in range(50) %}
+            <div class="screen">
+                {% for i in range(7) %}
+                    <div class="{{ 'day_active' if dates[i+ii*7] == today else 'day' }}">
+                        <ul class="ul">
+                            <div id="dateClick" style="color: #0f0;" data-date1='{{ dates[i+ii*7] }}' onclick="onclickDate('{{ dates[i+ii*7] }}')">
+                                {{ dates[i+ii*7] }}
+                            </div>
+                            {% for item in df_combined %}
+                                {% if dates[i+ii*7] == item["local_start_date"] %}
+                                    <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')"> 
+                                        {% set start_time_parts = item.local_start_time.split(':') %}
+                                        {% set start_time_minute = start_time_parts[1] %}
+                                        {% set end_time_parts = item.local_end_time.split(':') %}
+                                        {% set end_time_minute = end_time_parts[1] %}
+
+                                        {% if start_time_minute == '01' and end_time_minute == '01' %}
+                                            {{ '🟩 ' ~item.name }}
+                                        {% else %}
+                                            {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
+                                        {% endif %}
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+    <!-- <div class="pagination-controls">
+        {% if skip > 0 %}
+            <button onclick="loadPage({{ skip - limit }})">Previous</button>
+        {% endif %}
+        {% if has_more %}
+            <button onclick="loadPage({{ next_skip }})">Next</button>
+        {% endif %}
+        <span class="page">Page {{ current_page }} of {{ total_pages }}</span>
+
+    </div> -->
+</main>
+
+<footer>
+</footer>
+
+<script>
+    function updateClock() {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const timeString = `${hours}:${minutes}:${seconds}`;
+        document.getElementById('clock_schedule').textContent = timeString;
+    }
+
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const form = document.querySelector("form[action='/schedule/add_task/']");
+        form.addEventListener("submit", function(event) {
+            let startTime = document.getElementById('start_time');
+            if (startTime.value === '') {
+                startTime.value = '00:00';
+            }
+        });
+    });
+
+
+
+            // Function to reload the page
+    function autoReload() {
+        location.reload(); // Reloads the current page
+    }
+
+    // Set interval to call the autoReload function every 4000 milliseconds (4 seconds)
+    setInterval(autoReload, 300000);
+</script>
+{% endblock %}
