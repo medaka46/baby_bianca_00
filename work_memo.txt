@@ -21,3 +21,8 @@
 20250605 07:00
     I could access database in persistant disk and after re-deploy data still keep previous condition.
     I need to check whether after push codes to GitHub, database still keep previous condition or not.
+    Even after push, database could keep previous condition
+    added download function and a button successfully
+
+20250607 09:40
+    I could upload and 
