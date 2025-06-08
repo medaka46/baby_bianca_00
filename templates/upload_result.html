@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="tab_00">
+    <div style="display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div style="text-align: center;">
+            <h2 style="color: {{ message_color }}; margin-bottom: 20px;">
+                {{ title }}
+            </h2>
+            
+            {% if success %}
+                <div style="background-color: #004400; border: 2px solid #0f0; border-radius: 10px; padding: 20px; margin: 20px 0;">
+                    <h3 style="color: #0f0; margin-bottom: 10px;">✅ Database Upload Successful!</h3>
+                    <div style="color: #0f0; text-align: left;">
+                        <p><strong>Uploaded File:</strong> {{ details.uploaded_file }}</p>
+                        <p><strong>File Size:</strong> {{ (details.file_size / 1024 / 1024) | round(2) }} MB</p>
+                        <p><strong>Backup Created:</strong> {{ details.backup_created }}</p>
+                        <hr style="border-color: #0f0; margin: 15px 0;">
+                        <p><strong>New Database Contents:</strong></p>
+                        <ul style="margin-left: 20px;">
+                            <li>Users: {{ details.new_record_counts.users }}</li>
+                            <li>Schedules: {{ details.new_record_counts.schedules }}</li>
+                            <li>Links: {{ details.new_record_counts.links }}</li>
+                        </ul>
+                    </div>
+                </div>
+            {% else %}
+                <div style="background-color: #440000; border: 2px solid #f00; border-radius: 10px; padding: 20px; margin: 20px 0;">
+                    <h3 style="color: #f00; margin-bottom: 10px;">❌ Database Upload Failed</h3>
+                    <div style="color: #f00; text-align: left;">
+                        <p><strong>Error:</strong> {{ error_message }}</p>
+                        {% if details and details.backup_restored %}
+                            <p style="color: #ff0;"><strong>Status:</strong> Original database has been restored from backup.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+            
+            <div style="margin-top: 30px;">
+                <a href="/schedule/" style="background-color: #444; color: #0f0; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">
+                    Continue to Application
+                </a>
+                {% if success %}
+                    <a href="/diagnostic-database" style="background-color: #444; color: #ff0; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                        View Database Status
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</header>
+{% endblock %} 

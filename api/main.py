@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, Depends, Request, Form, Query, HTTPException
+from fastapi import FastAPI, Depends, Request, Form, Query, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -126,6 +126,198 @@ async def download_db(request: Request, db: Session = Depends(get_db)):
     logger.info(f"Download request - Serving file as: {filename}")
 
     return FileResponse(db_path, media_type='application/octet-stream', filename=filename)
+
+@app.post("/upload_db/")
+async def upload_db(request: Request, database_file: UploadFile = File(...)):
+    """
+    Upload and replace the production database.
+    Steps:
+    1. Download current database as backup
+    2. Validate uploaded file
+    3. Replace database on persistent disk
+    4. Recreate database connections
+    """
+    # Only allow in production environment
+    if ENVIRONMENT != 'production':
+        return templates.TemplateResponse("upload_result.html", {
+            "request": request,
+            "success": False,
+            "title": "Upload Not Allowed",
+            "message_color": "#f00",
+            "error_message": "Database upload is only allowed in production environment"
+        })
+    
+    from api.database import get_database_path
+    import shutil
+    import tempfile
+    import sqlite3
+    
+    logger.info(f"Database upload started - File: {database_file.filename}")
+    
+    try:
+        # Get current database path
+        current_db_path = get_database_path()
+        logger.info(f"Current database path: {current_db_path}")
+        
+        # Step 1: Create backup of current database
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"backup_before_upload_{timestamp}.db"
+        backup_path = os.path.join("/var/data", backup_filename)
+        
+        if os.path.exists(current_db_path):
+            shutil.copy2(current_db_path, backup_path)
+            logger.info(f"Backup created at: {backup_path}")
+        else:
+            logger.warning(f"No existing database found at {current_db_path}")
+        
+        # Step 2: Validate uploaded file
+        if not database_file.filename.lower().endswith(('.db', '.sqlite', '.sqlite3')):
+            return templates.TemplateResponse("upload_result.html", {
+                "request": request,
+                "success": False,
+                "title": "Invalid File Type",
+                "message_color": "#f00",
+                "error_message": "Invalid file type. Please upload a SQLite database file (.db, .sqlite, .sqlite3)"
+            })
+        
+        # Read uploaded file content
+        file_content = await database_file.read()
+        file_size = len(file_content)
+        logger.info(f"Uploaded file size: {file_size} bytes")
+        
+        if file_size == 0:
+            return templates.TemplateResponse("upload_result.html", {
+                "request": request,
+                "success": False,
+                "title": "Empty File",
+                "message_color": "#f00",
+                "error_message": "Uploaded file is empty. Please select a valid database file."
+            })
+        
+        # Validate SQLite file by trying to open it
+        with tempfile.NamedTemporaryFile() as temp_file:
+            temp_file.write(file_content)
+            temp_file.flush()
+            
+            try:
+                # Test if it's a valid SQLite database
+                conn = sqlite3.connect(temp_file.name)
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+                tables = cursor.fetchall()
+                conn.close()
+                logger.info(f"Database validation successful. Tables found: {[t[0] for t in tables]}")
+                
+                # Check if it has our expected tables
+                table_names = [t[0] for t in tables]
+                required_tables = ['users', 'schedules', 'links']  # Adjust based on your models
+                
+                # Note: We're being flexible here - not requiring all tables to exist
+                # as the user might be uploading a database with different structure
+                
+            except sqlite3.Error as e:
+                logger.error(f"SQLite validation failed: {e}")
+                return templates.TemplateResponse("upload_result.html", {
+                    "request": request,
+                    "success": False,
+                    "title": "Invalid Database File",
+                    "message_color": "#f00",
+                    "error_message": f"Invalid SQLite database file: {str(e)}"
+                })
+        
+        # Step 3: Close existing database connections
+        logger.info("Disposing existing database engine connections")
+        engine.dispose()
+        
+        # Step 4: Replace the database file
+        logger.info(f"Replacing database file at: {current_db_path}")
+        with open(current_db_path, 'wb') as f:
+            f.write(file_content)
+        
+        # Step 5: Recreate database connections
+        logger.info("Recreating database engine and connections")
+        global SessionLocal, engine
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        
+        # Create new engine
+        new_database_url = f"sqlite:///{current_db_path}"
+        new_engine = create_engine(
+            new_database_url, 
+            connect_args={"check_same_thread": False, "timeout": 30}
+        )
+        
+        # Update global engine
+        engine = new_engine
+        
+        # Create new session factory
+        SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=new_engine)
+        
+        # Step 6: Verify the new database works
+        try:
+            test_db = SessionLocal()
+            # Try to count records in main tables to verify
+            user_count = test_db.query(User).count()
+            schedule_count = test_db.query(Schedule).count()
+            link_count = test_db.query(Link).count()
+            test_db.close()
+            
+            logger.info(f"Database replacement successful. New counts - Users: {user_count}, Schedules: {schedule_count}, Links: {link_count}")
+            
+            # Return success response with details
+            return templates.TemplateResponse("upload_result.html", {
+                "request": request,
+                "success": True,
+                "title": "Database Upload Complete",
+                "message_color": "#0f0",
+                "details": {
+                    "uploaded_file": database_file.filename,
+                    "file_size": file_size,
+                    "backup_created": backup_filename,
+                    "new_record_counts": {
+                        "users": user_count,
+                        "schedules": schedule_count,
+                        "links": link_count
+                    }
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Database verification failed after replacement: {e}")
+            
+            # Try to restore backup if verification fails
+            if os.path.exists(backup_path):
+                logger.info("Attempting to restore backup due to verification failure")
+                shutil.copy2(backup_path, current_db_path)
+                engine.dispose()
+                # Recreate engine again with restored database
+                restored_engine = create_engine(
+                    f"sqlite:///{current_db_path}", 
+                    connect_args={"check_same_thread": False, "timeout": 30}
+                )
+                engine = restored_engine
+                SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=restored_engine)
+                
+            return templates.TemplateResponse("upload_result.html", {
+                "request": request,
+                "success": False,
+                "title": "Database Verification Failed",
+                "message_color": "#f00",
+                "error_message": f"Database replacement failed verification. Backup restored. Error: {str(e)}",
+                "details": {"backup_restored": True}
+            })
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error during database upload: {e}")
+        return templates.TemplateResponse("upload_result.html", {
+            "request": request,
+            "success": False,
+            "title": "Upload Failed",
+            "message_color": "#f00",
+            "error_message": f"Database upload failed: {str(e)}"
+        })
 
 @app.get("/download-db-info")
 async def download_db_info():

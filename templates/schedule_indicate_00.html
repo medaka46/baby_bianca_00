@@ -49,6 +49,10 @@
         <form action="/download_db/" method="get" style="margin-left: 10px;">
             <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
         </form>
+        <form id="uploadForm" action="/upload_db/" method="post" enctype="multipart/form-data" style="margin-left: 10px;">
+            <input type="file" id="dbFile" name="database_file" accept=".db,.sqlite,.sqlite3" style="display: none;" onchange="handleFileSelect(this)">
+            <button type="button" onclick="document.getElementById('dbFile').click()" style="background-color: #444; color: #ff0;">Upload</button>
+        </form>
         {% endif %}
 
     </div>
@@ -185,5 +189,50 @@
 
     // Set interval to call the autoReload function every 4000 milliseconds (4 seconds)
     setInterval(autoReload, 300000);
+
+    // Database upload functionality
+    function handleFileSelect(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const fileName = file.name;
+            const fileSize = (file.size / 1024 / 1024).toFixed(2); // Size in MB
+            
+            // Validate file extension
+            const validExtensions = ['.db', '.sqlite', '.sqlite3'];
+            const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+            
+            if (!validExtensions.includes(fileExtension)) {
+                alert('Please select a valid SQLite database file (.db, .sqlite, .sqlite3)');
+                input.value = '';
+                return;
+            }
+            
+            // Show confirmation dialog
+            const confirmMessage = `⚠️ DATABASE REPLACEMENT WARNING ⚠️\n\n` +
+                `You are about to replace the current production database with:\n` +
+                `File: ${fileName}\n` +
+                `Size: ${fileSize} MB\n\n` +
+                `This action will:\n` +
+                `1. Download and backup the current database\n` +
+                `2. Replace it with your uploaded file\n` +
+                `3. Restart database connections\n\n` +
+                `⚠️ This cannot be undone! ⚠️\n\n` +
+                `Are you absolutely sure you want to proceed?`;
+            
+            if (confirm(confirmMessage)) {
+                // Show progress indication
+                const uploadButton = document.querySelector('button[onclick*="dbFile"]');
+                const originalText = uploadButton.textContent;
+                uploadButton.textContent = 'Uploading...';
+                uploadButton.disabled = true;
+                
+                // Submit the form
+                document.getElementById('uploadForm').submit();
+            } else {
+                // Clear the file input if user cancels
+                input.value = '';
+            }
+        }
+    }
 </script>
 {% endblock %}
