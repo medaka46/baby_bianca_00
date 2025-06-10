@@ -1,165 +1,333 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        /* Modern Authentication Page Styles */
+        * {
+            box-sizing: border-box;
+        }
 
-{% block content %}
-    <header>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #000000;
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
 
-        <style>
-            /* CSS styles */
-            .container_vertical {
-                display: flex;
-                flex-direction: column; /* This makes the layout vertical */
-                align-items: center; /* This centers the items horizontally */
-                justify-content: center; /* This centers the items vertically */
-                /* height: 100vh;  */
-                /* 100% of the viewport height */
-            }
-            .container_vertical_text {
-                display: flex;
-                flex-direction: column; /* This makes the layout vertical */
-                text-align: left;
-                /* align-items: center;  */
-                /* This centers the items horizontally */
-                justify-content: center; /* This centers the items vertically */
-                /* height: 100vh;  */
-                /* 100% of the viewport height */
-                margin-bottom: 20px;
-            }
-            .container_horizontal {
-                display: flex;
-                flex-direction: row; /* This makes the layout vertical */
-                align-items: center; /* This centers the items horizontally */
-                justify-content: center; /* This centers the items vertically */
-                /* height: 100vh;  */
-                /* 100% of the viewport height */
-            }
-            .item {
-                margin: 10px; /* Adds some space between the items */
-                padding: 20px;
-                background-color: lightgray; /* Just to make the items visible */
-                border: 1px solid #000; /* Adds a border around each item */
-            }
-        </style>
-    </header>
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
 
-    <body>
-        
-        <!-- <main> -->
-        <main class="tab_00">
+        .auth-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 900px;
+            min-height: 600px;
+            display: flex;
+            position: relative;
+        }
+
+        .auth-forms {
+            display: flex;
+            width: 100%;
+            position: relative;
+        }
+
+        .form-section {
+            flex: 1;
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+
+        .form-section h2 {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2d3748;
+            text-align: center;
+        }
+
+        .form-section p {
+            color: #718096;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #4a5568;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f7fafc;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #48bb78;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.1);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: #f7fafc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: #48bb78;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.1);
+        }
+
+        .auth-button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .login-button {
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+        }
+
+        .login-button:hover {
+            background: linear-gradient(135deg, #38a169, #2f855a);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(72, 187, 120, 0.3);
+        }
+
+        .signup-button {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+        }
+
+        .signup-button:hover {
+            background: linear-gradient(135deg, #3182ce, #2b77cb);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(66, 153, 225, 0.3);
+        }
+
+        .divider {
+            position: absolute;
+            left: 50%;
+            top: 10%;
+            bottom: 10%;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, #e2e8f0, transparent);
+            transform: translateX(-50%);
+        }
+
+        .divider::before {
+            content: 'OR';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff;
+            padding: 10px;
+            font-size: 0.8rem;
+            color: #a0aec0;
+            font-weight: 500;
+        }
+
+        .message-alert {
+            border: 2px solid #48bb78;
+            border-radius: 12px;
+            margin: 20px 0;
+            padding: 15px 20px;
+            font-size: 1rem;
+            background: rgba(72, 187, 120, 0.1);
+            color: #0f0;
             
-            <div class="container_vertical">
-                {# {% set message_color = "red" %} #}
-                <div>
-                    <!-- login_signup.html -->
+            text-align: center;
+            font-weight: 500;
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            max-width: 500px;
+            width: 90%;
+        }
 
-                </div>
-                <div style="border: 1px solid #0f0; border-radius: 5px; margin-top: 5px; padding: 5px; font-size: 16px ; color: {{ message_color }}; ">
-                    {{message}}
-                </div>
+        .page-title {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-                <div>
-                    <div class="container_horizontal">
-                        <div class="login-container">
-                            <h2>Log In</h2>
-                            <form action="/login_signup/check_user/" method="post">
-                                
-                                <div class="form-input">
-                                    <label for="username">Username !</label>
-                                    <input type="text" id="username" name="username" required>
-                                </div>
-                                
-                                <div class="form-input">
-                                    <label for="email">Mail address</label>
-                                    <input type="text" id="email" name="email" required>
-                                </div>
-                                
-                                <div class="form-input">
-                                    <label for="password">Password</label>
-                                    <input type="password" id="password" name="password" required>
-                                </div>
-                                
-                                <button type="submit" class="login-button">Log In</button>
-                            </form>
-                            
+        .page-title h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .page-title p {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .auth-wrapper {
+                flex-direction: column;
+                max-width: 400px;
+                margin: 20px;
+            }
+
+            .auth-forms {
+                flex-direction: column;
+            }
+
+            .form-section {
+                padding: 40px 30px;
+            }
+
+            .divider {
+                left: 10%;
+                right: 10%;
+                top: 50%;
+                bottom: auto;
+                width: auto;
+                height: 1px;
+                background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+            }
+
+            .divider::before {
+                top: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="tab_00">
+        <div class="auth-container">
+            {% if message %}
+            <div class="message-alert">
+                {{ message }}
+            </div>
+            {% endif %}
+            <div class="auth-wrapper">
+                
+                <div class="auth-forms">
+                    <!-- Login Section -->
+                    <div class="form-section">
+                        <h2>Welcome Back</h2>
+                        <p>Sign in to your account</p>
                         
-                        </div>    
+                        <form action="/login_signup/check_user/" method="post">
+                            <div class="form-group">
+                                <label for="login_username">Username</label>
+                                <input type="text" id="login_username" name="username" class="form-input" required>
+                            </div>
                             
-                        <div class="signup-container">
-                            <h2>Sign Up</h2>
-                            <form action="/login_signup/add_user/" method="post">
-                                
-                                <div class="form-input">
-                                    <label for="username">Username</label>
-                                    <input type="text" id="username" name="username" required>
-                                </div>
-                                
-                                <div class="form-input">
-                                    <label for="email">Mail address</label>
-                                    <input type="email" id="email" name="email" required>
-                                </div>
-                                
-                                <div class="form-input">
-                                    <label for="password">Password</label>
-                                    <input type="password" id="password" name="password" required>
-                                </div>
-                                
-                                <div class="container_vertical_text">
-                                    <label for="login_user_language" style="margin-bottom: 5px;">Language</label>
-                                    <select id="login_user_language" name="login_user_language" required aria-label="Language Selection" class="form-control">
-                                        <!-- Option for each time zone -->
-                                        <option value="English" {% if login_user_language == "English" %}selected{% endif %}>English</option>
-                                        <option value="Japanese" {% if login_user_language == "Asia/Tokyo" %}selected{% endif %}>Japanese</option>
-                                        <option value="Chinese" {% if login_user_language == "Asia/Bangkok" %}selected{% endif %}>Chinese</option>
-                                    </select>
-
-                                    <!-- <input type="text" id="language" name="language" required> -->
-                                </div>
-                                
-                                <!-- <div class="form-input">
-                                    <label for="password">Language</label>
-                                    <input type="password" id="password" name="password" required>
-                                </div> -->
-                                <div class="container_vertical_text">
-                                    <label for="time_zone">Country</label>
-                                    <select id="time_zone" name="time_zone" required aria-label="Time Zone Selection" class="form-control">
-                                        <!-- Option for each time zone -->
-                                        <option value="Asia/Singapore" {% if time_zone == "Asia/Singapore" %}selected{% endif %}>Singapore, Philippines, China, Taiwan : +07:00</option>
-                                        <option value="Asia/Tokyo" {% if time_zone == "Asia/Tokyo" %}selected{% endif %}>Japan : +8:00</option>
-                                        <option value="Asia/Bangkok" {% if time_zone == "Asia/Bangkok" %}selected{% endif %}>Thailand, Indonesia, Vietnam +06:00</option>
-                                        <option value="Asia/Dhaka" {% if time_zone == "Asia/Dhaka" %}selected{% endif %}>Bangladesh : +05:00</option>
-                                        <option value="Europe/London" {% if time_zone == "Europe/London" %}selected{% endif %}>London : 00:00 or 01:00</option>
-                                        <option value="utc" {% if time_zone == "utc" %}selected{% endif %}>Coordinated Universal Time : 00:00</option>
-                                    </select>
-                                </div>
-
-                                <!-- <div class="form-select">
-                                    <label for="password">Language</label>
-                                    <select type="password" id="time_zone" name="time_zone" required aria-label="Time Zone Selection" style="color: #0f0; background-color: #444;">
-                                       
-    
-                                        <option value="Asia/Singapore" {% if time_zone == "Asia/Singapore" %}selected{% endif %}>Singapore, Philippines, China, Taiwan : +07:00</option>
-                                        <option value="Asia/Tokyo" {% if time_zone == "Asia/Tokyo" %}selected{% endif %}>Japan : +8:00</option>
-                                        <option value="Asia/Bangkok" {% if time_zone == "Asia/Bangkok" %}selected{% endif %}>Thailand, Indonesia, Vietnam +06:00</option>
-                                        <option value="Asia/Dhaka" {% if time_zone == "Asia/Dhaka" %}selected{% endif %}>Bangladesh : +05:00</option>
-                                        <option value="Europe/London" {% if time_zone == "Europe/London" %}selected{% endif %}>London : 00:00 or 01:00</option>
-                                        <option value="utc" {% if time_zone == "utc" %}selected{% endif %}>Coordinated Universal Time : 00:00</option>
-                                    </select>
-
-                                </div> -->
-
-                                
-                                <button type="submit" class="signup-button">Sign Up</button>
-                            </form>
+                            <div class="form-group">
+                                <label for="login_email">Mail Address</label>
+                                <input type="email" id="login_email" name="email" class="form-input" required>
+                            </div>
                             
-                        </div>
-                
-                
+                            <div class="form-group">
+                                <label for="login_password">Password</label>
+                                <input type="password" id="login_password" name="password" class="form-input" required>
+                            </div>
+                            
+                            <button type="submit" class="auth-button login-button">Sign In</button>
+                        </form>
                     </div>
-   
-               </div>
-            </div>    
-            
-        </main>
-    </body>  
 
-
-{% endblock %}
+                    <!-- Divider -->
+                    <div class="divider"></div>
+                    
+                    <!-- Signup Section -->
+                    <div class="form-section">
+                        <h2>Create Account</h2>
+                        <p>Join us today</p>
+                        
+                        <form action="/login_signup/add_user/" method="post">
+                            <div class="form-group">
+                                <label for="signup_username">Username</label>
+                                <input type="text" id="signup_username" name="username" class="form-input" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="signup_email">Mail Address</label>
+                                <input type="email" id="signup_email" name="email" class="form-input" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="signup_password">Password</label>
+                                <input type="password" id="signup_password" name="password" class="form-input" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="login_user_language">Language</label>
+                                <select id="login_user_language" name="login_user_language" class="form-select" required>
+                                    <option value="English" {% if login_user_language == "English" %}selected{% endif %}>English</option>
+                                    <option value="Japanese" {% if login_user_language == "Japanese" %}selected{% endif %}>Japanese</option>
+                                    <option value="Chinese" {% if login_user_language == "Chinese" %}selected{% endif %}>Chinese</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" style="display: none;">
+                                <label for="time_zone">Country/Region</label>
+                                <select id="time_zone" name="time_zone" class="form-select">
+                                    <option value="Asia/Singapore" {% if time_zone == "Asia/Singapore" %}selected{% endif %}>Singapore, Philippines, China, Taiwan (+08:00)</option>
+                                    <option value="Asia/Tokyo" {% if time_zone == "Asia/Tokyo" %}selected{% endif %}>Japan (+09:00)</option>
+                                    <option value="Asia/Bangkok" {% if time_zone == "Asia/Bangkok" %}selected{% endif %}>Thailand, Indonesia, Vietnam (+07:00)</option>
+                                    <option value="Asia/Dhaka" {% if time_zone == "Asia/Dhaka" %}selected{% endif %}>Bangladesh (+06:00)</option>
+                                    <option value="Europe/London" {% if time_zone == "Europe/London" %}selected{% endif %}>London (GMT/BST)</option>
+                                    <option value="utc" {% if time_zone == "utc" %}selected{% endif %}>Coordinated Universal Time (UTC)</option>
+                                </select>
+                            </div>
+                            
+                            <button type="submit" class="auth-button signup-button">Create Account</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

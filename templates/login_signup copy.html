@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <header>
+
+        <style>
+            /* CSS styles */
+            .container_vertical {
+                display: flex;
+                flex-direction: column; /* This makes the layout vertical */
+                align-items: center; /* This centers the items horizontally */
+                justify-content: center; /* This centers the items vertically */
+                /* height: 100vh;  */
+                /* 100% of the viewport height */
+            }
+            .container_vertical_text {
+                display: flex;
+                flex-direction: column; /* This makes the layout vertical */
+                text-align: left;
+                /* align-items: center;  */
+                /* This centers the items horizontally */
+                justify-content: center; /* This centers the items vertically */
+                /* height: 100vh;  */
+                /* 100% of the viewport height */
+                margin-bottom: 20px;
+            }
+            .container_horizontal {
+                display: flex;
+                flex-direction: row; /* This makes the layout vertical */
+                align-items: center; /* This centers the items horizontally */
+                justify-content: center; /* This centers the items vertically */
+                /* height: 100vh;  */
+                /* 100% of the viewport height */
+            }
+            .item {
+                margin: 10px; /* Adds some space between the items */
+                padding: 20px;
+                background-color: lightgray; /* Just to make the items visible */
+                border: 1px solid #000; /* Adds a border around each item */
+            }
+        </style>
+    </header>
+
+    <body>
+        
+        <!-- <main> -->
+        <main class="tab_00">
+            
+            <div class="container_vertical">
+                {# {% set message_color = "red" %} #}
+                <div>
+                    <!-- login_signup.html -->
+
+                </div>
+                <div style="border: 1px solid #0f0; border-radius: 5px; margin-top: 5px; padding: 5px; font-size: 16px ; color: {{ message_color }}; ">
+                    {{message}}
+                </div>
+
+                <div>
+                    <div class="container_horizontal">
+                        <div class="login-container">
+                            <h2>Log In</h2>
+                            <form action="/login_signup/check_user/" method="post">
+                                
+                                <div class="form-input">
+                                    <label for="username">Username !</label>
+                                    <input type="text" id="username" name="username" required>
+                                </div>
+                                
+                                <div class="form-input">
+                                    <label for="email">Mail address</label>
+                                    <input type="text" id="email" name="email" required>
+                                </div>
+                                
+                                <div class="form-input">
+                                    <label for="password">Password</label>
+                                    <input type="password" id="password" name="password" required>
+                                </div>
+                                
+                                <button type="submit" class="login-button">Log In</button>
+                            </form>
+                            
+                        
+                        </div>    
+                            
+                        <div class="signup-container">
+                            <h2>Sign Up</h2>
+                            <form action="/login_signup/add_user/" method="post">
+                                
+                                <div class="form-input">
+                                    <label for="username">Username</label>
+                                    <input type="text" id="username" name="username" required>
+                                </div>
+                                
+                                <div class="form-input">
+                                    <label for="email">Mail address</label>
+                                    <input type="email" id="email" name="email" required>
+                                </div>
+                                
+                                <div class="form-input">
+                                    <label for="password">Password</label>
+                                    <input type="password" id="password" name="password" required>
+                                </div>
+                                
+                                <div class="container_vertical_text">
+                                    <label for="login_user_language" style="margin-bottom: 5px;">Language</label>
+                                    <select id="login_user_language" name="login_user_language" required aria-label="Language Selection" class="form-control">
+                                        <!-- Option for each time zone -->
+                                        <option value="English" {% if login_user_language == "English" %}selected{% endif %}>English</option>
+                                        <option value="Japanese" {% if login_user_language == "Asia/Tokyo" %}selected{% endif %}>Japanese</option>
+                                        <option value="Chinese" {% if login_user_language == "Asia/Bangkok" %}selected{% endif %}>Chinese</option>
+                                    </select>
+
+                                    <!-- <input type="text" id="language" name="language" required> -->
+                                </div>
+                                
+                                <!-- <div class="form-input">
+                                    <label for="password">Language</label>
+                                    <input type="password" id="password" name="password" required>
+                                </div> -->
+                                <div class="container_vertical_text">
+                                    <label for="time_zone">Country</label>
+                                    <select id="time_zone" name="time_zone" required aria-label="Time Zone Selection" class="form-control">
+                                        <!-- Option for each time zone -->
+                                        <option value="Asia/Singapore" {% if time_zone == "Asia/Singapore" %}selected{% endif %}>Singapore, Philippines, China, Taiwan : +07:00</option>
+                                        <option value="Asia/Tokyo" {% if time_zone == "Asia/Tokyo" %}selected{% endif %}>Japan : +8:00</option>
+                                        <option value="Asia/Bangkok" {% if time_zone == "Asia/Bangkok" %}selected{% endif %}>Thailand, Indonesia, Vietnam +06:00</option>
+                                        <option value="Asia/Dhaka" {% if time_zone == "Asia/Dhaka" %}selected{% endif %}>Bangladesh : +05:00</option>
+                                        <option value="Europe/London" {% if time_zone == "Europe/London" %}selected{% endif %}>London : 00:00 or 01:00</option>
+                                        <option value="utc" {% if time_zone == "utc" %}selected{% endif %}>Coordinated Universal Time : 00:00</option>
+                                    </select>
+                                </div>
+
+                                <!-- <div class="form-select">
+                                    <label for="password">Language</label>
+                                    <select type="password" id="time_zone" name="time_zone" required aria-label="Time Zone Selection" style="color: #0f0; background-color: #444;">
+                                       
+    
+                                        <option value="Asia/Singapore" {% if time_zone == "Asia/Singapore" %}selected{% endif %}>Singapore, Philippines, China, Taiwan : +07:00</option>
+                                        <option value="Asia/Tokyo" {% if time_zone == "Asia/Tokyo" %}selected{% endif %}>Japan : +8:00</option>
+                                        <option value="Asia/Bangkok" {% if time_zone == "Asia/Bangkok" %}selected{% endif %}>Thailand, Indonesia, Vietnam +06:00</option>
+                                        <option value="Asia/Dhaka" {% if time_zone == "Asia/Dhaka" %}selected{% endif %}>Bangladesh : +05:00</option>
+                                        <option value="Europe/London" {% if time_zone == "Europe/London" %}selected{% endif %}>London : 00:00 or 01:00</option>
+                                        <option value="utc" {% if time_zone == "utc" %}selected{% endif %}>Coordinated Universal Time : 00:00</option>
+                                    </select>
+
+                                </div> -->
+
+                                
+                                <button type="submit" class="signup-button">Sign Up</button>
+                            </form>
+                            
+                        </div>
+                
+                
+                    </div>
+   
+               </div>
+            </div>    
+            
+        </main>
+    </body>  
+
+
+{% endblock %}
