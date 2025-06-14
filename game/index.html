@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Invaders</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #222;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #00ff00;
+            margin-bottom: 10px;
+        }
+        
+        .instructions {
+            margin-bottom: 20px;
+            background-color: #333;
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 800px;
+            margin: 0 auto 20px auto;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            margin: 5px;
+        }
+        
+        .key {
+            background-color: #555;
+            padding: 5px 10px;
+            border-radius: 5px;
+            margin: 2px;
+            display: inline-block;
+            min-width: 40px;
+        }
+        
+        #gameCanvas {
+            border: 2px solid #00ff00;
+            background-color: #000;
+            margin: 20px auto;
+            display: block;
+        }
+        
+        .features {
+            max-width: 800px;
+            margin: 20px auto;
+            text-align: left;
+            background-color: #333;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .features h3 {
+            color: #00ff00;
+            margin-top: 0;
+        }
+        
+        .features ul {
+            margin: 10px 0;
+        }
+        
+        .features li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 SPACE INVADERS 🛸</h1>
+    
+    <div class="instructions">
+        <h3>How to Play</h3>
+        <div class="controls">
+            <div class="control-group">
+                <strong>Movement:</strong><br>
+                <span class="key">←</span> <span class="key">→</span> or <span class="key">A</span> <span class="key">D</span>
+            </div>
+            <div class="control-group">
+                <strong>Shoot:</strong><br>
+                <span class="key">SPACE</span> or <span class="key">↑</span> or <span class="key">W</span>
+            </div>
+            <div class="control-group">
+                <strong>Start/Restart:</strong><br>
+                <span class="key">SPACE</span> or <span class="key">ENTER</span>
+            </div>
+        </div>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="features">
+        <h3>Game Features</h3>
+        <ul>
+            <li>🎯 <strong>Multiple Enemy Types:</strong> Red (30 pts), Yellow (20 pts), Cyan (10 pts)</li>
+            <li>💥 <strong>Collision Detection:</strong> Realistic bullet and enemy interactions</li>
+            <li>📈 <strong>Progressive Difficulty:</strong> Enemies get faster each level</li>
+            <li>❤️ <strong>Lives System:</strong> Start with 3 lives, lose one when hit</li>
+            <li>🏆 <strong>Scoring System:</strong> Different points for different enemy types</li>
+            <li>🎮 <strong>Smooth Controls:</strong> Responsive movement and shooting</li>
+            <li>🔄 <strong>Infinite Levels:</strong> Game continues with increasing difficulty</li>
+            <li>🛡️ <strong>Enemy AI:</strong> Enemies move in formation and shoot back</li>
+        </ul>
+        
+        <h3>Game Rules</h3>
+        <ul>
+            <li>Destroy all enemies to advance to the next level</li>
+            <li>Avoid enemy bullets and prevent enemies from reaching you</li>
+            <li>Each level increases enemy speed and difficulty</li>
+            <li>Game ends when you lose all lives or enemies reach your position</li>
+        </ul>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html> 
