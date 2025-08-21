@@ -1,163 +1,136 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <header class="tab_00">
-        <div style="display: flex;">
-            <form action="/link_001/" method="get">
-                
-                <button type="submit" style="background-color: #444; color: {{ "#0f0" if link_tab_page_active == "link_001" else "#aaa" }};">Link 001</button>
+    <header class="tab_00" style="padding: 5px; margin-bottom: 5px;">
+        <!-- Navigation tabs - compact layout -->
+        <div style="display: flex; gap: 2px; margin-bottom: 5px;">
+            <form action="/link_001/" method="get" style="margin: 0;">
+                <button type="submit" style="background-color: #444; color: {% if link_tab_page_active == "link_001" %}#0f0{% else %}#aaa{% endif %}; padding: 5px 10px; border: none; cursor: pointer;">Link 001</button>
             </form>
-
-            <form action="/link_002/" method="get">
-                
-                <button type="submit" style="background-color: #444; color: {{ "#0f0" if link_tab_page_active == "link_002" else "#aaa" }};">Link 002</button>
+            <form action="/link_002/" method="get" style="margin: 0;">
+                <button type="submit" style="background-color: #444; color: {% if link_tab_page_active == "link_002" %}#0f0{% else %}#aaa{% endif %}; padding: 5px 10px; border: none; cursor: pointer;">Link 002</button>
             </form>
-
         </div>
-    
 
-        <div style="display: flex;">
-            <div class="title_00">Link    </div>
-            <div class="title_00" style="margin-left: 20px; ">{{ today }}</div>
-            <div id="clock" class="title_00" style="margin-left: 20px; "></div>
+        <!-- Title and clock - compact layout -->
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+            <div class="title_00" style="margin: 0;">Link</div>
+            <div class="title_00" style="margin: 0;">{{ today }}</div>
+            <div id="clock" class="title_00" style="margin: 0;"></div>
             
-
+            <!-- Height adjustment control for first row -->
+            <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                <label style="color: #0f0; font-size: 11px;">First Row Height:</label>
+                <input type="range" id="firstRowHeight" min="100" max="400" value="200" style="width: 100px; background-color: #444; border: 1px solid #666;">
+                <span id="heightValue" style="color: #0f0; font-size: 11px; min-width: 40px;">200px</span>
+            </div>
         </div>
 
-
-      
-        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-            <form action="/link/add_task_01/" method="post" style="display: flex;">
+        <!-- Input form and live indicator - optimized layout -->
+        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px;">
+            <form action="/link/add_task_01/" method="post" style="display: flex; gap: 5px; flex: 1;">
                 <input type="hidden" name="time_zone" value="{{ time_zone }}">
                 
-                <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+                <input type="text" name="name" placeholder="Name..." style="background-color: #444; color: #fff; border: 1px solid #666; padding: 4px 8px; flex: 1; min-width: 80px;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = this.value ? '#fff' : '#999'">
                 
-                <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+                <input type="text" name="link" placeholder="Link..." style="background-color: #444; color: #fff; border: 1px solid #666; padding: 4px 8px; flex: 2; min-width: 120px;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = this.value ? '#fff' : '#999'">
                 
-                <input id="input_category" type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #888;" onfocus="(this.type='category')">
+                <input id="input_category" type="text" name="category" placeholder="Category..." style="background-color: #444; color: #888; border: 1px solid #666; padding: 4px 8px; flex: 1; min-width: 80px;" onfocus="this.style.color='#fff'">
                 
-                <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+                <input type="text" name="status" placeholder="Status..." style="background-color: #444; color: #fff; border: 1px solid #666; padding: 4px 8px; flex: 1; min-width: 80px;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = this.value ? '#fff' : '#999'">
                 
-                <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
+                <button type="submit" style="background-color: #444; color: #0f0; border: 1px solid #666; padding: 4px 12px; cursor: pointer; white-space: nowrap;">Add Task</button>
             </form>
 
-            <div class="live-update-indicator" style="display: flex; align-items: center; margin-left: auto; margin-right: 10px;">
+            <div class="live-update-indicator" style="display: flex; align-items: center; gap: 5px; white-space: nowrap;">
                 <div class="antenna">
                     <div class="wave wave1"></div>
                     <div class="wave wave2"></div>
                     <div class="wave wave3"></div>
                 </div>
-                <span>Live Updating</span>
+                <span style="font-size: 11px;">Live Updating</span>
             </div>
         </div>
-
-        
-        <!-- <button onclick="alertFunction()">Click Me!</button> -->
-
-
-
     </header>
-    <main class="tab_00">
-        <button onclick="reloadData()">Reload Data</button>
-        <div id="data-container">Loading data...</div>
 
-        <!-- <div class="scrollable-content"> -->
-        <div class="scrollable-content">
-        
+    <main class="tab_00" style="height: calc(100vh - 120px); overflow: hidden; display: flex; flex-direction: column;">
+        <!-- Control buttons - compact -->
+        <div style="display: flex; gap: 5px; padding: 5px; background-color: #333;">
+            <button onclick="reloadData()" style="background-color: #444; color: #0f0; border: 1px solid #666; padding: 3px 8px; cursor: pointer; font-size: 11px;">Reload Data</button>
+            <div id="data-container" style="color: #aaa; font-size: 11px; display: flex; align-items: center;">Loading data...</div>
+        </div>
 
-            
-            
+        <!-- Main content area - maximized -->
+        <div class="scrollable-content" style="flex: 1; overflow-y: auto; padding: 5px;">
             {% for ii in range(4) %}
-                <div class="screen">
-                    <!-- <div style="color: #fff"> -->
+                <div class="screen" style="margin-bottom: 5px;">
                     {% for i in range(7) %}
-                        
-                        
-                        
                         {% if link_tab_page_active == "link_001" %}
                             {% set name_items = ["Intra Net", 'Sharepoint', 'Estimation Server', 'Authrities/consultants', 'Sub-contractors/Suppliers', 'Options', 'Others', 'SIN', 'BKK', 'MLY', 'MNL','JKT', 'CHN', 'HK', 'TWN', 'VNM', 'IND', 'BGD', 'ZAM', 'GUM', 'DJI'] %}
                         {% elif link_tab_page_active == "link_002" %}
                             {% set name_items = ["General", 'AI', 'Financial', 'Crypto', 'Nursing care', 'Coding', 'Data & Database', 'Robotics', 'Military', 'Others'] %}
                         {% endif %}
                         
-                    <!-- </div> -->
-                    
-                    
-                    
-                        <div class="day">
-                            <!-- <div class="{{ 'day_active' if dates[i+ii*7] == today else 'day' }}"> -->
-                            <ul class="ul" >
-                                <div id="categoryClick" style="color: #fff; font-size: 14px;" data-category='{{ name_items[i+ii*7] }}' onclick="onclickLinkCategory('{{ name_items[i+ii*7] }}')">
-                                    
+                        <div class="day {% if ii == 0 %}first-row{% endif %}" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
+                            <ul class="ul" style="margin: 0; padding: 0; list-style: none;">
+                                <div id="categoryClick" style="color: #fff; font-size: 12px; font-weight: bold; padding: 3px 5px; background-color: #333; border-radius: 3px; margin-bottom: 3px; cursor: pointer;" data-category='{{ name_items[i+ii*7] }}' onclick="onclickLinkCategory('{{ name_items[i+ii*7] }}')">
                                     {{ name_items[i+ii*7] }}
                                 </div>
                                 
-                                
-                                
-                                
                                 {% for item in df_combined %}
-                                
-                                
-                                
-                                
                                     {% if name_items[i+ii*7] == item["category"] %}
-                                    
-                                    <!-- <li class="li"> -->
-                                        <!-- <li class="li" onclick="onclickItem('{{ item }}')"> -->
-                                        <li class="li" onclick="onclickLinkItem('{{ item.id }}', '{{ item.link }}')"> 
-                                            
-                                            
-                                            <!-- {{ item["name"] }} -->
+                                        <li class="li" onclick="onclickLinkItem('{{ item.id }}', '{{ item.link }}')" style="padding: 2px 5px; margin: 1px 0; cursor: pointer; border-radius: 2px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#666'" onmouseout="this.style.backgroundColor='transparent'">
                                             {{ item.name }}
-                                            <!-- {# {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }} #} -->
-                                            <!-- {{ active_meeting}} -->
-                                            
-                                            
-                                            
                                         </li>
                                     {% endif %}
                                 {% endfor %}
-                                
-                            </ul>　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　
+                            </ul>
                         </div>
                     {% endfor %}
                 </div>
             {% endfor %}
-                        
         </div>
     </main>
-    <footer>
-
-    </footer>
 
     <script>
-        // clock function
-
+        // Clock function
         function updateClock() {
-          const now = new Date(); // Get the current date and time
-          const hours = String(now.getHours()).padStart(2, '0');  // Get hours and ensure it's two digits
-          const minutes = String(now.getMinutes()).padStart(2, '0');  // Get minutes and ensure it's two digits
-          const seconds = String(now.getSeconds()).padStart(2, '0');  // Get seconds and ensure it's two digits
-
-          // Format the time as HH:MM:SS
-          // const timeString = `${hours}:${minutes}:${seconds}`;
-          const timeString = `${hours}:${minutes}:${seconds}`;
-
-          // Update the content of the 'clock' element with the formatted time
-          document.getElementById('clock').textContent = timeString;
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const timeString = `${hours}:${minutes}:${seconds}`;
+            document.getElementById('clock').textContent = timeString;
         }
 
-        // Call the function once to set the initial time
         updateClock();
-
-        // Update the clock every 1000 milliseconds (1 second)
         setInterval(updateClock, 1000);
 
+        // Height adjustment function for first row
+        function adjustFirstRowHeight() {
+            const heightSlider = document.getElementById('firstRowHeight');
+            const heightValue = document.getElementById('heightValue');
+            const firstRowElements = document.querySelectorAll('.first-row');
+            
+            const newHeight = heightSlider.value;
+            heightValue.textContent = newHeight + 'px';
+            
+            firstRowElements.forEach(element => {
+                element.style.height = newHeight + 'px';
+                element.style.maxHeight = newHeight + 'px';
+            });
+        }
 
+        // Initialize height adjustment
+        document.addEventListener('DOMContentLoaded', function() {
+            const heightSlider = document.getElementById('firstRowHeight');
+            heightSlider.addEventListener('input', adjustFirstRowHeight);
+            
+            // Set initial height
+            adjustFirstRowHeight();
+        });
 
-        
-
-
+        // Data fetching functions
         async function fetchData() {
             try {
                 const response = await fetch('https://render-test-00.onrender.com/schedule/');
@@ -168,54 +141,137 @@
                 updatePage(data);
             } catch (error) {
                 console.error('Error fetching data:', error);
+                document.getElementById('data-container').innerHTML = '<span style="color: #f00;">Error loading data</span>';
             }
         }
     
         function updatePage(data) {
             const container = document.getElementById('data-container');
-            container.innerHTML = ''; // Clear existing content
-    
-            data.forEach(item => {
-                const itemElement = document.createElement('div');
-                itemElement.textContent = `${item.name}: ${item.url}`;
-                container.appendChild(itemElement);
-            });
+            container.innerHTML = `<span style="color: #0f0;">Loaded ${data.length} items</span>`;
         }
     
         function reloadData() {
-            fetchData(); // Reloads only the data
+            document.getElementById('data-container').innerHTML = '<span style="color: #ff0;">Reloading...</span>';
+            fetchData();
         }
     
-        // Fetch data immediately on page load
+        // Auto-reload every 5 minutes
+        setInterval(() => {
+            location.reload();
+        }, 300000);
+
+        // Initialize on page load
         window.onload = fetchData;
-
-                    // Function to reload the page
-        function autoReload() {
-            location.reload(); // Reloads the current page
-        }
-
-        // Set interval to call the autoReload function every 4000 milliseconds (4 seconds)
-        setInterval(autoReload, 300000);
-
-
-
-
-
-
-
     </script>
 
     <style>
-
+        /* Optimized styles for maximum display usage */
+        .scrollable-content {
+            scrollbar-width: thin;
+            scrollbar-color: #666 #333;
+        }
         
-        <!-- .scrollable-content {
-            height: 600px; /* Adjust the height as needed */
-            overflow-y: scroll; /* Enables vertical scrolling */
-        } -->
+        .scrollable-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .scrollable-content::-webkit-scrollbar-track {
+            background: #333;
+        }
+        
+        .scrollable-content::-webkit-scrollbar-thumb {
+            background: #666;
+            border-radius: 4px;
+        }
+        
+        .scrollable-content::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+        
+        /* First row specific styling */
+        .first-row {
+            border: 2px solid #0f0 !important;
+            transition: height 0.3s ease;
+        }
+        
+        /* Height slider styling */
+        #firstRowHeight {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        #firstRowHeight::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #0f0;
+            cursor: pointer;
+        }
+        
+        #firstRowHeight::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #0f0;
+            cursor: pointer;
+            border: none;
+        }
+        
+        /* Responsive design for different screen sizes */
+        @media (max-width: 1200px) {
+            .screen {
+                flex-wrap: wrap;
+            }
+            .day {
+                min-width: 200px;
+                flex: 1 1 calc(33.333% - 10px);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .day {
+                flex: 1 1 calc(50% - 10px);
+            }
+        }
+        
+        /* Live update indicator animation */
+        .live-update-indicator {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .antenna {
+            position: relative;
+            width: 20px;
+            height: 20px;
+        }
+        
+        .wave {
+            position: absolute;
+            border: 1px solid #0f0;
+            border-radius: 50%;
+            animation: wave 2s infinite;
+        }
+        
+        .wave1 { width: 10px; height: 10px; animation-delay: 0s; }
+        .wave2 { width: 16px; height: 16px; animation-delay: 0.5s; }
+        .wave3 { width: 22px; height: 22px; animation-delay: 1s; }
+        
+        @keyframes wave {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
     </style>
-
-
-    
 {% endblock %}
 
 
