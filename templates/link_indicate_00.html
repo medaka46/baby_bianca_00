@@ -121,13 +121,61 @@
             });
         }
 
+        // Auto-calculate optimal height for first row based on content
+        function calculateOptimalHeight() {
+            const firstRowElements = document.querySelectorAll('.first-row');
+            
+            firstRowElements.forEach(element => {
+                // Get all list items in the first row
+                const listItems = element.querySelectorAll('.li');
+                const categoryHeader = element.querySelector('#categoryClick');
+                
+                // Calculate total content height
+                let totalHeight = 0;
+                
+                // Add category header height
+                if (categoryHeader) {
+                    totalHeight += categoryHeader.offsetHeight + 10; // Add some padding
+                }
+                
+                // Add height for each list item
+                listItems.forEach(item => {
+                    totalHeight += item.offsetHeight + 2; // Add margin between items
+                });
+                
+                // Add some buffer space
+                totalHeight += 20;
+                
+                // Set minimum and maximum bounds
+                const minHeight = 120;
+                const maxHeight = 400;
+                const optimalHeight = Math.max(minHeight, Math.min(maxHeight, totalHeight));
+                
+                // Update slider and display
+                const heightSlider = document.getElementById('firstRowHeight');
+                const heightValue = document.getElementById('heightValue');
+                
+                if (heightSlider && heightValue) {
+                    heightSlider.value = optimalHeight;
+                    heightValue.textContent = optimalHeight + 'px';
+                }
+                
+                // Apply the calculated height
+                element.style.height = optimalHeight + 'px';
+                element.style.maxHeight = optimalHeight + 'px';
+            });
+        }
+
         // Initialize height adjustment
         document.addEventListener('DOMContentLoaded', function() {
             const heightSlider = document.getElementById('firstRowHeight');
             heightSlider.addEventListener('input', adjustFirstRowHeight);
             
-            // Set initial height
-            adjustFirstRowHeight();
+            // Calculate optimal height after content loads
+            setTimeout(calculateOptimalHeight, 100);
+            
+            // Recalculate when data is updated
+            setTimeout(calculateOptimalHeight, 500);
         });
 
         // Data fetching functions
@@ -148,6 +196,9 @@
         function updatePage(data) {
             const container = document.getElementById('data-container');
             container.innerHTML = `<span style="color: #0f0;">Loaded ${data.length} items</span>`;
+            
+            // Recalculate optimal height after data update
+            setTimeout(calculateOptimalHeight, 100);
         }
     
         function reloadData() {
