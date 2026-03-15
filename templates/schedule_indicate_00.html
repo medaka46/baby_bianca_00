@@ -1,6 +1,29 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+        padding-bottom: 0;
+    }
+</style>
 <header class="tab_00">
     <div style="display: flex;">
         <!-- <div class="title_00">Meeting Schedule {{ today }}</div> -->

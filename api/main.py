@@ -814,9 +814,9 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
     # Generate date sequence for the template
     start_date_adjust = request.session.get('start_date_adjust', 0)
     start_date = datetime.today() - timedelta(days=datetime.today().weekday() + start_date_adjust)
-    date_sequence = [str((start_date + timedelta(days=i)).strftime('%Y-%m-%d')) for i in range(7*10)]
+    date_sequence = [str((start_date + timedelta(days=i)).strftime('%Y-%m-%d')) for i in range(7*50)]
     today_date = datetime.today().strftime('%Y-%m-%d')
-    
+
     # Fetch tasks with pagination
     tasks = db.query(Schedule).with_entities(
         Schedule.id,
