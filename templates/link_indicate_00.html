@@ -1,13 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-<<<<<<< HEAD
-    <header class="tab_00" style="padding: 5px; margin-bottom: 5px;">
-        <!-- Navigation tabs - compact layout -->
-        <div style="display: flex; gap: 2px; margin-bottom: 5px;">
-            <form action="/link_001/" method="get" style="margin: 0;">
-                <button type="submit" style="background-color: #444; color: {% if link_tab_page_active == "link_001" %}#0f0{% else %}#aaa{% endif %}; padding: 5px 10px; border: none; cursor: pointer;">Link 001</button>
-=======
 <style>
     html, body {
         margin: 0;
@@ -36,7 +29,6 @@
             <form action="/link_001/" method="get">
                 
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if link_tab_page_active == "link_001" else "#aaa" }};">Link 001</button>
->>>>>>> c045cc6 (121: update before fetch)
             </form>
             <form action="/link_002/" method="get" style="margin: 0;">
                 <button type="submit" style="background-color: #444; color: {% if link_tab_page_active == "link_002" %}#0f0{% else %}#aaa{% endif %}; padding: 5px 10px; border: none; cursor: pointer;">Link 002</button>
