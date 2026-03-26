@@ -43,7 +43,7 @@
             <div class="title_00" style="margin: 0;">Link</div>
             <div class="title_00" style="margin: 0;">{{ today }}</div>
             <div id="clock" class="title_00" style="margin: 0;"></div>
-            
+            +
             <!-- Height adjustment control for first row -->
             <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
                 <label style="color: #0f0; font-size: 11px;">First Row Height:</label>
@@ -82,10 +82,10 @@
 
     <main class="tab_00" style="height: calc(100vh - 120px); overflow: hidden; display: flex; flex-direction: column;">
         <!-- Control buttons - compact -->
-        <div style="display: flex; gap: 5px; padding: 5px; background-color: #333;">
+        <!-- <div style="display: flex; gap: 5px; padding: 5px; background-color: #333;">
             <button onclick="reloadData()" style="background-color: #444; color: #0f0; border: 1px solid #666; padding: 3px 8px; cursor: pointer; font-size: 11px;">Reload Data</button>
             <div id="data-container" style="color: #aaa; font-size: 11px; display: flex; align-items: center;">Loading data...</div>
-        </div>
+        </div> -->
 
         <!-- Main content area - maximized -->
         <div class="scrollable-content" style="flex: 1; overflow-y: auto; padding: 5px;">
@@ -268,7 +268,7 @@
         
         /* First row specific styling */
         .first-row {
-            border: 2px solid #0f0 !important;
+            border: 1px solid #999 !important;
             transition: height 0.3s ease;
         }
         
