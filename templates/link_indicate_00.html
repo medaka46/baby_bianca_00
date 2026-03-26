@@ -93,7 +93,7 @@
                 <div class="screen" style="margin-bottom: 5px;">
                     {% for i in range(7) %}
                         {% if link_tab_page_active == "link_001" %}
-                            {% set name_items = ["Intra Net", 'Sharepoint', 'Estimation Server', 'Authrities/consultants', 'Sub-contractors/Suppliers', 'Options', 'Others', 'SIN', 'BKK', 'MLY', 'MNL','JKT', 'CHN', 'HK', 'TWN', 'VNM', 'IND', 'BGD', 'ZAM', 'GUM', 'DJI'] %}
+                            {% set name_items = ["Intra Net", 'Sharepoint', 'Estimation Server', 'Authrities/consultants', 'Sub-contractors/Suppliers', 'Options', 'Others', 'SIN', 'BKK', 'MLY', 'MNL','JKT', 'CHN', 'HK', 'TWN', 'VNM', 'IND', 'BGD', 'ZAM', 'GUM', 'DJI', 'KNY'] %}
                         {% elif link_tab_page_active == "link_002" %}
                             {% set name_items = ["General", 'AI', 'Financial', 'Crypto', 'Nursing care', 'Coding', 'Data & Database', 'Robotics', 'Military', 'Others'] %}
                         {% endif %}
@@ -175,7 +175,7 @@
                 
                 // Set minimum and maximum bounds
                 const minHeight = 120;
-                const maxHeight = 400;
+                const maxHeight = 550;
                 const optimalHeight = Math.max(minHeight, Math.min(maxHeight, totalHeight));
                 
                 // Update slider and display
