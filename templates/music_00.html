@@ -20,9 +20,91 @@
     .scrollable-content {
         flex: 1;
         overflow-y: auto;
-        max-height: none;
         padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
     }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+
+    /* Drop zone */
+    #drop-zone {
+        border: 2px dashed #555;
+        border-radius: 6px;
+        padding: 20px;
+        text-align: center;
+        color: #888;
+        font-size: 13px;
+        cursor: pointer;
+        transition: border-color 0.2s, background-color 0.2s;
+        margin-bottom: 10px;
+        user-select: none;
+    }
+    #drop-zone.drag-over {
+        border-color: #0f0;
+        background-color: #1a2a1a;
+        color: #0f0;
+    }
+
+    /* URL input row */
+    #url-input {
+        background-color: #444;
+        color: #fff;
+        border: 1px solid #666;
+        padding: 6px 10px;
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 13px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+    }
+    #url-input:focus { outline: none; border-color: #0f0; }
+
+    /* Buttons */
+    .music-btn {
+        background-color: #444;
+        color: #0f0;
+        border: 1px solid #666;
+        padding: 5px 14px;
+        cursor: pointer;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+    .music-btn:hover { background-color: #555; }
+    .music-btn:disabled { color: #666; cursor: not-allowed; }
+
+    /* Status */
+    #dl-status {
+        font-size: 12px;
+        margin-top: 8px;
+        min-height: 18px;
+    }
+
+    /* File list */
+    .file-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 5px 8px;
+        border-bottom: 1px solid #333;
+        font-size: 12px;
+        color: #ccc;
+    }
+    .file-item:hover { background-color: #2a2a2a; }
+    .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 10px; }
+    .dl-btn {
+        background-color: #333;
+        color: #0f0;
+        border: 1px solid #555;
+        padding: 3px 10px;
+        cursor: pointer;
+        font-size: 11px;
+        border-radius: 3px;
+        white-space: nowrap;
+        text-decoration: none;
+    }
+    .dl-btn:hover { background-color: #444; }
 </style>
 
     <header class="tab_00">
@@ -37,29 +119,69 @@
                 <button type="submit" style="background-color: #444; color: {{ '#0f0' if music_tab_active == 'editor' else '#aaa' }};">MP3 Editor</button>
             </form>
         </div>
-
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
             <div class="title_00" style="margin: 0;">Music</div>
         </div>
     </header>
 
     <main class="tab_00">
-        <div class="scrollable-content" style="padding: 10px;">
+        <div class="scrollable-content" style="padding: 12px;">
 
             {% if music_tab_active == "downloader" %}
-            <!-- YouTube Downloader -->
-            <div style="color: #0f0; font-size: 13px;">
-                <p>YouTube Downloader — coming soon</p>
+            <!-- ===== YouTube Downloader ===== -->
+            <div style="max-width: 700px;">
+
+                <!-- Drop zone -->
+                <div id="drop-zone">
+                    <div style="font-size: 22px; margin-bottom: 6px;">&#8659;</div>
+                    <div>Drag a YouTube URL here</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 4px;">or type / paste below</div>
+                </div>
+
+                <!-- URL input -->
+                <input
+                    id="url-input"
+                    type="text"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                />
+
+                <!-- Controls -->
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button id="dl-btn" class="music-btn" onclick="startDownload()">Download MP3</button>
+                    <button class="music-btn" onclick="clearInput()">Clear</button>
+                </div>
+
+                <!-- Progress bar -->
+                <div id="progress-wrap" style="display: none; margin-top: 8px;">
+                    <div style="background-color: #333; border-radius: 4px; height: 10px; overflow: hidden;">
+                        <div id="progress-bar" style="height: 100%; width: 0%; background-color: #0f0; border-radius: 4px; transition: width 0.4s ease;"></div>
+                    </div>
+                    <div id="progress-label" style="color: #aaa; font-size: 11px; margin-top: 3px;">0%</div>
+                </div>
+
+                <!-- Status message -->
+                <div id="dl-status" style="color: #aaa; margin-top: 4px;"></div>
+
+                <!-- Downloaded files list -->
+                <div style="margin-top: 18px;">
+                    <div style="color: #888; font-size: 11px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                        Downloaded Files
+                        <button class="music-btn" style="padding: 2px 8px; font-size: 11px;" onclick="loadFiles()">Refresh</button>
+                    </div>
+                    <div id="file-list" style="border: 1px solid #333; border-radius: 4px; min-height: 40px;">
+                        <div style="color: #555; font-size: 12px; padding: 10px;">Loading...</div>
+                    </div>
+                </div>
             </div>
 
             {% elif music_tab_active == "player" %}
-            <!-- MP3 Player -->
+            <!-- ===== MP3 Player ===== -->
             <div style="color: #0f0; font-size: 13px;">
                 <p>MP3 Player — coming soon</p>
             </div>
 
             {% elif music_tab_active == "editor" %}
-            <!-- MP3 Editor -->
+            <!-- ===== MP3 Editor ===== -->
             <div style="color: #0f0; font-size: 13px;">
                 <p>MP3 Editor — coming soon</p>
             </div>
@@ -68,5 +190,154 @@
 
         </div>
     </main>
+
+<script>
+    // ---- Drag-and-drop on drop zone ----
+    const dropZone = document.getElementById('drop-zone');
+    const urlInput = document.getElementById('url-input');
+
+    if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+            if (url) {
+                urlInput.value = url.trim();
+                setStatus('URL loaded. Click "Download MP3" to start.', '#aaa');
+            }
+        });
+
+        // Also allow drag-and-drop directly on the input field
+        urlInput.addEventListener('dragover', (e) => e.preventDefault());
+        urlInput.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const url = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+            if (url) urlInput.value = url.trim();
+        });
+    }
+
+    // ---- Download logic ----
+    let pollTimer = null;
+
+    function setStatus(msg, color) {
+        const el = document.getElementById('dl-status');
+        if (el) { el.textContent = msg; el.style.color = color || '#aaa'; }
+    }
+
+    function setProgress(pct, visible) {
+        const wrap = document.getElementById('progress-wrap');
+        const bar  = document.getElementById('progress-bar');
+        const lbl  = document.getElementById('progress-label');
+        if (!wrap) return;
+        wrap.style.display = visible ? 'block' : 'none';
+        if (bar) bar.style.width = pct + '%';
+        if (lbl) lbl.textContent = pct + '%';
+        // Turn bar yellow at 99% (converting), green otherwise
+        if (bar) bar.style.backgroundColor = pct >= 100 ? '#0f0' : (pct >= 99 ? '#ff0' : '#0f0');
+    }
+
+    function clearInput() {
+        if (urlInput) urlInput.value = '';
+        setStatus('', '#aaa');
+    }
+
+    async function startDownload() {
+        const url = urlInput ? urlInput.value.trim() : '';
+        if (!url) { setStatus('Please enter a YouTube URL.', '#f00'); return; }
+
+        const btn = document.getElementById('dl-btn');
+        btn.disabled = true;
+        setProgress(0, true);
+        setStatus('Starting download...', '#ff0');
+
+        const formData = new FormData();
+        formData.append('url', url);
+
+        try {
+            const res = await fetch('/music/start_download/', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.job_id) {
+                pollStatus(data.job_id);
+            } else {
+                setStatus('Failed to start download.', '#f00');
+                setProgress(0, false);
+                btn.disabled = false;
+            }
+        } catch (err) {
+            setStatus('Network error: ' + err.message, '#f00');
+            setProgress(0, false);
+            btn.disabled = false;
+        }
+    }
+
+    function pollStatus(jobId) {
+        clearInterval(pollTimer);
+        pollTimer = setInterval(async () => {
+            try {
+                const res = await fetch('/music/download_status/' + jobId);
+                const data = await res.json();
+                const pct = data.progress ?? 0;
+
+                if (data.status === 'pending') {
+                    setStatus('Waiting to start...', '#ff0');
+                    setProgress(0, true);
+                } else if (data.status === 'downloading') {
+                    setProgress(pct, true);
+                    setStatus(pct >= 99 ? 'Converting to MP3...' : 'Downloading... ' + pct + '%', '#ff0');
+                } else if (data.status === 'done') {
+                    clearInterval(pollTimer);
+                    setProgress(100, true);
+                    setStatus('Done! File: ' + (data.filename || ''), '#0f0');
+                    document.getElementById('dl-btn').disabled = false;
+                    loadFiles();
+                } else if (data.status === 'error') {
+                    clearInterval(pollTimer);
+                    setProgress(0, false);
+                    setStatus('Error: ' + (data.error || 'Unknown error'), '#f00');
+                    document.getElementById('dl-btn').disabled = false;
+                }
+            } catch (err) {
+                clearInterval(pollTimer);
+                setProgress(0, false);
+                setStatus('Polling error: ' + err.message, '#f00');
+                document.getElementById('dl-btn').disabled = false;
+            }
+        }, 2000);
+    }
+
+    // ---- File list ----
+    async function loadFiles() {
+        const container = document.getElementById('file-list');
+        if (!container) return;
+        try {
+            const res = await fetch('/music/files/');
+            const data = await res.json();
+            if (data.files.length === 0) {
+                container.innerHTML = '<div style="color: #555; font-size: 12px; padding: 10px;">No files yet.</div>';
+            } else {
+                container.innerHTML = data.files.map(f =>
+                    `<div class="file-item">
+                        <span class="file-name" title="${f}">${f}</span>
+                        <a class="dl-btn" href="/music/serve_file/${encodeURIComponent(f)}" download="${f}">Download</a>
+                    </div>`
+                ).join('');
+            }
+        } catch (err) {
+            container.innerHTML = '<div style="color: #f00; font-size: 12px; padding: 10px;">Error loading files.</div>';
+        }
+    }
+
+    // Load file list on page open
+    document.addEventListener('DOMContentLoaded', loadFiles);
+</script>
 
 {% endblock %}

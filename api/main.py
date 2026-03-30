@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, Depends, Request, Form, Query, HTTPException, UploadFile, File
+from fastapi import FastAPI, Depends, Request, Form, Query, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -1349,6 +1349,68 @@ async def delete_item(item_id: int = Form(...), db: Session = Depends(get_db)):
 # --------------------
 # Music routes
 
+import uuid
+import threading
+
+# In-memory job status store
+download_jobs: dict = {}
+
+def get_music_dir() -> str:
+    """Return the music storage directory based on environment."""
+    is_render = bool(os.getenv("RENDER"))
+    if is_render:
+        path = "/var/data/music"
+    else:
+        path = os.path.join(base_dir, "static", "music")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def do_download(job_id: str, url: str) -> None:
+    """Run yt-dlp download in background thread."""
+    try:
+        import yt_dlp
+    except ImportError:
+        download_jobs[job_id] = {"status": "error", "error": "yt-dlp is not installed.", "filename": None, "progress": 0}
+        return
+
+    music_dir = get_music_dir()
+    download_jobs[job_id] = {"status": "downloading", "error": None, "filename": None, "progress": 0}
+
+    def progress_hook(d):
+        if d['status'] == 'downloading':
+            total = d.get('total_bytes') or d.get('total_bytes_estimate')
+            downloaded = d.get('downloaded_bytes', 0)
+            if total:
+                download_jobs[job_id]["progress"] = round(downloaded / total * 100)
+        elif d['status'] == 'finished':
+            download_jobs[job_id]["progress"] = 99  # converting to MP3 still in progress
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': os.path.join(music_dir, '%(title)s.%(ext)s'),
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+        'progress_hooks': [progress_hook],
+        'quiet': True,
+        'no_warnings': True,
+    }
+
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            raw_filename = ydl.prepare_filename(info)
+            mp3_filename = os.path.splitext(raw_filename)[0] + '.mp3'
+            download_jobs[job_id]["status"] = "done"
+            download_jobs[job_id]["progress"] = 100
+            download_jobs[job_id]["filename"] = os.path.basename(mp3_filename)
+    except Exception as e:
+        download_jobs[job_id]["status"] = "error"
+        download_jobs[job_id]["error"] = str(e)
+
+
 @app.get("/music/downloader/")
 async def music_downloader(request: Request):
     request.session['music_tab_active'] = "downloader"
@@ -1370,7 +1432,6 @@ async def music(request: Request):
     time_zone = request.session.get('time_zone')
     music_tab_active = request.session.get('music_tab_active', 'downloader')
     tab_page_active = "music"
-    message_color = "#0f0"
 
     return templates.TemplateResponse("music_00.html", {
         "request": request,
@@ -1378,6 +1439,38 @@ async def music(request: Request):
         "time_zone": time_zone,
         "tab_page_active": tab_page_active,
         "music_tab_active": music_tab_active,
-        "message_color": message_color,
     })
+
+@app.post("/music/start_download/")
+async def music_start_download(url: str = Form(...)):
+    job_id = str(uuid.uuid4())[:8]
+    download_jobs[job_id] = {"status": "pending", "error": None, "filename": None}
+    thread = threading.Thread(target=do_download, args=(job_id, url), daemon=True)
+    thread.start()
+    return JSONResponse({"job_id": job_id})
+
+@app.get("/music/download_status/{job_id}")
+async def music_download_status(job_id: str):
+    job = download_jobs.get(job_id)
+    if not job:
+        return JSONResponse({"status": "not_found"}, status_code=404)
+    return JSONResponse(job)
+
+@app.get("/music/files/")
+async def music_files():
+    music_dir = get_music_dir()
+    files = sorted(
+        [f for f in os.listdir(music_dir) if f.lower().endswith('.mp3')],
+        key=lambda f: os.path.getmtime(os.path.join(music_dir, f)),
+        reverse=True
+    )
+    return JSONResponse({"files": files})
+
+@app.get("/music/serve_file/{filename}")
+async def music_serve_file(filename: str):
+    music_dir = get_music_dir()
+    file_path = os.path.join(music_dir, filename)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(file_path, media_type="audio/mpeg", filename=filename)
 
