@@ -65,3 +65,9 @@ node_modules/
 # Temporary files
 *.tmp
 *.temp
+
+# Music downloads
+static/music/
+
+# Private data (cookies etc.)
+data/

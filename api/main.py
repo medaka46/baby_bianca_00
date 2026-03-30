@@ -1365,6 +1365,14 @@ def get_music_dir() -> str:
     os.makedirs(path, exist_ok=True)
     return path
 
+def get_cookies_path() -> str:
+    """Return path for the YouTube cookies file."""
+    is_render = bool(os.getenv("RENDER"))
+    if is_render:
+        return "/var/data/youtube_cookies.txt"
+    else:
+        return os.path.join(base_dir, "data", "youtube_cookies.txt")
+
 def do_download(job_id: str, url: str) -> None:
     """Run yt-dlp download in background thread."""
     try:
@@ -1385,6 +1393,7 @@ def do_download(job_id: str, url: str) -> None:
         elif d['status'] == 'finished':
             download_jobs[job_id]["progress"] = 99  # converting to MP3 still in progress
 
+    cookies_path = get_cookies_path()
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(music_dir, '%(title)s.%(ext)s'),
@@ -1397,6 +1406,8 @@ def do_download(job_id: str, url: str) -> None:
         'quiet': True,
         'no_warnings': True,
     }
+    if os.path.exists(cookies_path):
+        ydl_opts['cookiefile'] = cookies_path
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -1440,6 +1451,21 @@ async def music(request: Request):
         "tab_page_active": tab_page_active,
         "music_tab_active": music_tab_active,
     })
+
+@app.post("/music/upload_cookies/")
+async def music_upload_cookies(cookies_file: UploadFile = File(...)):
+    cookies_path = get_cookies_path()
+    os.makedirs(os.path.dirname(cookies_path), exist_ok=True)
+    content = await cookies_file.read()
+    with open(cookies_path, "wb") as f:
+        f.write(content)
+    return JSONResponse({"status": "ok", "message": "Cookies file saved."})
+
+@app.get("/music/cookies_status/")
+async def music_cookies_status():
+    cookies_path = get_cookies_path()
+    exists = os.path.exists(cookies_path)
+    return JSONResponse({"exists": exists})
 
 @app.post("/music/start_download/")
 async def music_start_download(url: str = Form(...)):

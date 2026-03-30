@@ -131,6 +131,22 @@
             <!-- ===== YouTube Downloader ===== -->
             <div style="max-width: 700px;">
 
+                <!-- Cookies upload section -->
+                <div style="border: 1px solid #333; border-radius: 4px; padding: 10px; margin-bottom: 14px;">
+                    <div style="color: #888; font-size: 11px; margin-bottom: 6px;">
+                        YouTube Cookies
+                        <span id="cookies-badge" style="margin-left: 8px; font-size: 10px; padding: 1px 6px; border-radius: 3px; background-color: #333; color: #666;">checking...</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="file" id="cookies-file" accept=".txt" style="color: #aaa; font-size: 12px; background-color: #333; border: 1px solid #555; border-radius: 3px; padding: 3px;">
+                        <button class="music-btn" onclick="uploadCookies()">Upload</button>
+                        <span id="cookies-upload-status" style="font-size: 11px; color: #aaa;"></span>
+                    </div>
+                    <div style="color: #555; font-size: 10px; margin-top: 5px;">
+                        Required for remote environment. Export from browser using "Get cookies.txt LOCALLY" extension, then upload here.
+                    </div>
+                </div>
+
                 <!-- Drop zone -->
                 <div id="drop-zone">
                     <div style="font-size: 22px; margin-bottom: 6px;">&#8659;</div>
@@ -336,8 +352,47 @@
         }
     }
 
+    // ---- Cookies ----
+    async function checkCookiesStatus() {
+        try {
+            const res = await fetch('/music/cookies_status/');
+            const data = await res.json();
+            const badge = document.getElementById('cookies-badge');
+            if (badge) {
+                if (data.exists) {
+                    badge.textContent = 'Uploaded';
+                    badge.style.backgroundColor = '#1a2a1a';
+                    badge.style.color = '#0f0';
+                } else {
+                    badge.textContent = 'Not uploaded';
+                    badge.style.backgroundColor = '#2a1a1a';
+                    badge.style.color = '#f88';
+                }
+            }
+        } catch (err) {}
+    }
+
+    async function uploadCookies() {
+        const fileInput = document.getElementById('cookies-file');
+        const statusEl = document.getElementById('cookies-upload-status');
+        if (!fileInput || !fileInput.files.length) {
+            if (statusEl) { statusEl.textContent = 'Select a file first.'; statusEl.style.color = '#f00'; }
+            return;
+        }
+        const formData = new FormData();
+        formData.append('cookies_file', fileInput.files[0]);
+        try {
+            const res = await fetch('/music/upload_cookies/', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (statusEl) { statusEl.textContent = data.message; statusEl.style.color = '#0f0'; }
+            checkCookiesStatus();
+        } catch (err) {
+            if (statusEl) { statusEl.textContent = 'Upload failed.'; statusEl.style.color = '#f00'; }
+        }
+    }
+
     // Load file list on page open
-    document.addEventListener('DOMContentLoaded', loadFiles);
+    document.addEventListener('DOMContentLoaded', () => { loadFiles(); checkCookiesStatus(); });
 </script>
 
 {% endblock %}
