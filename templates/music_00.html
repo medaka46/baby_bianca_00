@@ -142,8 +142,10 @@
                         <button class="music-btn" onclick="uploadCookies()">Upload</button>
                         <span id="cookies-upload-status" style="font-size: 11px; color: #aaa;"></span>
                     </div>
+                    <!-- Diagnostic info -->
+                    <div id="cookies-diag" style="margin-top: 6px; font-size: 10px; color: #555;"></div>
                     <div style="color: #555; font-size: 10px; margin-top: 5px;">
-                        Required for remote environment. Export from browser using "Get cookies.txt LOCALLY" extension, then upload here.
+                        Required for remote environment. Export from browser using "Get cookies.txt LOCALLY" extension (Netscape format), then upload here.
                     </div>
                 </div>
 
@@ -358,15 +360,34 @@
             const res = await fetch('/music/cookies_status/');
             const data = await res.json();
             const badge = document.getElementById('cookies-badge');
+            const diag  = document.getElementById('cookies-diag');
+
             if (badge) {
-                if (data.exists) {
-                    badge.textContent = 'Uploaded';
+                if (data.exists && data.valid_format) {
+                    badge.textContent = 'Uploaded (valid)';
                     badge.style.backgroundColor = '#1a2a1a';
                     badge.style.color = '#0f0';
+                } else if (data.exists && !data.valid_format) {
+                    badge.textContent = 'Uploaded (invalid format)';
+                    badge.style.backgroundColor = '#2a1a00';
+                    badge.style.color = '#fa0';
                 } else {
                     badge.textContent = 'Not uploaded';
                     badge.style.backgroundColor = '#2a1a1a';
                     badge.style.color = '#f88';
+                }
+            }
+
+            if (diag) {
+                if (data.exists) {
+                    const fmt = data.valid_format ? '✓ Netscape format' : '✗ Not Netscape format — must start with "# Netscape HTTP Cookie File"';
+                    const fmtColor = data.valid_format ? '#555' : '#fa0';
+                    diag.innerHTML =
+                        `Path: ${data.path} &nbsp;|&nbsp; Size: ${data.size_bytes} bytes<br>` +
+                        `<span style="color:${fmtColor}">${fmt}</span><br>` +
+                        `First line: <code style="color:#777">${data.first_line}</code>`;
+                } else {
+                    diag.textContent = `Expected path: ${data.path}`;
                 }
             }
         } catch (err) {}

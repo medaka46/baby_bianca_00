@@ -1394,6 +1394,10 @@ def do_download(job_id: str, url: str) -> None:
             download_jobs[job_id]["progress"] = 99  # converting to MP3 still in progress
 
     cookies_path = get_cookies_path()
+    cookies_found = os.path.exists(cookies_path)
+    download_jobs[job_id]["cookies_used"] = cookies_found
+    download_jobs[job_id]["cookies_path"] = cookies_path
+
     ydl_opts = {
         'format': 'bestaudio/best',
         'outtmpl': os.path.join(music_dir, '%(title)s.%(ext)s'),
@@ -1406,7 +1410,7 @@ def do_download(job_id: str, url: str) -> None:
         'quiet': True,
         'no_warnings': True,
     }
-    if os.path.exists(cookies_path):
+    if cookies_found:
         ydl_opts['cookiefile'] = cookies_path
 
     try:
@@ -1465,7 +1469,17 @@ async def music_upload_cookies(cookies_file: UploadFile = File(...)):
 async def music_cookies_status():
     cookies_path = get_cookies_path()
     exists = os.path.exists(cookies_path)
-    return JSONResponse({"exists": exists})
+    info = {"exists": exists, "path": cookies_path, "size_bytes": None, "first_line": None, "valid_format": False}
+    if exists:
+        info["size_bytes"] = os.path.getsize(cookies_path)
+        try:
+            with open(cookies_path, "r", encoding="utf-8", errors="replace") as f:
+                first_line = f.readline().strip()
+            info["first_line"] = first_line
+            info["valid_format"] = "Netscape HTTP Cookie File" in first_line
+        except Exception as e:
+            info["first_line"] = f"(read error: {e})"
+    return JSONResponse(info)
 
 @app.post("/music/start_download/")
 async def music_start_download(url: str = Form(...)):
