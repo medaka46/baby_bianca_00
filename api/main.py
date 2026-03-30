@@ -1407,6 +1407,9 @@ def do_download(job_id: str, url: str) -> None:
             'preferredquality': '192',
         }],
         'progress_hooks': [progress_hook],
+        # Use iOS client first — bypasses YouTube bot detection on server IPs.
+        # Falls back to web and android if iOS fails.
+        'extractor_args': {'youtube': {'player_client': ['ios', 'android', 'web']}},
         'quiet': True,
         'no_warnings': True,
     }
