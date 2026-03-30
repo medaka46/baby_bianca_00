@@ -1517,3 +1517,85 @@ async def music_serve_file(filename: str):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(file_path, media_type="audio/mpeg", filename=filename)
 
+
+# --------------------
+# Project routes
+
+@app.get("/project/")
+async def project(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    message_color = "#0f0"
+    return templates.TemplateResponse("project_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "project",
+        "message_color": message_color,
+    })
+
+@app.post("/project/upload/")
+async def project_upload(file: UploadFile = File(...)):
+    import io
+    filename = file.filename
+    content = await file.read()
+    ext = os.path.splitext(filename)[1].lower()
+
+    try:
+        if ext in (".xlsx", ".xls"):
+            xl = pd.ExcelFile(io.BytesIO(content))
+            sheets = xl.sheet_names
+            return JSONResponse({"file_type": ext.lstrip("."), "sheets": sheets, "columns": None})
+
+        elif ext == ".csv":
+            df = pd.read_csv(io.BytesIO(content), nrows=0)
+            return JSONResponse({"file_type": "csv", "sheets": None, "columns": list(df.columns)})
+
+        elif ext in (".db", ".sqlite", ".sqlite3"):
+            import sqlite3, tempfile
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            con = sqlite3.connect(tmp_path)
+            tables = con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+            con.close()
+            os.unlink(tmp_path)
+            sheets = [t[0] for t in tables]
+            return JSONResponse({"file_type": "sqlite", "sheets": sheets, "columns": None})
+
+        else:
+            return JSONResponse({"error": f"Unsupported file type: {ext}"}, status_code=400)
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/project/columns/")
+async def project_columns(file: UploadFile = File(...), sheet: str = Form(...)):
+    import io
+    filename = file.filename
+    content = await file.read()
+    ext = os.path.splitext(filename)[1].lower()
+
+    try:
+        if ext in (".xlsx", ".xls"):
+            df = pd.read_excel(io.BytesIO(content), sheet_name=sheet, nrows=0)
+            return JSONResponse({"columns": list(df.columns)})
+
+        elif ext in (".db", ".sqlite", ".sqlite3"):
+            import sqlite3, tempfile
+            with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+                tmp.write(content)
+                tmp_path = tmp.name
+            con = sqlite3.connect(tmp_path)
+            cursor = con.execute(f"SELECT * FROM \"{sheet}\" LIMIT 0")
+            columns = [d[0] for d in cursor.description]
+            con.close()
+            os.unlink(tmp_path)
+            return JSONResponse({"columns": columns})
+
+        else:
+            return JSONResponse({"error": "Unsupported"}, status_code=400)
+
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
