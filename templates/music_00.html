@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+        padding-bottom: 0;
+    }
+</style>
+
+    <header class="tab_00">
+        <div style="display: flex;">
+            <form action="/music/downloader/" method="get">
+                <button type="submit" style="background-color: #444; color: {{ '#0f0' if music_tab_active == 'downloader' else '#aaa' }};">YouTube Downloader</button>
+            </form>
+            <form action="/music/player/" method="get">
+                <button type="submit" style="background-color: #444; color: {{ '#0f0' if music_tab_active == 'player' else '#aaa' }};">MP3 Player</button>
+            </form>
+            <form action="/music/editor/" method="get">
+                <button type="submit" style="background-color: #444; color: {{ '#0f0' if music_tab_active == 'editor' else '#aaa' }};">MP3 Editor</button>
+            </form>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+            <div class="title_00" style="margin: 0;">Music</div>
+        </div>
+    </header>
+
+    <main class="tab_00">
+        <div class="scrollable-content" style="padding: 10px;">
+
+            {% if music_tab_active == "downloader" %}
+            <!-- YouTube Downloader -->
+            <div style="color: #0f0; font-size: 13px;">
+                <p>YouTube Downloader — coming soon</p>
+            </div>
+
+            {% elif music_tab_active == "player" %}
+            <!-- MP3 Player -->
+            <div style="color: #0f0; font-size: 13px;">
+                <p>MP3 Player — coming soon</p>
+            </div>
+
+            {% elif music_tab_active == "editor" %}
+            <!-- MP3 Editor -->
+            <div style="color: #0f0; font-size: 13px;">
+                <p>MP3 Editor — coming soon</p>
+            </div>
+
+            {% endif %}
+
+        </div>
+    </main>
+
+{% endblock %}

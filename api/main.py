@@ -1337,11 +1337,47 @@ async def create_item(request: Request, item_id: int, name: str = Form(...), lin
     
 @app.post("/link/delete_task/")
 async def delete_item(item_id: int = Form(...), db: Session = Depends(get_db)):
-    
+
     print("delete!!")
     db_item = db.query(Link).filter(Link.id == item_id).first()
     if db_item:
         db.delete(db_item)
         db.commit()
     return RedirectResponse("/link_00/", status_code=303)
+
+
+# --------------------
+# Music routes
+
+@app.get("/music/downloader/")
+async def music_downloader(request: Request):
+    request.session['music_tab_active'] = "downloader"
+    return RedirectResponse("/music/", status_code=303)
+
+@app.get("/music/player/")
+async def music_player(request: Request):
+    request.session['music_tab_active'] = "player"
+    return RedirectResponse("/music/", status_code=303)
+
+@app.get("/music/editor/")
+async def music_editor(request: Request):
+    request.session['music_tab_active'] = "editor"
+    return RedirectResponse("/music/", status_code=303)
+
+@app.get("/music/")
+async def music(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    music_tab_active = request.session.get('music_tab_active', 'downloader')
+    tab_page_active = "music"
+    message_color = "#0f0"
+
+    return templates.TemplateResponse("music_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": tab_page_active,
+        "music_tab_active": music_tab_active,
+        "message_color": message_color,
+    })
 
