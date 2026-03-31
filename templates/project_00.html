@@ -32,14 +32,15 @@
     #drop-zone {
         border: 2px dashed #555;
         border-radius: 6px;
-        padding: 30px;
+        padding: 15px;
         text-align: center;
         color: #888;
         font-size: 13px;
         cursor: pointer;
         transition: border-color 0.2s, background-color 0.2s;
-        margin-bottom: 12px;
+        margin: 0 auto 12px auto;
         user-select: none;
+        width: 25%;
     }
     #drop-zone.drag-over {
         border-color: #0f0;
@@ -155,8 +156,16 @@
             </div>
             <input type="file" id="file-input" accept=".xlsx,.xls,.csv,.db,.sqlite,.sqlite3" style="display:none;">
 
+            <!-- Progress bar -->
+            <div id="progress-wrap" style="display: none; width: 25%; margin: 0 auto 6px auto;">
+                <div style="background-color: #333; border-radius: 4px; height: 8px; overflow: hidden;">
+                    <div id="progress-bar" style="height: 100%; width: 0%; background-color: #0f0; border-radius: 4px; transition: width 0.3s ease;"></div>
+                </div>
+                <div id="progress-label" style="color: #aaa; font-size: 11px; margin-top: 3px; text-align: center;">0%</div>
+            </div>
+
             <!-- Status -->
-            <div id="upload-status" style="font-size: 12px; color: #aaa; margin-bottom: 10px;"></div>
+            <div id="upload-status" style="font-size: 12px; color: #aaa; margin-bottom: 10px; text-align: center;"></div>
 
             <!-- Result area (shown after upload) -->
             <div id="result-area" style="display: none;">
@@ -222,57 +231,89 @@
         if (fileInput.files[0]) handleFile(fileInput.files[0]);
     });
 
+    // --- Progress bar helpers ---
+    function setProgress(pct, visible) {
+        const wrap = document.getElementById('progress-wrap');
+        const bar  = document.getElementById('progress-bar');
+        const lbl  = document.getElementById('progress-label');
+        wrap.style.display = visible ? 'block' : 'none';
+        bar.style.width = pct + '%';
+        lbl.textContent = pct + '%';
+    }
+
+    // --- XHR helper ---
+    function xhrPost(url, formData, onProgress, onDone, onError) {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) onProgress(Math.round(e.loaded / e.total * 80));
+        });
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+                onProgress(100);
+                onDone(JSON.parse(xhr.responseText));
+            } else {
+                onError('Server error: ' + xhr.status);
+            }
+        });
+        xhr.addEventListener('error', () => onError('Network error'));
+        xhr.open('POST', url);
+        xhr.send(formData);
+    }
+
     // --- Handle file upload ---
     function handleFile(file) {
         uploadedFile = file;
-        setStatus('Uploading...', '#ff0');
+        setStatus('Reading file...', '#ff0');
+        setProgress(0, true);
+        document.getElementById('result-area').style.display = 'none';
 
         const formData = new FormData();
         formData.append('file', file);
 
-        fetch('/project/upload/', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
+        xhrPost('/project/upload/', formData,
+            (pct) => setProgress(pct, true),
+            (data) => {
+                setProgress(0, false);
                 if (data.error) { setStatus('Error: ' + data.error, '#f00'); return; }
-
                 setStatus('', '');
                 document.getElementById('result-area').style.display = 'block';
                 document.getElementById('info-filename').textContent = file.name;
                 document.getElementById('info-filetype').textContent = data.file_type.toUpperCase();
-
                 if (data.sheets) {
-                    // Excel or SQLite — show sheet selector
                     const sel = document.getElementById('sheet-select');
                     sel.innerHTML = data.sheets.map(s => `<option value="${s}">${s}</option>`).join('');
                     document.getElementById('sheet-row').style.display = 'flex';
                     document.getElementById('columns-area').style.display = 'none';
                 } else if (data.columns) {
-                    // CSV — show columns directly
                     document.getElementById('sheet-row').style.display = 'none';
                     showColumns(data.columns, data.rows);
                 }
-            })
-            .catch(err => setStatus('Network error: ' + err.message, '#f00'));
+            },
+            (err) => { setProgress(0, false); setStatus(err, '#f00'); }
+        );
     }
 
     // --- Load columns for selected sheet ---
     function loadColumns() {
         if (!uploadedFile) return;
         const sheet = document.getElementById('sheet-select').value;
-
         const formData = new FormData();
         formData.append('file', uploadedFile);
         formData.append('sheet', sheet);
 
         setStatus('Loading columns...', '#ff0');
-        fetch('/project/columns/', { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
+        setProgress(0, true);
+
+        xhrPost('/project/columns/', formData,
+            (pct) => setProgress(pct, true),
+            (data) => {
+                setProgress(0, false);
                 setStatus('', '');
                 if (data.error) { setStatus('Error: ' + data.error, '#f00'); return; }
                 showColumns(data.columns, data.rows);
-            })
-            .catch(err => setStatus('Network error: ' + err.message, '#f00'));
+            },
+            (err) => { setProgress(0, false); setStatus(err, '#f00'); }
+        );
     }
 
     function showColumns(columns, rows) {
