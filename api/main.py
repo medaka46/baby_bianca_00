@@ -1548,8 +1548,9 @@ async def project_upload(file: UploadFile = File(...)):
             return JSONResponse({"file_type": ext.lstrip("."), "sheets": sheets, "columns": None})
 
         elif ext == ".csv":
-            df = pd.read_csv(io.BytesIO(content), nrows=0)
-            return JSONResponse({"file_type": "csv", "sheets": None, "columns": list(df.columns)})
+            df = pd.read_csv(io.BytesIO(content))
+            df = df.where(pd.notnull(df), None)
+            return JSONResponse({"file_type": "csv", "sheets": None, "columns": list(df.columns), "rows": df.astype(str).to_dict(orient="records")})
 
         elif ext in (".db", ".sqlite", ".sqlite3"):
             import sqlite3, tempfile
@@ -1578,8 +1579,9 @@ async def project_columns(file: UploadFile = File(...), sheet: str = Form(...)):
 
     try:
         if ext in (".xlsx", ".xls"):
-            df = pd.read_excel(io.BytesIO(content), sheet_name=sheet, nrows=0)
-            return JSONResponse({"columns": list(df.columns)})
+            df = pd.read_excel(io.BytesIO(content), sheet_name=sheet)
+            df = df.where(pd.notnull(df), None)
+            return JSONResponse({"columns": list(df.columns), "rows": df.astype(str).to_dict(orient="records")})
 
         elif ext in (".db", ".sqlite", ".sqlite3"):
             import sqlite3, tempfile
@@ -1587,11 +1589,12 @@ async def project_columns(file: UploadFile = File(...), sheet: str = Form(...)):
                 tmp.write(content)
                 tmp_path = tmp.name
             con = sqlite3.connect(tmp_path)
-            cursor = con.execute(f"SELECT * FROM \"{sheet}\" LIMIT 0")
+            cursor = con.execute(f"SELECT * FROM \"{sheet}\"")
             columns = [d[0] for d in cursor.description]
+            rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
             con.close()
             os.unlink(tmp_path)
-            return JSONResponse({"columns": columns})
+            return JSONResponse({"columns": columns, "rows": rows})
 
         else:
             return JSONResponse({"error": "Unsupported"}, status_code=400)
