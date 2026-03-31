@@ -27,6 +27,7 @@ app.mount("/static", StaticFiles(directory=os.path.join(base_dir, "static")), na
 
 # Set up Jinja2 templates
 templates = Jinja2Templates(directory=os.path.join(base_dir, "templates"))
+templates.env.globals['ENVIRONMENT'] = ENVIRONMENT
 
 
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>test_09</title>
 
-   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+   <link rel="icon" type="image/x-icon" href="/static/{{ 'favicon_blue.ico' if ENVIRONMENT == 'production' else 'favicon_green.ico' }}">
 
     <!-- <link rel="stylesheet" href="/static/style.css"> -->
     <style>
