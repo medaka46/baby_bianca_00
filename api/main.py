@@ -43,6 +43,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Set up Jinja2 templates
 templates = Jinja2Templates(directory="templates")
+templates.env.globals['ENVIRONMENT'] = ENVIRONMENT
 
 # Create the database tables if they don't exist
 Base.metadata.create_all(bind=engine)
