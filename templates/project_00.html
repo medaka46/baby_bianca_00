@@ -94,7 +94,7 @@
         overflow: hidden;
     }
     .data-table-scroll {
-        max-height: calc(100vh - 280px);
+        max-height: 400px;
         overflow-y: auto;
         overflow-x: auto;
         scrollbar-width: thin;
@@ -141,6 +141,11 @@
 <header class="tab_00">
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
         <div class="title_00" style="margin: 0;">Project</div>
+        <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+            <label style="color: #0f0; font-size: 11px;">Table Height:</label>
+            <input type="range" id="tableHeight" min="400" max="1000" value="400" style="width: 100px; background-color: #444; border: 1px solid #666;">
+            <span id="tableHeightValue" style="color: #0f0; font-size: 11px; min-width: 40px;">400px</span>
+        </div>
     </div>
 </header>
 
@@ -345,6 +350,17 @@
         el.textContent = msg;
         el.style.color = color;
     }
+
+    // --- Table height slider ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const slider = document.getElementById('tableHeight');
+        const label  = document.getElementById('tableHeightValue');
+        slider.addEventListener('input', function() {
+            const h = slider.value + 'px';
+            label.textContent = h;
+            document.querySelectorAll('.data-table-scroll').forEach(el => el.style.maxHeight = h);
+        });
+    });
 </script>
 
 {% endblock %}
