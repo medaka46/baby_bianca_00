@@ -61,7 +61,7 @@
                 <!-- <input type="text" name="name" placeholder="Name..." style="background-color: #444; color: #fff; border: 1px solid #666; padding: 4px 8px; flex: 1; min-width: 80px;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = this.value ? '#fff' : '#999'"> -->
                 <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
                 <!-- <input type="text" name="link" placeholder="Link..." style="background-color: #444; color: #fff; border: 1px solid #666; padding: 4px 8px; flex: 2; min-width: 120px;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = this.value ? '#fff' : '#999'"> -->
-                <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+                <input id="input_category" type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
                 <!-- <input id="input_category" type="text" name="category" placeholder="Category..." style="background-color: #444; color: #888; border: 1px solid #666; padding: 4px 8px; flex: 1; min-width: 80px;" onfocus="this.style.color='#fff'"> -->
                 <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
                 <!-- <input type="text" name="status" placeholder="Status..." style="background-color: #444; color: #fff; border: 1px solid #666; padding: 4px 8px; flex: 1; min-width: 80px;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = this.value ? '#fff' : '#999'"> -->
@@ -100,7 +100,7 @@
                         
                         <div class="day {% if ii == 0 %}first-row{% endif %}" style="min-height: 120px; max-height: 200px; overflow-y: auto;">
                             <ul class="ul" style="margin: 0; padding: 0; list-style: none;">
-                                <div id="categoryClick" style="color: #fff; font-size: 12px; font-weight: bold; padding: 3px 5px; background-color: #333; border-radius: 3px; margin-bottom: 3px; cursor: pointer;" data-category='{{ name_items[i+ii*7] }}' onclick="onclickLinkCategory('{{ name_items[i+ii*7] }}')">
+                                <div id="categoryClick" style="color: #fff; font-size: 12px; font-weight: bold; padding: 3px 5px; background-color: #555; border-radius: 3px; margin-bottom: 3px; cursor: pointer;" data-category='{{ name_items[i+ii*7] }}' onclick="onclickLinkCategory('{{ name_items[i+ii*7] }}')">
                                     {{ name_items[i+ii*7] }}
                                 </div>
                                 
