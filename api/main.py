@@ -1548,7 +1548,15 @@ async def project_upload(file: UploadFile = File(...)):
             return JSONResponse({"file_type": ext.lstrip("."), "sheets": sheets, "columns": None})
 
         elif ext == ".csv":
-            df = pd.read_csv(io.BytesIO(content))
+            for enc in ("utf-8", "utf-8-sig", "shift_jis", "cp932", "latin-1"):
+                try:
+                    df = pd.read_csv(io.BytesIO(content), encoding=enc)
+                    break
+                except (UnicodeDecodeError, Exception):
+                    continue
+            else:
+                return JSONResponse({"error": "Could not decode CSV file. Please save as UTF-8."}, status_code=400)
+            df.columns = [str(c) for c in df.columns]
             df = df.where(pd.notnull(df), None)
             return JSONResponse({"file_type": "csv", "sheets": None, "columns": list(df.columns), "rows": df.astype(str).to_dict(orient="records")})
 
