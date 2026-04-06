@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+    #game-canvas {
+        display: block;
+        background: #000;
+        border: 1px solid #333;
+        outline: 2px solid transparent;
+    }
+    #game-canvas.focused { outline-color: #0f0; }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex;">
+        <form action="/game/invader/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if game_tab_active == 'invader' else '#aaa' }};">Invader Game</button>
+        </form>
+        <form action="/game/game01/" method="get" style="margin: 0;">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if game_tab_active == 'game01' else '#aaa' }}; padding: 5px 10px; border: none; cursor: pointer;">Game 01</button>
+        </form>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">Game</div>
+    </div>
+</header>
+
+<main class="tab_00">
+    <div class="scrollable-content" style="padding: 8px;">
+        {% if game_tab_active == "invader" %}
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+            <div style="display: flex; gap: 30px; font-size: 13px; color: #0f0; font-family: monospace;">
+                <span>SCORE: <span id="score-display">0</span></span>
+                <span>LIVES: <span id="lives-display">3</span></span>
+                <span>LEVEL: <span id="level-display">1</span></span>
+            </div>
+            <canvas id="game-canvas" tabindex="0"></canvas>
+            <div id="key-debug" style="font-size: 11px; color: #555; font-family: monospace; min-height: 16px;"></div>
+            <div style="font-size: 11px; color: #666; font-family: monospace;">
+                ← → Move &nbsp;|&nbsp; Enter Shoot &nbsp;|&nbsp; P Pause &nbsp;|&nbsp; Click canvas to activate
+            </div>
+        </div>
+
+        <script>
+        (function() {
+            const canvas  = document.getElementById('game-canvas');
+            const ctx     = canvas.getContext('2d');
+            const dbg     = document.getElementById('key-debug');
+
+            // --- Canvas size ---
+            function resize() {
+                const par = canvas.parentElement;
+                canvas.width  = Math.min(par.clientWidth - 20, 700);
+                canvas.height = Math.min(window.innerHeight - 230, 500);
+            }
+            resize();
+            window.addEventListener('resize', () => { resize(); resetGame(); });
+
+            const W = () => canvas.width;
+            const H = () => canvas.height;
+
+            // --- Input state (simple booleans) ---
+            let leftDown = false, rightDown = false, spaceDown = false;
+            let gameFocused = false;
+
+            canvas.setAttribute('tabindex', '0');
+
+            canvas.addEventListener('click', function() {
+                canvas.focus();
+                gameFocused = true;
+                canvas.classList.add('focused');
+            });
+
+            // Use capture:true so we intercept before anything else
+            window.addEventListener('keydown', function(e) {
+                dbg.textContent = 'key: ' + e.code;
+
+                if (e.code === 'ArrowLeft')  { leftDown  = true;  e.preventDefault(); }
+                if (e.code === 'ArrowRight') { rightDown = true;  e.preventDefault(); }
+                if (e.code === 'ArrowUp' || e.code === 'ArrowDown' || e.code === 'Space') e.preventDefault();
+                if (e.code === 'Enter') {
+                    e.preventDefault();
+                    if (!paused && !gameOver && !won && shootCooldown <= 0 && bullets && bullets.length < 3) {
+                        bullets.push({x: player.x + player.w/2 - 1, y: player.y, w: 2, h: 8});
+                        shootCooldown = 0.35;
+                    }
+                    if (gameOver) { resetGame(); }
+                    if (won) { level++; document.getElementById('level-display').textContent = level; initLevel(); }
+                }
+                if (e.code === 'KeyP') { paused = !paused; e.preventDefault(); }
+            }, true);
+
+            window.addEventListener('keyup', function(e) {
+                if (e.code === 'ArrowLeft')  leftDown  = false;
+                if (e.code === 'ArrowRight') rightDown = false;
+                if (e.code === 'Space')      spaceDown = false;
+            }, true);
+
+            // --- Game state ---
+            let score, lives, level, paused, gameOver, won;
+            let player, bullets, enemyBullets, enemies, shields;
+            let shootCooldown, enemyDir, enemySpeed, enemyDropDist, enemyShootTimer;
+            let lastTime = 0;
+
+            // --- Drawing ---
+            function drawInvader(x, y, type, color, f) {
+                ctx.fillStyle = color;
+                ctx.shadowColor = color; ctx.shadowBlur = 4;
+                const p = (r,c,w,h) => ctx.fillRect(x+c, y+r, w, h);
+                if (type === 0) {
+                    if (!f) { p(0,4,8,2);p(2,2,12,2);p(4,0,16,6);p(10,2,4,2);p(10,10,4,2);p(4,0,2,2);p(4,14,2,2); }
+                    else    { p(0,4,8,2);p(2,2,12,2);p(4,2,12,6);p(10,0,4,2);p(10,12,4,2);p(4,4,2,2);p(4,10,2,2); }
+                } else if (type === 1) {
+                    if (!f) { p(0,6,4,2);p(2,2,12,2);p(4,0,16,6);p(10,2,2,2);p(10,12,2,2);p(10,4,2,2);p(10,10,2,2); }
+                    else    { p(0,6,4,2);p(2,2,12,2);p(4,0,16,6);p(10,0,4,2);p(10,12,4,2); }
+                } else {
+                    if (!f) { p(0,4,8,2);p(2,2,12,2);p(4,0,16,8);p(12,0,4,2);p(12,12,4,2);p(12,4,3,2);p(12,9,3,2); }
+                    else    { p(0,4,8,2);p(2,2,12,2);p(4,0,16,8);p(12,2,3,2);p(12,11,3,2);p(10,0,2,2);p(10,14,2,2); }
+                }
+                ctx.shadowBlur = 0;
+            }
+
+            function drawPlayer(x, y) {
+                ctx.fillStyle = '#0f0'; ctx.shadowColor = '#0f0'; ctx.shadowBlur = 6;
+                ctx.fillRect(x+10, y,    2,  6);
+                ctx.fillRect(x+6,  y+6,  10, 8);
+                ctx.fillRect(x,    y+10, 22, 4);
+                ctx.shadowBlur = 0;
+            }
+
+            function drawShield(sh) {
+                ctx.fillStyle = '#0a0';
+                for (let r = 0; r < sh.grid.length; r++)
+                    for (let c = 0; c < sh.grid[r].length; c++)
+                        if (sh.grid[r][c]) ctx.fillRect(sh.x+c*4, sh.y+r*4, 4, 4);
+            }
+
+            function shieldGrid() {
+                return [[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],
+                        [1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1],
+                        [1,1,0,0,0,0,1,1],[1,1,0,0,0,0,1,1]].map(r=>[...r]);
+            }
+
+            function hit(ax,ay,aw,ah,bx,by,bw,bh) {
+                return ax<bx+bw && ax+aw>bx && ay<by+bh && ay+ah>by;
+            }
+
+            function damageShield(bx, by) {
+                for (const sh of shields) {
+                    const c = Math.floor((bx-sh.x)/4), r = Math.floor((by-sh.y)/4);
+                    if (r>=0&&r<sh.grid.length&&c>=0&&c<sh.grid[0].length&&sh.grid[r][c]) {
+                        sh.grid[r][c]=0;
+                        [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].forEach(([rr,cc])=>{
+                            if(rr>=0&&rr<sh.grid.length&&cc>=0&&cc<sh.grid[0].length&&Math.random()<0.4)sh.grid[rr][cc]=0;
+                        });
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            function initLevel() {
+                const cols=11, rows=5, cw=36, ch=30;
+                const sx=(W()-cols*cw)/2, sy=45;
+                enemies=[];
+                for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) {
+                    const t=r<1?0:r<3?1:2;
+                    enemies.push({x:sx+c*cw,y:sy+r*ch,w:22,h:16,type:t,
+                        color:t===0?'#f0f':t===1?'#0ff':'#0f0',
+                        points:t===0?30:t===1?20:10, alive:true, frame:0});
+                }
+                player={x:W()/2-11, y:H()-36, w:22, h:14};
+                bullets=[]; enemyBullets=[];
+                enemyDir=1; enemySpeed=0.5+(level-1)*0.3;
+                enemyDropDist=14; enemyShootTimer=0; shootCooldown=0;
+                won=false; gameOver=false;
+                shields=[];
+                for(let i=0;i<4;i++) shields.push({x:Math.round(W()*(i+0.5)/4)-16, y:H()-90, grid:shieldGrid()});
+            }
+
+            function resetGame() {
+                score=0; lives=3; level=1; paused=false; gameOver=false; won=false;
+                document.getElementById('score-display').textContent=0;
+                document.getElementById('lives-display').textContent=3;
+                document.getElementById('level-display').textContent=1;
+                initLevel();
+            }
+
+            function update(dt) {
+                if (paused||gameOver||won) return;
+
+                if (leftDown)  player.x = Math.max(0, player.x-600*dt);
+                if (rightDown) player.x = Math.min(W()-player.w, player.x+600*dt);
+
+                shootCooldown -= dt;
+
+                bullets=bullets.filter(b=>{
+                    b.y-=360*dt;
+                    if(b.y+b.h<0) return false;
+                    if(damageShield(b.x+1,b.y)) return false;
+                    for(const e of enemies) {
+                        if(e.alive&&hit(b.x,b.y,b.w,b.h,e.x,e.y,e.w,e.h)) {
+                            e.alive=false; score+=e.points;
+                            document.getElementById('score-display').textContent=score;
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+
+                const alive=enemies.filter(e=>e.alive);
+                if(alive.length===0){won=true;return;}
+
+                const mult=1+(55-alive.length)/55*2.5;
+                const step=enemySpeed*mult*dt*60;
+                let wall=false;
+                for(const e of alive){e.x+=enemyDir*step; if(e.x<=2||e.x+e.w>=W()-2) wall=true;}
+                if(wall){enemyDir*=-1; for(const e of alive) e.y+=enemyDropDist;}
+                alive.forEach(e=>{e.frame=(e.frame+dt*2)%2;});
+
+                enemyShootTimer-=dt;
+                if(enemyShootTimer<=0&&alive.length>0){
+                    const s=alive[Math.floor(Math.random()*alive.length)];
+                    enemyBullets.push({x:s.x+s.w/2-1,y:s.y+s.h,w:2,h:8});
+                    enemyShootTimer=Math.max(0.3,1.5-(level-1)*0.2-(55-alive.length)/55*0.8);
+                }
+
+                enemyBullets=enemyBullets.filter(b=>{
+                    b.y+=220*dt;
+                    if(b.y>H()) return false;
+                    if(damageShield(b.x+1,b.y+b.h)) return false;
+                    if(hit(b.x,b.y,b.w,b.h,player.x,player.y,player.w,player.h)){
+                        lives--; document.getElementById('lives-display').textContent=lives;
+                        player.x=W()/2-11;
+                        if(lives<=0) gameOver=true;
+                        return false;
+                    }
+                    return true;
+                });
+
+                for(const e of alive) if(e.y+e.h>=player.y){gameOver=true;break;}
+            }
+
+            function draw() {
+                ctx.clearRect(0,0,W(),H());
+                shields.forEach(drawShield);
+                if(!gameOver) drawPlayer(player.x,player.y);
+                enemies.forEach(e=>{if(e.alive) drawInvader(e.x,e.y,e.type,e.color,Math.floor(e.frame));});
+
+                bullets.forEach(b=>{ctx.fillStyle='#ff0';ctx.shadowColor='#ff0';ctx.shadowBlur=4;ctx.fillRect(b.x,b.y,b.w,b.h);});
+                enemyBullets.forEach(b=>{ctx.fillStyle='#f44';ctx.shadowColor='#f44';ctx.shadowBlur=4;ctx.fillRect(b.x,b.y,b.w,b.h);});
+                ctx.shadowBlur=0;
+
+                ctx.strokeStyle='#0f0';ctx.lineWidth=1;
+                ctx.beginPath();ctx.moveTo(0,H()-16);ctx.lineTo(W(),H()-16);ctx.stroke();
+
+                if(!gameFocused) {
+                    ctx.fillStyle='rgba(0,0,0,0.75)';ctx.fillRect(0,0,W(),H());
+                    ctx.fillStyle='#0f0';ctx.font='bold 22px monospace';ctx.textAlign='center';
+                    ctx.fillText('CLICK HERE TO PLAY',W()/2,H()/2);
+                    ctx.textAlign='left';
+                } else if(paused) {
+                    overlay('PAUSED','#ff0','Press P to resume');
+                } else if(gameOver) {
+                    overlay('GAME OVER','#f00','Score: '+score+'   Space = restart');
+                } else if(won) {
+                    overlay('LEVEL CLEAR!','#0f0','Space = next level');
+                }
+            }
+
+            function overlay(title,color,sub){
+                ctx.fillStyle='rgba(0,0,0,0.65)';ctx.fillRect(0,0,W(),H());
+                ctx.textAlign='center';
+                ctx.fillStyle=color;ctx.font='bold 34px monospace';ctx.fillText(title,W()/2,H()/2-16);
+                ctx.fillStyle='#aaa';ctx.font='14px monospace';ctx.fillText(sub,W()/2,H()/2+16);
+                ctx.textAlign='left';
+            }
+
+            function loop(ts) {
+                const dt=Math.min((ts-lastTime)/1000,0.05);
+                lastTime=ts;
+                update(dt);
+                draw();
+                requestAnimationFrame(loop);
+            }
+
+            resetGame();
+            requestAnimationFrame(function(ts){lastTime=ts;requestAnimationFrame(loop);});
+        })();
+        </script>
+
+        {% elif game_tab_active == "game01" %}
+            <div style="color: #aaa; font-size: 13px;">Coming soon... (Game 01)</div>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

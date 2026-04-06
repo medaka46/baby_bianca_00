@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">Function</div>
+    </div>
+</header>
+
+<main class="tab_00">
+    <div class="scrollable-content" style="padding: 12px;">
+        <div style="color: #aaa; font-size: 13px;">Coming soon...</div>
+    </div>
+</main>
+{% endblock %}

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>test_09</title>
 
-   <link rel="icon" type="image/x-icon" href="/static/{{ 'favicon_blue.ico' if ENVIRONMENT == 'production' else 'favicon_green.ico' }}">
+   <link rel="icon" type="image/x-icon" href="/static/{{ 'favicon_blue.ico' if ENVIRONMENT == 'production' else 'favicon.ico' }}">
 
     <!-- <link rel="stylesheet" href="/static/style.css"> -->
     <style>
@@ -542,6 +542,11 @@
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "music" else "#aaa" }};">Music</button>
             </form>
 
+            <form action="/game/" method="get">
+
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "game" else "#aaa" }};">Game</button>
+            </form>
+
             <form action="/sqlite/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#f00" if tab_page_active == "sqlite" else "#aaa" }};">Sqlite</button>
@@ -733,7 +738,7 @@
             // Refresh the page every 5 minutes (300,000 milliseconds)
         setInterval(function() {
         location.reload();
-        }, 1000);
+        }, 300000);
 
 
         async function fetchLinks() {

@@ -1523,6 +1523,67 @@ async def music_serve_file(filename: str):
 # --------------------
 # Project routes
 
+@app.get("/action/")
+async def action(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    return templates.TemplateResponse("function_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "action",
+    })
+
+@app.get("/sqlite/")
+async def sqlite_page(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    return templates.TemplateResponse("sqlite_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "sqlite",
+    })
+
+@app.get("/game/")
+async def game(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    request.session['game_tab_active'] = 'invader'
+    return templates.TemplateResponse("game_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "game",
+        "game_tab_active": "invader",
+    })
+
+@app.get("/game/invader/")
+async def game_invader(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    request.session['game_tab_active'] = 'invader'
+    return templates.TemplateResponse("game_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "game",
+        "game_tab_active": "invader",
+    })
+
+@app.get("/game/game01/")
+async def game_game01(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    request.session['game_tab_active'] = 'game01'
+    return templates.TemplateResponse("game_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "game",
+        "game_tab_active": "game01",
+    })
+
 @app.get("/project/")
 async def project(request: Request):
     login_username = request.session.get('login_username')
