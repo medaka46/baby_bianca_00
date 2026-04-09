@@ -84,6 +84,14 @@
         color: #ccc;
         margin: 2px;
         display: inline-block;
+        cursor: pointer;
+        user-select: none;
+    }
+    .col-tag.col-hidden {
+        color: #555;
+        text-decoration: line-through;
+        background-color: #1a1a1a;
+        border-color: #333;
     }
 
     /* Data table */
@@ -120,7 +128,9 @@
         position: relative;
         top: 0;
         z-index: 1;
-        min-width: 20px;
+        min-width: 0;
+        max-width: 0;
+        overflow: hidden;
     }
     .resize-handle {
         position: absolute;
@@ -142,6 +152,7 @@
         border-bottom: 1px solid #2a2a2a;
         white-space: nowrap;
         color: #0f0;
+        max-width: 0;
         overflow: hidden;
     }
     .data-table tr:hover td { background-color: #2a2a2a; }
@@ -368,7 +379,7 @@
     function showColumns(columns, rows) {
         const area = document.getElementById('columns-area');
         const list = document.getElementById('columns-list');
-        list.innerHTML = columns.map(c => `<span class="col-tag">${c}</span>`).join('');
+        list.innerHTML = columns.map((c, i) => `<span class="col-tag" data-col="${i}">${c}</span>`).join('');
 
         // Build colgroup
         const colgroup = document.getElementById('table-cols');
@@ -377,7 +388,7 @@
         // Build table header with resize handles
         const thead = document.getElementById('table-head');
         thead.innerHTML = '<tr>' + columns.map(c =>
-            `<th style="width:150px;">${c}<div class="resize-handle"></div></th>`
+            `<th style="width:150px;max-width:150px;">${c}<div class="resize-handle"></div></th>`
         ).join('') + '</tr>';
 
         // Build table body
@@ -394,6 +405,23 @@
 
         area.style.display = 'block';
         initResizable();
+
+        // Column hide/show by clicking tag
+        list.querySelectorAll('.col-tag').forEach(function(tag) {
+            tag.addEventListener('click', function() {
+                const idx = parseInt(tag.getAttribute('data-col'));
+                const hidden = tag.classList.toggle('col-hidden');
+                const display = hidden ? 'none' : '';
+                // Hide/show header cell
+                const ths = document.querySelectorAll('#table-head tr th');
+                if (ths[idx]) ths[idx].style.display = display;
+                // Hide/show all body cells in this column
+                document.querySelectorAll('#table-body tr').forEach(function(tr) {
+                    const td = tr.querySelectorAll('td')[idx];
+                    if (td) td.style.display = display;
+                });
+            });
+        });
     }
 
     // --- Column resize ---
@@ -401,9 +429,10 @@
 
     document.addEventListener('mousemove', function(e) {
         if (!_resizing) return;
-        const newW = Math.max(20, _resizing.startW + (e.clientX - _resizing.startX));
+        const newW = Math.max(10, _resizing.startW + (e.clientX - _resizing.startX));
         _resizing.th.style.width = newW + 'px';
-        _resizing.th.style.minWidth = newW + 'px';
+        _resizing.th.style.minWidth = '0';
+        _resizing.th.style.maxWidth = newW + 'px';
     });
 
     document.addEventListener('mouseup', function() {
