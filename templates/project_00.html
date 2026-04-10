@@ -446,6 +446,12 @@
         sessionStorage.removeItem('proj_columns');
         sessionStorage.removeItem('proj_rows');
         sessionStorage.removeItem('proj_hidden_cols');
+        sessionStorage.removeItem('proj_filter_conditions');
+        sessionStorage.removeItem('proj_chart_open');
+        sessionStorage.removeItem('proj_chart_axis_open');
+        sessionStorage.removeItem('proj_chart_type');
+        sessionStorage.removeItem('proj_chart_x');
+        sessionStorage.removeItem('proj_chart_y');
         setStatus('Reading file...', '#ff0');
         setProgress(0, true);
         document.getElementById('result-area').style.display = 'none';
@@ -496,6 +502,7 @@
                 setStatus('', '');
                 if (data.error) { setStatus('Error: ' + data.error, '#f00'); return; }
                 sessionStorage.removeItem('proj_hidden_cols');
+                sessionStorage.removeItem('proj_filter_conditions');
                 saveToSession(uploadedFile.name, (sessionStorage.getItem('proj_filetype') || ''), data.columns, data.rows);
                 showColumns(data.columns, data.rows);
             },
@@ -570,6 +577,7 @@
         const shown = _currentRows.length;
         document.getElementById('row-count').textContent =
             shown === total ? total + ' rows' : shown + ' / ' + total + ' rows';
+        try { sessionStorage.setItem('proj_filter_conditions', JSON.stringify(_filterConditions)); } catch(e) {}
     }
 
     function renderBody() {
@@ -775,14 +783,27 @@
             window.location.href = '/project/chart/';
         });
 
-        // Chart type selection → show axis selectors
+        // Chart type selection → show axis selectors and save
         document.getElementById('chart-type-select').addEventListener('change', function() {
+            sessionStorage.setItem('proj_chart_type', this.value);
             const colOptions = _currentColumns.map(c => `<option value="${c}">${c}</option>`).join('');
             document.getElementById('chart-x-select').innerHTML = colOptions;
             document.getElementById('chart-y-select').innerHTML = colOptions;
+            // Restore previously selected x/y if available
+            const savedX = sessionStorage.getItem('proj_chart_x');
+            const savedY = sessionStorage.getItem('proj_chart_y');
+            if (savedX) document.getElementById('chart-x-select').value = savedX;
+            if (savedY) document.getElementById('chart-y-select').value = savedY;
             ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
                 document.getElementById(id).style.display = '';
             });
+            sessionStorage.setItem('proj_chart_axis_open', '1');
+        });
+        document.getElementById('chart-x-select').addEventListener('change', function() {
+            sessionStorage.setItem('proj_chart_x', this.value);
+        });
+        document.getElementById('chart-y-select').addEventListener('change', function() {
+            sessionStorage.setItem('proj_chart_y', this.value);
         });
 
         // Filter bar event delegation
@@ -803,14 +824,27 @@
             if (e.target.id === 'draw-chart-btn') {
                 const opt = document.getElementById('chart-options');
                 if (opt.style.display === 'none') {
-                    // Reset chart type and hide axis selectors
-                    document.getElementById('chart-type-select').selectedIndex = 0;
-                    ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
-                        document.getElementById(id).style.display = 'none';
-                    });
                     opt.style.display = 'flex';
+                    sessionStorage.setItem('proj_chart_open', '1');
+                    // Restore saved chart type
+                    const savedType = sessionStorage.getItem('proj_chart_type');
+                    if (savedType) document.getElementById('chart-type-select').value = savedType;
+                    // If type was already selected, restore axis selectors too
+                    if (sessionStorage.getItem('proj_chart_axis_open')) {
+                        const colOptions = _currentColumns.map(c => `<option value="${c}">${c}</option>`).join('');
+                        document.getElementById('chart-x-select').innerHTML = colOptions;
+                        document.getElementById('chart-y-select').innerHTML = colOptions;
+                        const savedX = sessionStorage.getItem('proj_chart_x');
+                        const savedY = sessionStorage.getItem('proj_chart_y');
+                        if (savedX) document.getElementById('chart-x-select').value = savedX;
+                        if (savedY) document.getElementById('chart-y-select').value = savedY;
+                        ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
+                            document.getElementById(id).style.display = '';
+                        });
+                    }
                 } else {
                     opt.style.display = 'none';
+                    sessionStorage.removeItem('proj_chart_open');
                 }
                 return;
             }
@@ -856,6 +890,42 @@
             document.getElementById('info-filetype').textContent = savedFiletype || '';
             document.getElementById('sheet-row').style.display = 'none';
             showColumns(columns, rows);
+
+            // Restore filter conditions
+            const savedFilters = sessionStorage.getItem('proj_filter_conditions');
+            if (savedFilters) {
+                _filterConditions = JSON.parse(savedFilters);
+                // Re-apply col-filter highlight on tags
+                Object.keys(_filterConditions).forEach(function(col) {
+                    const idx = columns.indexOf(col);
+                    if (idx >= 0) {
+                        const tag = document.querySelector(`#columns-list .col-tag[data-col="${idx}"]`);
+                        if (tag) tag.classList.add('col-filter');
+                    }
+                });
+                renderFilterConditions();
+                applyFilters();
+            }
+
+            // Restore chart options bar
+            if (sessionStorage.getItem('proj_chart_open')) {
+                const opt = document.getElementById('chart-options');
+                opt.style.display = 'flex';
+                const savedType = sessionStorage.getItem('proj_chart_type');
+                if (savedType) document.getElementById('chart-type-select').value = savedType;
+                if (sessionStorage.getItem('proj_chart_axis_open')) {
+                    const colOptions = columns.map(c => `<option value="${c}">${c}</option>`).join('');
+                    document.getElementById('chart-x-select').innerHTML = colOptions;
+                    document.getElementById('chart-y-select').innerHTML = colOptions;
+                    const savedX = sessionStorage.getItem('proj_chart_x');
+                    const savedY = sessionStorage.getItem('proj_chart_y');
+                    if (savedX) document.getElementById('chart-x-select').value = savedX;
+                    if (savedY) document.getElementById('chart-y-select').value = savedY;
+                    ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
+                        document.getElementById(id).style.display = '';
+                    });
+                }
+            }
         }
     });
 </script>
