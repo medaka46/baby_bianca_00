@@ -17,18 +17,26 @@
         flex-direction: column;
         min-height: 0;
     }
-    .scrollable-content {
+    #chart-container {
         flex: 1;
-        overflow-y: auto;
-        max-height: none;
-        padding-bottom: 0;
-        scrollbar-width: thin;
-        scrollbar-color: #666 #333;
+        min-height: 0;
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
     }
-    .scrollable-content::-webkit-scrollbar { width: 8px; }
-    .scrollable-content::-webkit-scrollbar-track { background: #333; }
-    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+    #chart-div {
+        flex: 1;
+        min-height: 0;
+    }
+    #no-data-msg {
+        color: #666;
+        font-size: 13px;
+        text-align: center;
+        margin-top: 40px;
+    }
 </style>
+
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
 <header class="tab_00">
     <div style="display: flex;">
@@ -44,12 +52,86 @@
     </div>
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
         <div class="title_00" style="margin: 0;">Project — Chart</div>
+        <div id="chart-info" style="font-size: 11px; color: #888;"></div>
     </div>
 </header>
 
 <main class="tab_00">
-    <div class="scrollable-content" style="padding: 12px;">
-        <div style="color: #888; font-size: 13px; margin-top: 20px; text-align: center;">Chart (coming soon)</div>
+    <div id="chart-container">
+        <div id="no-data-msg">No chart data. Go to Sort/Select tab and click Draw.</div>
+        <div id="chart-div"></div>
     </div>
 </main>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chartType = sessionStorage.getItem('proj_chart_type');
+    const xCol     = sessionStorage.getItem('proj_chart_x');
+    const yCol     = sessionStorage.getItem('proj_chart_y');
+    const rowsJson = sessionStorage.getItem('proj_chart_rows');
+    if (!chartType || !rowsJson) return;
+
+    const rows = JSON.parse(rowsJson);
+    if (!rows.length) return;
+
+    document.getElementById('no-data-msg').style.display = 'none';
+    document.getElementById('chart-info').textContent =
+        chartType.toUpperCase() + '  |  X: ' + xCol + (yCol ? '  |  Y: ' + yCol : '') + '  |  ' + rows.length + ' rows';
+
+    const xVals = rows.map(r => r[xCol] ?? null);
+    const yVals = rows.map(r => r[yCol] ?? null);
+
+    const layout = {
+        paper_bgcolor: '#1a1a1a',
+        plot_bgcolor:  '#1a1a1a',
+        font:  { color: '#ccc', size: 11 },
+        xaxis: { title: xCol, gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' },
+        yaxis: { title: yCol, gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' },
+        margin: { t: 30, r: 20, b: 50, l: 60 },
+        autosize: true,
+    };
+
+    const config = {
+        responsive: true,
+        displayModeBar: true,
+        modeBarButtonsToRemove: ['toImage'],
+        displaylogo: false,
+    };
+
+    let trace;
+    if (chartType === 'scatter') {
+        trace = {
+            x: xVals, y: yVals,
+            mode: 'markers',
+            type: 'scatter',
+            marker: { color: '#0f0', size: 5, opacity: 0.8 },
+        };
+    } else if (chartType === 'line') {
+        trace = {
+            x: xVals, y: yVals,
+            mode: 'lines+markers',
+            type: 'scatter',
+            line:   { color: '#0f0', width: 1.5 },
+            marker: { color: '#0f0', size: 4 },
+        };
+    } else if (chartType === 'bar') {
+        trace = {
+            x: xVals, y: yVals,
+            type: 'bar',
+            marker: { color: '#0a6' },
+        };
+        layout.xaxis.type = 'category';
+    } else if (chartType === 'histogram') {
+        trace = {
+            x: xVals,
+            type: 'histogram',
+            marker: { color: '#06a' },
+            autobinx: true,
+        };
+        layout.yaxis.title = 'Count';
+    }
+
+    Plotly.newPlot('chart-div', [trace], layout, config);
+});
+</script>
 {% endblock %}

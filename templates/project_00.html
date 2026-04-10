@@ -93,6 +93,77 @@
         background-color: #1a1a1a;
         border-color: #333;
     }
+    .col-tag.col-filter {
+        border-color: #ff0;
+        color: #ff0;
+        background-color: #2a2a00;
+    }
+
+    /* Filter condition bar */
+    #select-conditions {
+        display: none;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin: 8px 0 4px 0;
+        padding: 6px 8px;
+        background-color: #1e1e00;
+        border: 1px solid #555500;
+        border-radius: 4px;
+    }
+    .filter-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background-color: #2a2a00;
+        border: 1px solid #666600;
+        border-radius: 4px;
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+    .filter-chip-name {
+        color: #ff0;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+    .filter-op {
+        background-color: #333;
+        color: #0f0;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 1px 3px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .filter-val {
+        background-color: #333;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 11px;
+        width: 100px;
+    }
+    .filter-val:focus { outline: 1px solid #ff0; border-color: #ff0; }
+    .filter-toggle {
+        border: 1px solid #666;
+        border-radius: 3px;
+        padding: 1px 6px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .filter-toggle.on  { background-color: #004400; color: #0f0; border-color: #0f0; }
+    .filter-toggle.off { background-color: #333;    color: #666; border-color: #555; }
+    .filter-remove {
+        background: none;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0 2px;
+        line-height: 1;
+    }
+    .filter-remove:hover { color: #f00; }
 
     /* Data table */
     .data-table-wrap {
@@ -273,6 +344,25 @@
                     </div>
                     <div id="columns-list"></div>
 
+                    <!-- Filter condition bar -->
+                    <div id="select-conditions"></div>
+
+                    <!-- Chart options bar -->
+                    <div id="chart-options" style="display:none; align-items:center; gap:10px; padding:6px 8px; margin:4px 0; background-color:#1a1a2e; border:1px solid #333366; border-radius:4px; flex-wrap:wrap;">
+                        <span style="color:#88f; font-size:11px;">Chart Type:</span>
+                        <select id="chart-type-select" class="proj-select">
+                            <option value="scatter">Scatter</option>
+                            <option value="line">Line</option>
+                            <option value="bar">Bar</option>
+                            <option value="histogram">Histogram</option>
+                        </select>
+                        <span id="chart-x-label" style="color:#88f; font-size:11px; margin-left:6px; display:none;">X:</span>
+                        <select id="chart-x-select" class="proj-select" style="display:none;"></select>
+                        <span id="chart-y-label" style="color:#88f; font-size:11px; display:none;">Y:</span>
+                        <select id="chart-y-select" class="proj-select" style="display:none;"></select>
+                        <button id="chart-draw-btn" class="proj-btn" style="display:none;">Draw</button>
+                    </div>
+
                     <!-- Data table -->
                     <div class="data-table-wrap">
                         <div class="data-table-scroll">
@@ -293,10 +383,12 @@
 
 <script>
     let uploadedFile = null;
-    let _currentRows = [];
+    let _allRows = [];          // original unfiltered rows
+    let _currentRows = [];      // rows after filtering (and sorting)
     let _currentColumns = [];
     let _sortCol = null;
-    let _sortDir = 1; // 1 = asc, -1 = desc
+    let _sortDir = 1;           // 1 = asc, -1 = desc
+    let _filterConditions = {}; // { colName: { op, value, active } }
 
     // --- Drop zone ---
     const dropZone = document.getElementById('drop-zone');
@@ -420,6 +512,66 @@
         } catch(e) { /* storage full or unavailable */ }
     }
 
+    function renderFilterConditions() {
+        const area = document.getElementById('select-conditions');
+        area.style.display = 'flex';
+        const ops = ['contains', '=', '!=', '>', '<', '>=', '<='];
+        const chips = Object.keys(_filterConditions).map(col => {
+            const c = _filterConditions[col];
+            return `<div class="filter-chip">
+                <span class="filter-chip-name">${col}</span>
+                <select class="filter-op" data-col="${col}">
+                    ${ops.map(op => `<option${c.op === op ? ' selected' : ''}>${op}</option>`).join('')}
+                </select>
+                <input class="filter-val" type="text" data-col="${col}" value="${c.value.replace(/"/g,'&quot;')}" placeholder="value...">
+                <button class="filter-toggle ${c.active ? 'on' : 'off'}" data-col="${col}">${c.active ? 'ON' : 'OFF'}</button>
+                <button class="filter-remove" data-col="${col}">✕</button>
+            </div>`;
+        }).join('');
+        area.innerHTML = chips +
+            `<button id="draw-chart-btn" class="proj-btn">Chart</button>`;
+    }
+
+    function applyFilters() {
+        const activeConds = Object.entries(_filterConditions)
+            .filter(([, c]) => c.active && c.value !== '');
+        if (activeConds.length === 0) {
+            _currentRows = _allRows.slice();
+        } else {
+            _currentRows = _allRows.filter(row =>
+                activeConds.every(([col, cond]) => {
+                    const cv = String(row[col] ?? '');
+                    const fv = cond.value;
+                    const n = parseFloat(cv), fn = parseFloat(fv);
+                    const nums = !isNaN(n) && !isNaN(fn);
+                    switch (cond.op) {
+                        case 'contains': return cv.toLowerCase().includes(fv.toLowerCase());
+                        case '=':  return nums ? n === fn : cv === fv;
+                        case '!=': return nums ? n !== fn : cv !== fv;
+                        case '>':  return nums ? n >  fn : cv >  fv;
+                        case '<':  return nums ? n <  fn : cv <  fv;
+                        case '>=': return nums ? n >= fn : cv >= fv;
+                        case '<=': return nums ? n <= fn : cv <= fv;
+                    }
+                    return true;
+                })
+            );
+        }
+        if (_sortCol) {
+            _currentRows.sort(function(a, b) {
+                const va = a[_sortCol] ?? '', vb = b[_sortCol] ?? '';
+                const na = parseFloat(va), nb = parseFloat(vb);
+                if (!isNaN(na) && !isNaN(nb)) return (na - nb) * _sortDir;
+                return String(va).localeCompare(String(vb)) * _sortDir;
+            });
+        }
+        renderBody();
+        const total = _allRows.length;
+        const shown = _currentRows.length;
+        document.getElementById('row-count').textContent =
+            shown === total ? total + ' rows' : shown + ' / ' + total + ' rows';
+    }
+
     function renderBody() {
         const tbody = document.getElementById('table-body');
         const hiddenIdxs = JSON.parse(sessionStorage.getItem('proj_hidden_cols') || '[]');
@@ -466,9 +618,11 @@
 
     function showColumns(columns, rows, skipSave) {
         _currentColumns = columns.slice();
-        _currentRows = (rows || []).slice();
+        _allRows = (rows || []).slice();
+        _currentRows = _allRows.slice();
         _sortCol = null;
         _sortDir = 1;
+        _filterConditions = {};
 
         const area = document.getElementById('columns-area');
         const list = document.getElementById('columns-list');
@@ -493,6 +647,7 @@
         }
 
         area.style.display = 'block';
+        renderFilterConditions();
         initResizable();
 
         // Sort on header click (ignore clicks on resize handle)
@@ -516,26 +671,39 @@
             });
         });
 
-        // Column hide/show by clicking tag
+        // Column tag click: normal = hide/show, Shift = toggle filter
         list.querySelectorAll('.col-tag').forEach(function(tag) {
-            tag.addEventListener('click', function() {
+            tag.addEventListener('click', function(e) {
                 const idx = parseInt(tag.getAttribute('data-col'));
-                const hidden = tag.classList.toggle('col-hidden');
-                const display = hidden ? 'none' : '';
-                // Hide/show header cell
-                const ths = document.querySelectorAll('#table-head tr th');
-                if (ths[idx]) ths[idx].style.display = display;
-                // Hide/show all body cells in this column
-                document.querySelectorAll('#table-body tr').forEach(function(tr) {
-                    const td = tr.querySelectorAll('td')[idx];
-                    if (td) td.style.display = display;
-                });
-                // Persist hidden columns to session
-                const hiddenIdxs = [];
-                list.querySelectorAll('.col-tag.col-hidden').forEach(function(t) {
-                    hiddenIdxs.push(parseInt(t.getAttribute('data-col')));
-                });
-                sessionStorage.setItem('proj_hidden_cols', JSON.stringify(hiddenIdxs));
+                const colName = _currentColumns[idx];
+
+                if (e.shiftKey) {
+                    // Toggle as filter column
+                    if (_filterConditions[colName]) {
+                        delete _filterConditions[colName];
+                        tag.classList.remove('col-filter');
+                    } else {
+                        _filterConditions[colName] = { op: 'contains', value: '', active: true };
+                        tag.classList.add('col-filter');
+                    }
+                    renderFilterConditions();
+                    applyFilters();
+                } else {
+                    // Hide/show column
+                    const hidden = tag.classList.toggle('col-hidden');
+                    const display = hidden ? 'none' : '';
+                    const ths = document.querySelectorAll('#table-head tr th');
+                    if (ths[idx]) ths[idx].style.display = display;
+                    document.querySelectorAll('#table-body tr').forEach(function(tr) {
+                        const td = tr.querySelectorAll('td')[idx];
+                        if (td) td.style.display = display;
+                    });
+                    const hiddenIdxs = [];
+                    list.querySelectorAll('.col-tag.col-hidden').forEach(function(t) {
+                        hiddenIdxs.push(parseInt(t.getAttribute('data-col')));
+                    });
+                    sessionStorage.setItem('proj_hidden_cols', JSON.stringify(hiddenIdxs));
+                }
             });
         });
     }
@@ -593,6 +761,78 @@
             label.textContent = h;
             sessionStorage.setItem('proj_table_height', slider.value);
             document.querySelectorAll('.data-table-scroll').forEach(el => el.style.maxHeight = h);
+        });
+
+        // Draw button → save config to sessionStorage and go to Chart tab
+        document.getElementById('chart-draw-btn').addEventListener('click', function() {
+            const chartType = document.getElementById('chart-type-select').value;
+            const xCol = document.getElementById('chart-x-select').value;
+            const yCol = document.getElementById('chart-y-select').value;
+            sessionStorage.setItem('proj_chart_type', chartType);
+            sessionStorage.setItem('proj_chart_x', xCol);
+            sessionStorage.setItem('proj_chart_y', yCol);
+            sessionStorage.setItem('proj_chart_rows', JSON.stringify(_currentRows));
+            window.location.href = '/project/chart/';
+        });
+
+        // Chart type selection → show axis selectors
+        document.getElementById('chart-type-select').addEventListener('change', function() {
+            const colOptions = _currentColumns.map(c => `<option value="${c}">${c}</option>`).join('');
+            document.getElementById('chart-x-select').innerHTML = colOptions;
+            document.getElementById('chart-y-select').innerHTML = colOptions;
+            ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
+                document.getElementById(id).style.display = '';
+            });
+        });
+
+        // Filter bar event delegation
+        const condArea = document.getElementById('select-conditions');
+        condArea.addEventListener('input', function(e) {
+            if (e.target.classList.contains('filter-val')) {
+                _filterConditions[e.target.dataset.col].value = e.target.value;
+                applyFilters();
+            }
+        });
+        condArea.addEventListener('change', function(e) {
+            if (e.target.classList.contains('filter-op')) {
+                _filterConditions[e.target.dataset.col].op = e.target.value;
+                applyFilters();
+            }
+        });
+        condArea.addEventListener('click', function(e) {
+            if (e.target.id === 'draw-chart-btn') {
+                const opt = document.getElementById('chart-options');
+                if (opt.style.display === 'none') {
+                    // Reset chart type and hide axis selectors
+                    document.getElementById('chart-type-select').selectedIndex = 0;
+                    ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
+                        document.getElementById(id).style.display = 'none';
+                    });
+                    opt.style.display = 'flex';
+                } else {
+                    opt.style.display = 'none';
+                }
+                return;
+            }
+            const col = e.target.dataset.col;
+            if (e.target.classList.contains('filter-toggle')) {
+                const cond = _filterConditions[col];
+                cond.active = !cond.active;
+                e.target.textContent = cond.active ? 'ON' : 'OFF';
+                e.target.className = 'filter-toggle ' + (cond.active ? 'on' : 'off');
+                applyFilters();
+            }
+            if (e.target.classList.contains('filter-remove')) {
+                delete _filterConditions[col];
+                // Remove col-filter highlight from tag
+                const idx = _currentColumns.indexOf(col);
+                if (idx >= 0) {
+                    const tag = document.querySelector(`#columns-list .col-tag[data-col="${idx}"]`);
+                    if (tag) tag.classList.remove('col-filter');
+                }
+                renderFilterConditions();
+                applyFilters();
+            }
         });
 
         // Restore saved slider value
