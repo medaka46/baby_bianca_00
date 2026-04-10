@@ -131,7 +131,18 @@
         min-width: 0;
         max-width: 0;
         overflow: hidden;
+        cursor: pointer;
+        user-select: none;
     }
+    .data-table th:hover { background-color: #3a3a3a; }
+    .sort-indicator {
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 10px;
+        color: #0f0;
+        opacity: 0.4;
+    }
+    .sort-indicator.active { opacity: 1; }
     .resize-handle {
         position: absolute;
         top: 0;
@@ -282,6 +293,10 @@
 
 <script>
     let uploadedFile = null;
+    let _currentRows = [];
+    let _currentColumns = [];
+    let _sortCol = null;
+    let _sortDir = 1; // 1 = asc, -1 = desc
 
     // --- Drop zone ---
     const dropZone = document.getElementById('drop-zone');
@@ -405,7 +420,56 @@
         } catch(e) { /* storage full or unavailable */ }
     }
 
+    function renderBody() {
+        const tbody = document.getElementById('table-body');
+        const hiddenIdxs = JSON.parse(sessionStorage.getItem('proj_hidden_cols') || '[]');
+        if (_currentRows.length > 0) {
+            tbody.innerHTML = _currentRows.map(row =>
+                '<tr>' + _currentColumns.map((c, i) =>
+                    `<td${hiddenIdxs.includes(i) ? ' style="display:none;"' : ''}>${row[c] ?? ''}</td>`
+                ).join('') + '</tr>'
+            ).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="' + _currentColumns.length + '" style="color:#555; padding:10px;">No data</td></tr>';
+        }
+    }
+
+    function sortBy(colName) {
+        if (_sortCol === colName) {
+            _sortDir *= -1;
+        } else {
+            _sortCol = colName;
+            _sortDir = 1;
+        }
+        _currentRows.sort(function(a, b) {
+            const va = a[colName] ?? '';
+            const vb = b[colName] ?? '';
+            const na = parseFloat(va);
+            const nb = parseFloat(vb);
+            if (!isNaN(na) && !isNaN(nb)) return (na - nb) * _sortDir;
+            return String(va).localeCompare(String(vb)) * _sortDir;
+        });
+        renderBody();
+        // Update sort indicators
+        document.querySelectorAll('#table-head th').forEach(function(th) {
+            const ind = th.querySelector('.sort-indicator');
+            if (!ind) return;
+            if (th.dataset.colName === colName) {
+                ind.textContent = _sortDir === 1 ? '▲' : '▼';
+                ind.classList.add('active');
+            } else {
+                ind.textContent = '▲';
+                ind.classList.remove('active');
+            }
+        });
+    }
+
     function showColumns(columns, rows, skipSave) {
+        _currentColumns = columns.slice();
+        _currentRows = (rows || []).slice();
+        _sortCol = null;
+        _sortDir = 1;
+
         const area = document.getElementById('columns-area');
         const list = document.getElementById('columns-list');
         list.innerHTML = columns.map((c, i) => `<span class="col-tag" data-col="${i}">${c}</span>`).join('');
@@ -414,26 +478,30 @@
         const colgroup = document.getElementById('table-cols');
         colgroup.innerHTML = columns.map(() => `<col style="width:150px;">`).join('');
 
-        // Build table header with resize handles
+        // Build table header with resize handles and sort indicators
         const thead = document.getElementById('table-head');
         thead.innerHTML = '<tr>' + columns.map(c =>
-            `<th style="width:150px;max-width:150px;">${c}<div class="resize-handle"></div></th>`
+            `<th style="width:150px;max-width:150px;" data-col-name="${c}">${c}<span class="sort-indicator">▲</span><div class="resize-handle"></div></th>`
         ).join('') + '</tr>';
 
         // Build table body
-        const tbody = document.getElementById('table-body');
-        if (rows && rows.length > 0) {
-            tbody.innerHTML = rows.map(row =>
-                '<tr>' + columns.map(c => `<td>${row[c] ?? ''}</td>`).join('') + '</tr>'
-            ).join('');
-            document.getElementById('row-count').textContent = rows.length + ' rows';
+        renderBody();
+        if (_currentRows.length > 0) {
+            document.getElementById('row-count').textContent = _currentRows.length + ' rows';
         } else {
-            tbody.innerHTML = '<tr><td colspan="' + columns.length + '" style="color:#555; padding:10px;">No data</td></tr>';
             document.getElementById('row-count').textContent = '';
         }
 
         area.style.display = 'block';
         initResizable();
+
+        // Sort on header click (ignore clicks on resize handle)
+        document.querySelectorAll('#table-head th').forEach(function(th) {
+            th.addEventListener('click', function(e) {
+                if (e.target.classList.contains('resize-handle')) return;
+                sortBy(th.dataset.colName);
+            });
+        });
 
         // Restore hidden columns from session
         const savedHidden = JSON.parse(sessionStorage.getItem('proj_hidden_cols') || '[]');
