@@ -1595,6 +1595,35 @@ async def project(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "project",
         "message_color": message_color,
+        "project_sub_tab_active": "sort_select",
+    })
+
+@app.get("/project/edit/")
+async def project_edit(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    message_color = "#0f0"
+    return templates.TemplateResponse("project_edit.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "project",
+        "message_color": message_color,
+        "project_sub_tab_active": "edit",
+    })
+
+@app.get("/project/chart/")
+async def project_chart(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    message_color = "#0f0"
+    return templates.TemplateResponse("project_chart.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "project",
+        "message_color": message_color,
+        "project_sub_tab_active": "chart",
     })
 
 @app.post("/project/upload/")

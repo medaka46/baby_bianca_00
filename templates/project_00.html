@@ -193,6 +193,17 @@
 </style>
 
 <header class="tab_00">
+    <div style="display: flex;">
+        <form action="/project/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if project_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
+        </form>
+        <form action="/project/edit/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if project_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
+        </form>
+        <form action="/project/chart/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if project_sub_tab_active == 'chart' else '#aaa' }};">Chart</button>
+        </form>
+    </div>
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
         <div class="title_00" style="margin: 0;">Project</div>
         <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
@@ -323,6 +334,11 @@
     // --- Handle file upload ---
     function handleFile(file) {
         uploadedFile = file;
+        sessionStorage.removeItem('proj_filename');
+        sessionStorage.removeItem('proj_filetype');
+        sessionStorage.removeItem('proj_columns');
+        sessionStorage.removeItem('proj_rows');
+        sessionStorage.removeItem('proj_hidden_cols');
         setStatus('Reading file...', '#ff0');
         setProgress(0, true);
         document.getElementById('result-area').style.display = 'none';
@@ -346,6 +362,8 @@
                     document.getElementById('columns-area').style.display = 'none';
                 } else if (data.columns) {
                     document.getElementById('sheet-row').style.display = 'none';
+                    sessionStorage.removeItem('proj_hidden_cols');
+                    saveToSession(file.name, data.file_type.toUpperCase(), data.columns, data.rows);
                     showColumns(data.columns, data.rows);
                 }
             },
@@ -370,13 +388,24 @@
                 setProgress(0, false);
                 setStatus('', '');
                 if (data.error) { setStatus('Error: ' + data.error, '#f00'); return; }
+                sessionStorage.removeItem('proj_hidden_cols');
+                saveToSession(uploadedFile.name, (sessionStorage.getItem('proj_filetype') || ''), data.columns, data.rows);
                 showColumns(data.columns, data.rows);
             },
             (err) => { setProgress(0, false); setStatus(err, '#f00'); }
         );
     }
 
-    function showColumns(columns, rows) {
+    function saveToSession(filename, filetype, columns, rows) {
+        try {
+            sessionStorage.setItem('proj_filename', filename);
+            sessionStorage.setItem('proj_filetype', filetype);
+            sessionStorage.setItem('proj_columns', JSON.stringify(columns));
+            sessionStorage.setItem('proj_rows', JSON.stringify(rows));
+        } catch(e) { /* storage full or unavailable */ }
+    }
+
+    function showColumns(columns, rows, skipSave) {
         const area = document.getElementById('columns-area');
         const list = document.getElementById('columns-list');
         list.innerHTML = columns.map((c, i) => `<span class="col-tag" data-col="${i}">${c}</span>`).join('');
@@ -406,6 +435,19 @@
         area.style.display = 'block';
         initResizable();
 
+        // Restore hidden columns from session
+        const savedHidden = JSON.parse(sessionStorage.getItem('proj_hidden_cols') || '[]');
+        savedHidden.forEach(function(idx) {
+            const tag = list.querySelector(`.col-tag[data-col="${idx}"]`);
+            if (tag) tag.classList.add('col-hidden');
+            const ths = document.querySelectorAll('#table-head tr th');
+            if (ths[idx]) ths[idx].style.display = 'none';
+            document.querySelectorAll('#table-body tr').forEach(function(tr) {
+                const td = tr.querySelectorAll('td')[idx];
+                if (td) td.style.display = 'none';
+            });
+        });
+
         // Column hide/show by clicking tag
         list.querySelectorAll('.col-tag').forEach(function(tag) {
             tag.addEventListener('click', function() {
@@ -420,6 +462,12 @@
                     const td = tr.querySelectorAll('td')[idx];
                     if (td) td.style.display = display;
                 });
+                // Persist hidden columns to session
+                const hiddenIdxs = [];
+                list.querySelectorAll('.col-tag.col-hidden').forEach(function(t) {
+                    hiddenIdxs.push(parseInt(t.getAttribute('data-col')));
+                });
+                sessionStorage.setItem('proj_hidden_cols', JSON.stringify(hiddenIdxs));
             });
         });
     }
@@ -475,8 +523,32 @@
         slider.addEventListener('input', function() {
             const h = slider.value + 'px';
             label.textContent = h;
+            sessionStorage.setItem('proj_table_height', slider.value);
             document.querySelectorAll('.data-table-scroll').forEach(el => el.style.maxHeight = h);
         });
+
+        // Restore saved slider value
+        const savedHeight = sessionStorage.getItem('proj_table_height');
+        if (savedHeight) {
+            slider.value = savedHeight;
+            label.textContent = savedHeight + 'px';
+            document.querySelectorAll('.data-table-scroll').forEach(el => el.style.maxHeight = savedHeight + 'px');
+        }
+
+        // Restore uploaded file data if available
+        const savedFilename = sessionStorage.getItem('proj_filename');
+        const savedFiletype = sessionStorage.getItem('proj_filetype');
+        const savedCols     = sessionStorage.getItem('proj_columns');
+        const savedRows     = sessionStorage.getItem('proj_rows');
+        if (savedFilename && savedCols) {
+            const columns = JSON.parse(savedCols);
+            const rows    = JSON.parse(savedRows || '[]');
+            document.getElementById('result-area').style.display = 'block';
+            document.getElementById('info-filename').textContent = savedFilename;
+            document.getElementById('info-filetype').textContent = savedFiletype || '';
+            document.getElementById('sheet-row').style.display = 'none';
+            showColumns(columns, rows);
+        }
     });
 </script>
 

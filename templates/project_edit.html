@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+        padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex;">
+        <form action="/project/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if project_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
+        </form>
+        <form action="/project/edit/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if project_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
+        </form>
+        <form action="/project/chart/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if project_sub_tab_active == 'chart' else '#aaa' }};">Chart</button>
+        </form>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">Project — Edit</div>
+    </div>
+</header>
+
+<main class="tab_00">
+    <div class="scrollable-content" style="padding: 12px;">
+        <div style="color: #888; font-size: 13px; margin-top: 20px; text-align: center;">Edit (coming soon)</div>
+    </div>
+</main>
+{% endblock %}
