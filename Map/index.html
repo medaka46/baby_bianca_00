@@ -963,7 +963,7 @@ function resetRotation() {
 
 // ── Map rendering ───────────────────────────────────────────────────────────
 async function initMap() {
-  const world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  const world = await d3.json('/map/countries-110m.json');
   const countries = topojson.feature(world, world.objects.countries);
 
   const width = 960, height = 500;
