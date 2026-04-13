@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const chartType = sessionStorage.getItem('proj_chart_type');
     const xCol     = sessionStorage.getItem('proj_chart_x');
     const yCol     = sessionStorage.getItem('proj_chart_y');
+    const zCol     = sessionStorage.getItem('proj_chart_z') || '';
     const labelCols = [
         sessionStorage.getItem('proj_chart_label')   || '',
         sessionStorage.getItem('proj_chart_label_2') || '',
@@ -86,28 +87,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const xVals   = rows.map(r => r[xCol] ?? null);
     const yVals   = rows.map(r => r[yCol] ?? null);
-    // Combine label columns into one hover text per row
+    const zVals   = zCol ? rows.map(r => r[zCol] ?? null) : null;
     const lblVals = labelCols.length
         ? rows.map(r => labelCols.map(c => String(r[c] ?? '')).join(' | '))
         : null;
 
-    // Build hovertemplate
-    function hoverTpl(xName, yName) {
-        if (lblVals) {
-            return '<b>%{text}</b><br>' + xName + ': %{x}<br>' + yName + ': %{y}<extra></extra>';
-        }
-        return xName + ': %{x}<br>' + yName + ': %{y}<extra></extra>';
+    const is3D = (chartType === 'scatter3d' || chartType === 'line3d');
+
+    function hoverTpl2d(xName, yName) {
+        const lbl = lblVals ? '<b>%{text}</b><br>' : '';
+        return lbl + xName + ': %{x}<br>' + yName + ': %{y}<extra></extra>';
+    }
+    function hoverTpl3d(xName, yName, zName) {
+        const lbl = lblVals ? '<b>%{text}</b><br>' : '';
+        return lbl + xName + ': %{x}<br>' + yName + ': %{y}<br>' + zName + ': %{z}<extra></extra>';
     }
 
     const layout = {
         paper_bgcolor: '#1a1a1a',
         plot_bgcolor:  '#1a1a1a',
         font:  { color: '#ccc', size: 11 },
-        xaxis: { title: xCol, gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' },
-        yaxis: { title: yCol, gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' },
         margin: { t: 30, r: 20, b: 50, l: 60 },
         autosize: true,
     };
+    if (is3D) {
+        layout.scene = {
+            xaxis: { title: xCol, gridcolor: '#444', color: '#aaa' },
+            yaxis: { title: yCol, gridcolor: '#444', color: '#aaa' },
+            zaxis: { title: zCol, gridcolor: '#444', color: '#aaa' },
+            bgcolor: '#1a1a1a',
+        };
+    } else {
+        layout.xaxis = { title: xCol, gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' };
+        layout.yaxis = { title: yCol, gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' };
+    }
 
     const config = {
         responsive: true,
@@ -118,41 +131,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let trace;
     if (chartType === 'scatter') {
-        trace = {
-            x: xVals, y: yVals,
-            mode: 'markers',
-            type: 'scatter',
-            text: lblVals || undefined,
-            hovertemplate: hoverTpl(xCol, yCol),
-            marker: { color: '#0f0', size: 5, opacity: 0.8 },
-        };
+        trace = { x: xVals, y: yVals, mode: 'markers', type: 'scatter',
+            text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol),
+            marker: { color: '#0f0', size: 5, opacity: 0.8 } };
     } else if (chartType === 'line') {
-        trace = {
-            x: xVals, y: yVals,
-            mode: 'lines+markers',
-            type: 'scatter',
-            text: lblVals || undefined,
-            hovertemplate: hoverTpl(xCol, yCol),
-            line:   { color: '#0f0', width: 1.5 },
-            marker: { color: '#0f0', size: 4 },
-        };
+        trace = { x: xVals, y: yVals, mode: 'lines+markers', type: 'scatter',
+            text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol),
+            line: { color: '#0f0', width: 1.5 }, marker: { color: '#0f0', size: 4 } };
     } else if (chartType === 'bar') {
-        trace = {
-            x: xVals, y: yVals,
-            type: 'bar',
-            text: lblVals || undefined,
-            hovertemplate: hoverTpl(xCol, yCol),
-            marker: { color: '#0a6' },
-        };
+        trace = { x: xVals, y: yVals, type: 'bar',
+            text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol),
+            marker: { color: '#0a6' } };
         layout.xaxis.type = 'category';
     } else if (chartType === 'histogram') {
-        trace = {
-            x: xVals,
-            type: 'histogram',
-            marker: { color: '#06a' },
-            autobinx: true,
-        };
-        layout.yaxis.title = 'Count';
+        trace = { x: xVals, type: 'histogram',
+            marker: { color: '#06a' }, autobinx: true };
+        layout.yaxis = { title: 'Count', gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' };
+    } else if (chartType === 'scatter3d') {
+        trace = { x: xVals, y: yVals, z: zVals, mode: 'markers', type: 'scatter3d',
+            text: lblVals || undefined, hovertemplate: hoverTpl3d(xCol, yCol, zCol),
+            marker: { color: '#0f0', size: 4, opacity: 0.8 } };
+    } else if (chartType === 'line3d') {
+        trace = { x: xVals, y: yVals, z: zVals, mode: 'lines+markers', type: 'scatter3d',
+            text: lblVals || undefined, hovertemplate: hoverTpl3d(xCol, yCol, zCol),
+            line: { color: '#0f0', width: 2 }, marker: { color: '#0f0', size: 3 } };
     }
 
     Plotly.newPlot('chart-div', [trace], layout, config);

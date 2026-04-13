@@ -349,17 +349,20 @@
 
                     <!-- Chart options bar -->
                     <div id="chart-options" style="display:none; align-items:center; gap:10px; padding:6px 8px; margin:4px 0; background-color:#1a1a2e; border:1px solid #333366; border-radius:4px; flex-wrap:wrap;">
-                        <span style="color:#88f; font-size:11px;">Chart Type:</span>
-                        <select id="chart-type-select" class="proj-select">
-                            <option value="scatter">Scatter</option>
-                            <option value="line">Line</option>
-                            <option value="bar">Bar</option>
-                            <option value="histogram">Histogram</option>
+                        <span style="color:#88f; font-size:11px;">Category:</span>
+                        <select id="chart-category-select" class="proj-select">
+                            <option value="">-- select --</option>
+                            <option value="basic">Basic</option>
+                            <option value="3d">3D</option>
                         </select>
-                        <span id="chart-x-label" style="color:#88f; font-size:11px; margin-left:6px; display:none;">X:</span>
+                        <span id="chart-type-label" style="color:#88f; font-size:11px; display:none;">Type:</span>
+                        <select id="chart-type-select" class="proj-select" style="display:none;"></select>
+                        <span id="chart-x-label" style="color:#88f; font-size:11px; display:none;">X:</span>
                         <select id="chart-x-select" class="proj-select" style="display:none;"></select>
                         <span id="chart-y-label" style="color:#88f; font-size:11px; display:none;">Y:</span>
                         <select id="chart-y-select" class="proj-select" style="display:none;"></select>
+                        <span id="chart-z-label" style="color:#88f; font-size:11px; display:none;">Z:</span>
+                        <select id="chart-z-select" class="proj-select" style="display:none;"></select>
                         <span id="chart-label-label" style="color:#88f; font-size:11px; display:none;">Label 1:</span>
                         <select id="chart-label-select" class="proj-select" style="display:none;"></select>
                         <span id="chart-label2-label" style="color:#88f; font-size:11px; display:none;">2:</span>
@@ -455,9 +458,15 @@
         sessionStorage.removeItem('proj_filter_conditions');
         sessionStorage.removeItem('proj_chart_open');
         sessionStorage.removeItem('proj_chart_axis_open');
+        sessionStorage.removeItem('proj_chart_category');
         sessionStorage.removeItem('proj_chart_type');
         sessionStorage.removeItem('proj_chart_x');
         sessionStorage.removeItem('proj_chart_y');
+        sessionStorage.removeItem('proj_chart_z');
+        sessionStorage.removeItem('proj_chart_label');
+        sessionStorage.removeItem('proj_chart_label_2');
+        sessionStorage.removeItem('proj_chart_label_3');
+        sessionStorage.removeItem('proj_chart_rows');
         setStatus('Reading file...', '#ff0');
         setProgress(0, true);
         document.getElementById('result-area').style.display = 'none';
@@ -782,12 +791,15 @@
             const chartType = document.getElementById('chart-type-select').value;
             const xCol = document.getElementById('chart-x-select').value;
             const yCol = document.getElementById('chart-y-select').value;
+            const zCol      = document.getElementById('chart-z-select').value;
             const labelCol  = document.getElementById('chart-label-select').value;
             const labelCol2 = document.getElementById('chart-label2-select').value;
             const labelCol3 = document.getElementById('chart-label3-select').value;
+            sessionStorage.setItem('proj_chart_category', document.getElementById('chart-category-select').value);
             sessionStorage.setItem('proj_chart_type', chartType);
             sessionStorage.setItem('proj_chart_x', xCol);
             sessionStorage.setItem('proj_chart_y', yCol);
+            sessionStorage.setItem('proj_chart_z', zCol);
             sessionStorage.setItem('proj_chart_label',   labelCol);
             sessionStorage.setItem('proj_chart_label_2', labelCol2);
             sessionStorage.setItem('proj_chart_label_3', labelCol3);
@@ -795,47 +807,97 @@
             window.location.href = '/project/chart/';
         });
 
-        // Chart type selection → show axis selectors and save
-        document.getElementById('chart-type-select').addEventListener('change', function() {
-            sessionStorage.setItem('proj_chart_type', this.value);
-            const colOptions = _currentColumns.map(c => `<option value="${c}">${c}</option>`).join('');
+        // Chart type definitions
+        const _chartTypes = {
+            basic: [
+                { value: 'scatter',   label: 'Scatter'   },
+                { value: 'line',      label: 'Line'       },
+                { value: 'bar',       label: 'Bar'        },
+                { value: 'histogram', label: 'Histogram'  },
+            ],
+            '3d': [
+                { value: 'scatter3d', label: 'Scatter 3D' },
+                { value: 'line3d',    label: 'Line 3D'    },
+            ],
+        };
+
+        // Show/hide axis selectors based on 2D vs 3D
+        function _showAxes(is3D) {
+            const show = ['chart-x-label','chart-x-select','chart-y-label','chart-y-select'];
+            if (is3D) show.push('chart-z-label','chart-z-select');
+            show.push('chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn');
+            const all  = ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-z-label','chart-z-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'];
+            all.forEach(id => document.getElementById(id).style.display = show.includes(id) ? '' : 'none');
+        }
+
+        // Populate axis dropdowns and restore saved values
+        function _populateAxes(is3D) {
+            const colOptions     = _currentColumns.map(c => `<option value="${c}">${c}</option>`).join('');
             const colOptionsNone = '<option value="">(none)</option>' + colOptions;
             document.getElementById('chart-x-select').innerHTML = colOptions;
             document.getElementById('chart-y-select').innerHTML = colOptions;
+            document.getElementById('chart-z-select').innerHTML = colOptions;
             ['chart-label-select','chart-label2-select','chart-label3-select'].forEach(id => {
                 document.getElementById(id).innerHTML = colOptionsNone;
             });
-            // Restore previously selected values if available
-            const savedX = sessionStorage.getItem('proj_chart_x');
-            const savedY = sessionStorage.getItem('proj_chart_y');
-            const savedLbl  = sessionStorage.getItem('proj_chart_label');
-            const savedLbl2 = sessionStorage.getItem('proj_chart_label_2');
-            const savedLbl3 = sessionStorage.getItem('proj_chart_label_3');
-            if (savedX)    document.getElementById('chart-x-select').value = savedX;
-            if (savedY)    document.getElementById('chart-y-select').value = savedY;
-            if (savedLbl  !== null) document.getElementById('chart-label-select').value  = savedLbl;
-            if (savedLbl2 !== null) document.getElementById('chart-label2-select').value = savedLbl2;
-            if (savedLbl3 !== null) document.getElementById('chart-label3-select').value = savedLbl3;
-            ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'].forEach(id => {
-                document.getElementById(id).style.display = '';
-            });
+            const sv = k => sessionStorage.getItem(k);
+            if (sv('proj_chart_x'))    document.getElementById('chart-x-select').value = sv('proj_chart_x');
+            if (sv('proj_chart_y'))    document.getElementById('chart-y-select').value = sv('proj_chart_y');
+            if (sv('proj_chart_z'))    document.getElementById('chart-z-select').value = sv('proj_chart_z');
+            if (sv('proj_chart_label')   !== null) document.getElementById('chart-label-select').value  = sv('proj_chart_label');
+            if (sv('proj_chart_label_2') !== null) document.getElementById('chart-label2-select').value = sv('proj_chart_label_2');
+            if (sv('proj_chart_label_3') !== null) document.getElementById('chart-label3-select').value = sv('proj_chart_label_3');
+            _showAxes(is3D);
             sessionStorage.setItem('proj_chart_axis_open', '1');
+        }
+
+        // Restore full chart options bar from sessionStorage
+        function restoreChartOptions() {
+            const savedCat  = sessionStorage.getItem('proj_chart_category');
+            const savedType = sessionStorage.getItem('proj_chart_type');
+            if (savedCat) {
+                document.getElementById('chart-category-select').value = savedCat;
+                const types = _chartTypes[savedCat] || [];
+                document.getElementById('chart-type-select').innerHTML = types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+                document.getElementById('chart-type-label').style.display = '';
+                document.getElementById('chart-type-select').style.display = '';
+                if (savedType) document.getElementById('chart-type-select').value = savedType;
+            }
+            if (sessionStorage.getItem('proj_chart_axis_open')) {
+                _populateAxes(savedCat === '3d');
+            }
+        }
+
+        // Stage 1: Category → populate type list
+        document.getElementById('chart-category-select').addEventListener('change', function() {
+            const cat = this.value;
+            sessionStorage.setItem('proj_chart_category', cat);
+            sessionStorage.removeItem('proj_chart_type');
+            sessionStorage.removeItem('proj_chart_axis_open');
+            const types = _chartTypes[cat] || [];
+            document.getElementById('chart-type-select').innerHTML = types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+            document.getElementById('chart-type-label').style.display = cat ? '' : 'none';
+            document.getElementById('chart-type-select').style.display = cat ? '' : 'none';
+            // Hide all axis selectors until type is chosen
+            ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-z-label','chart-z-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'].forEach(id => {
+                document.getElementById(id).style.display = 'none';
+            });
         });
-        document.getElementById('chart-x-select').addEventListener('change', function() {
-            sessionStorage.setItem('proj_chart_x', this.value);
+
+        // Stage 2: Type → show axis selectors
+        document.getElementById('chart-type-select').addEventListener('change', function() {
+            sessionStorage.setItem('proj_chart_type', this.value);
+            const is3D = sessionStorage.getItem('proj_chart_category') === '3d';
+            _populateAxes(is3D);
         });
-        document.getElementById('chart-y-select').addEventListener('change', function() {
-            sessionStorage.setItem('proj_chart_y', this.value);
-        });
-        document.getElementById('chart-label-select').addEventListener('change', function() {
-            sessionStorage.setItem('proj_chart_label', this.value);
-        });
-        document.getElementById('chart-label2-select').addEventListener('change', function() {
-            sessionStorage.setItem('proj_chart_label_2', this.value);
-        });
-        document.getElementById('chart-label3-select').addEventListener('change', function() {
-            sessionStorage.setItem('proj_chart_label_3', this.value);
-        });
+
+        // Axis value saves
+        document.getElementById('chart-x-select').addEventListener('change', function() { sessionStorage.setItem('proj_chart_x', this.value); });
+        document.getElementById('chart-y-select').addEventListener('change', function() { sessionStorage.setItem('proj_chart_y', this.value); });
+        document.getElementById('chart-z-select').addEventListener('change', function() { sessionStorage.setItem('proj_chart_z', this.value); });
+        document.getElementById('chart-label-select').addEventListener('change',  function() { sessionStorage.setItem('proj_chart_label',   this.value); });
+        document.getElementById('chart-label2-select').addEventListener('change', function() { sessionStorage.setItem('proj_chart_label_2', this.value); });
+        document.getElementById('chart-label3-select').addEventListener('change', function() { sessionStorage.setItem('proj_chart_label_3', this.value); });
 
         // Filter bar event delegation
         const condArea = document.getElementById('select-conditions');
@@ -857,32 +919,7 @@
                 if (opt.style.display === 'none') {
                     opt.style.display = 'flex';
                     sessionStorage.setItem('proj_chart_open', '1');
-                    // Restore saved chart type
-                    const savedType = sessionStorage.getItem('proj_chart_type');
-                    if (savedType) document.getElementById('chart-type-select').value = savedType;
-                    // If type was already selected, restore axis selectors too
-                    if (sessionStorage.getItem('proj_chart_axis_open')) {
-                        const colOptions = _currentColumns.map(c => `<option value="${c}">${c}</option>`).join('');
-                        const colOptionsNone = '<option value="">(none)</option>' + colOptions;
-                        document.getElementById('chart-x-select').innerHTML = colOptions;
-                        document.getElementById('chart-y-select').innerHTML = colOptions;
-                        ['chart-label-select','chart-label2-select','chart-label3-select'].forEach(id => {
-                            document.getElementById(id).innerHTML = colOptionsNone;
-                        });
-                        const savedX    = sessionStorage.getItem('proj_chart_x');
-                        const savedY    = sessionStorage.getItem('proj_chart_y');
-                        const savedLbl  = sessionStorage.getItem('proj_chart_label');
-                        const savedLbl2 = sessionStorage.getItem('proj_chart_label_2');
-                        const savedLbl3 = sessionStorage.getItem('proj_chart_label_3');
-                        if (savedX)    document.getElementById('chart-x-select').value = savedX;
-                        if (savedY)    document.getElementById('chart-y-select').value = savedY;
-                        if (savedLbl  !== null) document.getElementById('chart-label-select').value  = savedLbl;
-                        if (savedLbl2 !== null) document.getElementById('chart-label2-select').value = savedLbl2;
-                        if (savedLbl3 !== null) document.getElementById('chart-label3-select').value = savedLbl3;
-                        ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'].forEach(id => {
-                            document.getElementById(id).style.display = '';
-                        });
-                    }
+                    restoreChartOptions();
                 } else {
                     opt.style.display = 'none';
                     sessionStorage.removeItem('proj_chart_open');
@@ -950,32 +987,8 @@
 
             // Restore chart options bar
             if (sessionStorage.getItem('proj_chart_open')) {
-                const opt = document.getElementById('chart-options');
-                opt.style.display = 'flex';
-                const savedType = sessionStorage.getItem('proj_chart_type');
-                if (savedType) document.getElementById('chart-type-select').value = savedType;
-                if (sessionStorage.getItem('proj_chart_axis_open')) {
-                    const colOptions = columns.map(c => `<option value="${c}">${c}</option>`).join('');
-                    const colOptionsNone = '<option value="">(none)</option>' + colOptions;
-                    document.getElementById('chart-x-select').innerHTML = colOptions;
-                    document.getElementById('chart-y-select').innerHTML = colOptions;
-                    ['chart-label-select','chart-label2-select','chart-label3-select'].forEach(id => {
-                        document.getElementById(id).innerHTML = colOptionsNone;
-                    });
-                    const savedX    = sessionStorage.getItem('proj_chart_x');
-                    const savedY    = sessionStorage.getItem('proj_chart_y');
-                    const savedLbl  = sessionStorage.getItem('proj_chart_label');
-                    const savedLbl2 = sessionStorage.getItem('proj_chart_label_2');
-                    const savedLbl3 = sessionStorage.getItem('proj_chart_label_3');
-                    if (savedX)    document.getElementById('chart-x-select').value = savedX;
-                    if (savedY)    document.getElementById('chart-y-select').value = savedY;
-                    if (savedLbl  !== null) document.getElementById('chart-label-select').value  = savedLbl;
-                    if (savedLbl2 !== null) document.getElementById('chart-label2-select').value = savedLbl2;
-                    if (savedLbl3 !== null) document.getElementById('chart-label3-select').value = savedLbl3;
-                    ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'].forEach(id => {
-                        document.getElementById(id).style.display = '';
-                    });
-                }
+                document.getElementById('chart-options').style.display = 'flex';
+                restoreChartOptions();
             }
         }
     });
