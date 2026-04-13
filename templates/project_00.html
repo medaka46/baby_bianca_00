@@ -360,6 +360,12 @@
                         <select id="chart-x-select" class="proj-select" style="display:none;"></select>
                         <span id="chart-y-label" style="color:#88f; font-size:11px; display:none;">Y:</span>
                         <select id="chart-y-select" class="proj-select" style="display:none;"></select>
+                        <span id="chart-label-label" style="color:#88f; font-size:11px; display:none;">Label 1:</span>
+                        <select id="chart-label-select" class="proj-select" style="display:none;"></select>
+                        <span id="chart-label2-label" style="color:#88f; font-size:11px; display:none;">2:</span>
+                        <select id="chart-label2-select" class="proj-select" style="display:none;"></select>
+                        <span id="chart-label3-label" style="color:#88f; font-size:11px; display:none;">3:</span>
+                        <select id="chart-label3-select" class="proj-select" style="display:none;"></select>
                         <button id="chart-draw-btn" class="proj-btn" style="display:none;">Draw</button>
                     </div>
 
@@ -776,9 +782,15 @@
             const chartType = document.getElementById('chart-type-select').value;
             const xCol = document.getElementById('chart-x-select').value;
             const yCol = document.getElementById('chart-y-select').value;
+            const labelCol  = document.getElementById('chart-label-select').value;
+            const labelCol2 = document.getElementById('chart-label2-select').value;
+            const labelCol3 = document.getElementById('chart-label3-select').value;
             sessionStorage.setItem('proj_chart_type', chartType);
             sessionStorage.setItem('proj_chart_x', xCol);
             sessionStorage.setItem('proj_chart_y', yCol);
+            sessionStorage.setItem('proj_chart_label',   labelCol);
+            sessionStorage.setItem('proj_chart_label_2', labelCol2);
+            sessionStorage.setItem('proj_chart_label_3', labelCol3);
             sessionStorage.setItem('proj_chart_rows', JSON.stringify(_currentRows));
             window.location.href = '/project/chart/';
         });
@@ -787,14 +799,24 @@
         document.getElementById('chart-type-select').addEventListener('change', function() {
             sessionStorage.setItem('proj_chart_type', this.value);
             const colOptions = _currentColumns.map(c => `<option value="${c}">${c}</option>`).join('');
+            const colOptionsNone = '<option value="">(none)</option>' + colOptions;
             document.getElementById('chart-x-select').innerHTML = colOptions;
             document.getElementById('chart-y-select').innerHTML = colOptions;
-            // Restore previously selected x/y if available
+            ['chart-label-select','chart-label2-select','chart-label3-select'].forEach(id => {
+                document.getElementById(id).innerHTML = colOptionsNone;
+            });
+            // Restore previously selected values if available
             const savedX = sessionStorage.getItem('proj_chart_x');
             const savedY = sessionStorage.getItem('proj_chart_y');
-            if (savedX) document.getElementById('chart-x-select').value = savedX;
-            if (savedY) document.getElementById('chart-y-select').value = savedY;
-            ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
+            const savedLbl  = sessionStorage.getItem('proj_chart_label');
+            const savedLbl2 = sessionStorage.getItem('proj_chart_label_2');
+            const savedLbl3 = sessionStorage.getItem('proj_chart_label_3');
+            if (savedX)    document.getElementById('chart-x-select').value = savedX;
+            if (savedY)    document.getElementById('chart-y-select').value = savedY;
+            if (savedLbl  !== null) document.getElementById('chart-label-select').value  = savedLbl;
+            if (savedLbl2 !== null) document.getElementById('chart-label2-select').value = savedLbl2;
+            if (savedLbl3 !== null) document.getElementById('chart-label3-select').value = savedLbl3;
+            ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'].forEach(id => {
                 document.getElementById(id).style.display = '';
             });
             sessionStorage.setItem('proj_chart_axis_open', '1');
@@ -804,6 +826,15 @@
         });
         document.getElementById('chart-y-select').addEventListener('change', function() {
             sessionStorage.setItem('proj_chart_y', this.value);
+        });
+        document.getElementById('chart-label-select').addEventListener('change', function() {
+            sessionStorage.setItem('proj_chart_label', this.value);
+        });
+        document.getElementById('chart-label2-select').addEventListener('change', function() {
+            sessionStorage.setItem('proj_chart_label_2', this.value);
+        });
+        document.getElementById('chart-label3-select').addEventListener('change', function() {
+            sessionStorage.setItem('proj_chart_label_3', this.value);
         });
 
         // Filter bar event delegation
@@ -832,13 +863,23 @@
                     // If type was already selected, restore axis selectors too
                     if (sessionStorage.getItem('proj_chart_axis_open')) {
                         const colOptions = _currentColumns.map(c => `<option value="${c}">${c}</option>`).join('');
+                        const colOptionsNone = '<option value="">(none)</option>' + colOptions;
                         document.getElementById('chart-x-select').innerHTML = colOptions;
                         document.getElementById('chart-y-select').innerHTML = colOptions;
-                        const savedX = sessionStorage.getItem('proj_chart_x');
-                        const savedY = sessionStorage.getItem('proj_chart_y');
-                        if (savedX) document.getElementById('chart-x-select').value = savedX;
-                        if (savedY) document.getElementById('chart-y-select').value = savedY;
-                        ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
+                        ['chart-label-select','chart-label2-select','chart-label3-select'].forEach(id => {
+                            document.getElementById(id).innerHTML = colOptionsNone;
+                        });
+                        const savedX    = sessionStorage.getItem('proj_chart_x');
+                        const savedY    = sessionStorage.getItem('proj_chart_y');
+                        const savedLbl  = sessionStorage.getItem('proj_chart_label');
+                        const savedLbl2 = sessionStorage.getItem('proj_chart_label_2');
+                        const savedLbl3 = sessionStorage.getItem('proj_chart_label_3');
+                        if (savedX)    document.getElementById('chart-x-select').value = savedX;
+                        if (savedY)    document.getElementById('chart-y-select').value = savedY;
+                        if (savedLbl  !== null) document.getElementById('chart-label-select').value  = savedLbl;
+                        if (savedLbl2 !== null) document.getElementById('chart-label2-select').value = savedLbl2;
+                        if (savedLbl3 !== null) document.getElementById('chart-label3-select').value = savedLbl3;
+                        ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'].forEach(id => {
                             document.getElementById(id).style.display = '';
                         });
                     }
@@ -915,13 +956,23 @@
                 if (savedType) document.getElementById('chart-type-select').value = savedType;
                 if (sessionStorage.getItem('proj_chart_axis_open')) {
                     const colOptions = columns.map(c => `<option value="${c}">${c}</option>`).join('');
+                    const colOptionsNone = '<option value="">(none)</option>' + colOptions;
                     document.getElementById('chart-x-select').innerHTML = colOptions;
                     document.getElementById('chart-y-select').innerHTML = colOptions;
-                    const savedX = sessionStorage.getItem('proj_chart_x');
-                    const savedY = sessionStorage.getItem('proj_chart_y');
-                    if (savedX) document.getElementById('chart-x-select').value = savedX;
-                    if (savedY) document.getElementById('chart-y-select').value = savedY;
-                    ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-draw-btn'].forEach(id => {
+                    ['chart-label-select','chart-label2-select','chart-label3-select'].forEach(id => {
+                        document.getElementById(id).innerHTML = colOptionsNone;
+                    });
+                    const savedX    = sessionStorage.getItem('proj_chart_x');
+                    const savedY    = sessionStorage.getItem('proj_chart_y');
+                    const savedLbl  = sessionStorage.getItem('proj_chart_label');
+                    const savedLbl2 = sessionStorage.getItem('proj_chart_label_2');
+                    const savedLbl3 = sessionStorage.getItem('proj_chart_label_3');
+                    if (savedX)    document.getElementById('chart-x-select').value = savedX;
+                    if (savedY)    document.getElementById('chart-y-select').value = savedY;
+                    if (savedLbl  !== null) document.getElementById('chart-label-select').value  = savedLbl;
+                    if (savedLbl2 !== null) document.getElementById('chart-label2-select').value = savedLbl2;
+                    if (savedLbl3 !== null) document.getElementById('chart-label3-select').value = savedLbl3;
+                    ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'].forEach(id => {
                         document.getElementById(id).style.display = '';
                     });
                 }
