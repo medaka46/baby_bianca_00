@@ -1566,12 +1566,12 @@ async def action_map(request: Request):
 
 @app.get("/map/")
 async def map_index():
-    file_path = os.path.join(base_dir, "Map", "index.html")
+    file_path = os.path.join(base_dir, "map", "index.html")
     return FileResponse(file_path, media_type="text/html")
 
 @app.get("/map/countries-110m.json")
 async def map_countries():
-    file_path = os.path.join(base_dir, "Map", "countries-110m.json")
+    file_path = os.path.join(base_dir, "map", "countries-110m.json")
     return FileResponse(file_path, media_type="application/json")
 
 @app.get("/sqlite/")
