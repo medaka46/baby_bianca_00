@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive World Map</title>
+<style>
+  :root {
+    --africa:    #ff6b6b;
+    --asia:      #74b9ff;
+    --europe:    #a29bfe;
+    --namerica:  #fdcb6e;
+    --samerica:  #55efc4;
+    --oceania:   #fd79a8;
+    --antarctica:#b2bec3;
+    --unknown:   #636e72;
+    --bg:        #0f0f1a;
+    --surface:   #1a1a2e;
+    --surface2:  #16213e;
+    --text:      #e0e0e0;
+    --text-dim:  #a0a0b0;
+    --accent:    #7c83ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 3px 12px;
+    overflow-x: hidden;
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 5px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #7c83ff, #a29bfe, #81ecec);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 1px;
+  }
+
+  .lang-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  .lang-btn:hover { background: var(--accent); color: #fff; }
+
+  .search-bar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 5px;
+    gap: 8px;
+  }
+  .search-bar input {
+    width: 300px;
+    padding: 8px 14px;
+    border-radius: 24px;
+    border: 1.5px solid #444;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar button {
+    padding: 8px 14px;
+    border-radius: 24px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: opacity 0.2s;
+  }
+  .search-bar button:hover { opacity: 0.85; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 5px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: var(--surface2);
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+    user-select: none;
+  }
+  .legend-item:hover { border-color: #555; }
+  .legend-item.active { border-color: var(--accent); }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .zoom-controls {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .zoom-btn {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1.5px solid #444;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.2s, background 0.2s;
+    line-height: 1;
+  }
+  .zoom-btn:hover { border-color: var(--accent); background: var(--surface2); }
+
+  .map-wrapper {
+    position: relative;
+    width: 100%;
+    background: var(--surface2);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1.5px solid #2a2a3e;
+    cursor: grab;
+  }
+  .map-wrapper:active { cursor: grabbing; }
+
+  #map-svg {
+    width: 100%;
+    display: block;
+  }
+
+  .country-path {
+    stroke: #1a1a2e;
+    stroke-width: 0.4px;
+    transition: opacity 0.2s;
+  }
+  .country-path.dimmed { opacity: 0.15; }
+  .country-path.highlighted { stroke: rgba(255,255,255,0.7); stroke-width: 1.2px; }
+  .country-path.selected   { stroke: #fff; stroke-width: 1.5px; filter: brightness(1.25); }
+
+  .graticule { fill: none; stroke: #2a2a3e; stroke-width: 0.3px; }
+  .sphere     { fill: #0d1117; }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid #3a3a5e;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    color: var(--text);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  #tooltip.visible { opacity: 1; }
+
+  /* Side-by-side layout */
+  .content-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .map-wrapper {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Detail panel */
+  .detail-panel {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1.5px solid #2a2a3e;
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .dp-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .dp-content { display: none; animation: panelIn 0.22s ease; }
+  .detail-panel.visible .dp-content { display: block; }
+  .detail-panel.visible .dp-placeholder { display: none; }
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .dp-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .dp-flag {
+    font-size: 3.2rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .dp-color-box {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+  }
+  .dp-header-text h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+  }
+  .dp-header-text p {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+  .dp-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px 12px;
+    margin-bottom: 14px;
+  }
+  .dp-field label {
+    display: block;
+    font-size: 0.67rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+  .dp-field span {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .dp-desc {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.65;
+    border-top: 1px solid #2a2a3e;
+    padding-top: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="title-row">
+  <h1 id="pageTitle">Interactive World Map</h1>
+  <button class="lang-btn" id="langBtn" onclick="toggleLang()">日本語</button>
+</div>
+
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="Search country name..." oninput="filterCountries()">
+  <button onclick="clearSearch()" id="clearBtn">Clear</button>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="zoom-controls">
+  <button class="zoom-btn" onclick="rotateBy(-30)" title="Rotate Left">◀</button>
+  <button class="zoom-btn" onclick="rotateBy(30)"  title="Rotate Right">▶</button>
+  <button class="zoom-btn" onclick="resetRotation()" title="Reset" style="width:auto;padding:0 10px;font-size:0.75rem;">Reset</button>
+</div>
+
+<div class="content-row">
+  <div class="map-wrapper" id="mapWrapper">
+    <svg id="map-svg" viewBox="0 18 960 464"></svg>
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="dp-placeholder" id="dpPlaceholder">Click a country to see details</div>
+    <div class="dp-content">
+      <div class="dp-header">
+        <div class="dp-color-box" id="dpColorBox"></div>
+        <div class="dp-header-text">
+          <h2 id="dpName"></h2>
+          <p id="dpContinent"></p>
+        </div>
+      </div>
+      <div class="dp-grid">
+        <div class="dp-field"><label id="lblCapital">Capital</label><span id="dpCapital"></span></div>
+        <div class="dp-field"><label id="lblPop">Population</label><span id="dpPop"></span></div>
+        <div class="dp-field"><label id="lblArea">Area</label><span id="dpArea"></span></div>
+        <div class="dp-field"><label id="lblCurrency">Currency</label><span id="dpCurrency"></span></div>
+        <div class="dp-field"><label id="lblLang">Languages</label><span id="dpLang"></span></div>
+        <div class="dp-field"><label id="lblTel">Tel Code</label><span id="dpTel"></span></div>
+        <div class="dp-field"><label id="lblTimezone">Time Zone</label><span id="dpTimezone"></span></div>
+      </div>
+      <div class="dp-desc" id="dpDesc"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+// ── Language ───────────────────────────────────────────────────────────────
+let lang = 'en';
+
+const UI = {
+  en: {
+    title:      'Interactive World Map',
+    langBtn:    '日本語',
+    placeholder:'Search country name...',
+    clear:      'Clear',
+    capital:    'Capital',
+    pop:        'Population',
+    area:       'Area (km²)',
+    currency:   'Currency',
+    langLabel:  'Languages',
+    tel:        'Tel Code',
+    timezone:   'Time Zone',
+    unknown:    'Unknown',
+    nodata:     'No detailed data available.',
+    hint:       'Click a country to see details',
+    continents: {
+      AF:'Africa', AS:'Asia', EU:'Europe',
+      NA:'North America', SA:'South America',
+      OC:'Oceania', AN:'Antarctica', '??':'Other'
+    },
+  },
+  ja: {
+    title:      '世界地図',
+    langBtn:    'English',
+    placeholder:'国名を検索...',
+    clear:      'クリア',
+    capital:    '首都',
+    pop:        '人口',
+    area:       '面積（km²）',
+    currency:   '通貨',
+    langLabel:  '言語',
+    tel:        '国際電話番号',
+    timezone:   'タイムゾーン',
+    unknown:    '不明',
+    nodata:     '詳細データはありません。',
+    hint:       '国をクリックして詳細を表示',
+    continents: {
+      AF:'アフリカ', AS:'アジア', EU:'ヨーロッパ',
+      NA:'北アメリカ', SA:'南アメリカ',
+      OC:'オセアニア', AN:'南極', '??':'その他'
+    },
+  },
+};
+
+// ── Continent config ───────────────────────────────────────────────────────
+const CONTINENT_COLOR = {
+  AF:'#ff6b6b', AS:'#74b9ff', EU:'#a29bfe',
+  NA:'#fdcb6e', SA:'#55efc4', OC:'#fd79a8',
+  AN:'#b2bec3', '??':'#636e72'
+};
+
+// ── Country data (ISO 3166-1 numeric → metadata) ───────────────────────────
+// [nameEN, nameJA, capital, capitalJA, continent, popM, areaKm2, currency, languages, descEN, descJA, telCode, timeZone]
+const COUNTRIES = {
+  4:  ['Afghanistan','アフガニスタン','Kabul','カブール','AS',41,652230,'AFN','Dari, Pashto',
+       'A landlocked country in Central Asia with a mountainous terrain and a long complex history at the crossroads of ancient trade routes.',
+       '中央アジアの内陸国。山岳地帯と古代の交易路の交差点として長い複雑な歴史を持つ。','+93','UTC+4:30'],
+  8:  ['Albania','アルバニア','Tirana','ティラナ','EU',3,28748,'ALL','Albanian',
+       'A small Balkan nation on the Adriatic and Ionian coasts, known for its Ottoman-era heritage and stunning mountain landscapes.',
+       'アドリア海とイオニア海に面した小さなバルカン諸国。オスマン帝国時代の遺産と美しい山岳景観で知られる。','+355','UTC+1/+2'],
+  12: ['Algeria','アルジェリア','Algiers','アルジェ','AF',45,2381741,'DZD','Arabic, Berber',
+       'The largest country in Africa by area, spanning from the Mediterranean coast to the vast Sahara desert.',
+       'アフリカ最大の国。地中海沿岸から広大なサハラ砂漠まで広がる。','+213','UTC+1'],
+  24: ['Angola','アンゴラ','Luanda','ルアンダ','AF',34,1246700,'AOA','Portuguese',
+       'A resource-rich country in southern Africa recovering from decades of civil conflict, now one of sub-Saharan Africa\'s largest oil producers.',
+       '南部アフリカの資源豊かな国。数十年の内戦から回復中で、現在はサハラ以南アフリカ最大の産油国の一つ。','+244','UTC+1'],
+  32: ['Argentina','アルゼンチン','Buenos Aires','ブエノスアイレス','SA',45,2780400,'ARS','Spanish',
+       'South America\'s second-largest country, famed for tango, gaucho culture, Patagonia, and the Andes mountains.',
+       '南アメリカ第二の大国。タンゴ、ガウチョ文化、パタゴニア、アンデス山脈で有名。','+54','UTC-3'],
+  36: ['Australia','オーストラリア','Canberra','キャンベラ','OC',26,7692024,'AUD','English',
+       'The world\'s sixth-largest country and the only nation covering an entire continent, home to unique wildlife and diverse landscapes.',
+       '世界第6位の国土面積を持つ、大陸全体を覆う唯一の国。独自の野生動物と多様な景観が魅力。','+61','UTC+8~+11'],
+  40: ['Austria','オーストリア','Vienna','ウィーン','EU',9,83871,'EUR','German',
+       'A landlocked Alpine nation in Central Europe, renowned for its imperial Habsburg history, classical music, and stunning mountain scenery.',
+       '中央ヨーロッパのアルプス内陸国。ハプスブルク帝国の歴史、クラシック音楽、雄大な山岳景観で知られる。','+43','UTC+1/+2'],
+  50: ['Bangladesh','バングラデシュ','Dhaka','ダッカ','AS',170,147570,'BDT','Bengali',
+       'One of the world\'s most densely populated countries, situated in the fertile Bengal delta where the Ganges and Brahmaputra rivers meet.',
+       '世界有数の人口密集国。ガンジス川とブラマプトラ川が合流するベンガルデルタに位置する。','+880','UTC+6'],
+  56: ['Belgium','ベルギー','Brussels','ブリュッセル','EU',11,30528,'EUR','Dutch, French, German',
+       'A small but influential Western European nation, home to the EU and NATO headquarters, known for chocolate, waffles, and medieval cities.',
+       '小さいながら影響力のある西欧の国。EUとNATOの本部が置かれ、チョコレート、ワッフル、中世都市で知られる。','+32','UTC+1/+2'],
+  64: ['Bhutan','ブータン','Thimphu','ティンプー','AS',0.8,38394,'BTN','Dzongkha',
+       'A tiny Himalayan kingdom that measures success by Gross National Happiness, preserving its Buddhist culture and pristine environment.',
+       'ヒマラヤの小王国。国民総幸福量を重視し、仏教文化と手つかずの自然環境を守っている。','+975','UTC+6'],
+  68: ['Bolivia','ボリビア','Sucre / La Paz','スクレ / ラパス','SA',12,1098581,'BOB','Spanish, Quechua, Aymara',
+       'A landlocked Andean nation with the world\'s highest capital city, rich in indigenous culture and natural resources including lithium.',
+       '内陸のアンデス国家。世界最高地の首都を持ち、先住民文化とリチウムを含む豊富な天然資源が特徴。','+591','UTC-4'],
+  76: ['Brazil','ブラジル','Brasília','ブラジリア','SA',215,8515767,'BRL','Portuguese',
+       'South America\'s largest country and the world\'s fifth-largest, home to the Amazon rainforest, vibrant carnival culture, and diverse ecosystems.',
+       '南アメリカ最大・世界第5位の大国。アマゾン熱帯雨林、活気あるカーニバル文化、多様な生態系を擁する。','+55','UTC-5~-2'],
+  100:['Bulgaria','ブルガリア','Sofia','ソフィア','EU',6,110879,'BGN','Bulgarian',
+       'An Eastern European nation with ancient Thracian roots, Orthodox Christian heritage, and a beautiful Black Sea coastline.',
+       '古代トラキアのルーツを持つ東欧の国。正教会の遺産と美しい黒海沿岸が特徴。','+359','UTC+2/+3'],
+  104:['Myanmar','ミャンマー','Naypyidaw','ネーピードー','AS',54,676578,'MMK','Burmese',
+       'A Southeast Asian nation of ancient Buddhist temples, diverse ethnic groups, and a rich cultural heritage along the Irrawaddy river.',
+       '東南アジアの国。古代の仏教寺院、多様な民族、イラワジ川沿いの豊かな文化遺産を持つ。','+95','UTC+6:30'],
+  112:['Belarus','ベラルーシ','Minsk','ミンスク','EU',9,207600,'BYR','Belarusian, Russian',
+       'A landlocked Eastern European country known for its Soviet-era architecture, vast forests, and the Białowieża Primeval Forest.',
+       '内陸の東欧の国。ソビエト時代の建築、広大な森林、ビャウォヴィエジャ原始林で知られる。','+375','UTC+3'],
+  116:['Cambodia','カンボジア','Phnom Penh','プノンペン','AS',17,181035,'KHR','Khmer',
+       'Home to the magnificent Angkor Wat temple complex, Cambodia is a Southeast Asian nation rebuilding from its turbulent 20th-century history.',
+       'アンコールワット寺院群で有名なカンボジアは、20世紀の激動の歴史から立ち直りつつある東南アジアの国。','+855','UTC+7'],
+  120:['Cameroon','カメルーン','Yaoundé','ヤウンデ','AF',27,475442,'XAF','French, English',
+       'Known as "Africa in miniature" for its diversity of landscapes and cultures, spanning rainforests, savanna, and the Cameroon Highlands.',
+       '多様な景観と文化から「アフリカの縮図」と呼ばれる。熱帯雨林、サバンナ、カメルーン高地にわたる。','+237','UTC+1'],
+  124:['Canada','カナダ','Ottawa','オタワ','NA',38,9984670,'CAD','English, French',
+       'The world\'s second-largest country by area, spanning from the Atlantic to Pacific to Arctic oceans, renowned for its multicultural cities and vast wilderness.',
+       '面積世界第2位の国。大西洋から太平洋、北極海まで広がり、多文化都市と広大な自然で知られる。','+1','UTC-8~-3:30'],
+  144:['Sri Lanka','スリランカ','Colombo / Sri Jayawardenepura Kotte','コロンボ','AS',22,65610,'LKR','Sinhala, Tamil',
+       'A teardrop-shaped island nation off southern India, rich in Buddhist heritage, spice trade history, and biodiverse tropical rainforests.',
+       '南インド沖のしずく型の島国。仏教遺産、スパイス貿易の歴史、生物多様性豊かな熱帯雨林が特徴。','+94','UTC+5:30'],
+  152:['Chile','チリ','Santiago','サンティアゴ','SA',19,756102,'CLP','Spanish',
+       'A long, narrow country stretching 4,300 km along South America\'s Pacific coast, from the driest desert to Patagonian ice fields.',
+       '南米太平洋岸に沿って4,300km伸びる細長い国。世界最乾燥の砂漠からパタゴニアの氷原まで。','+56','UTC-4/-3'],
+  156:['China','中国','Beijing','北京','AS',1412,9596960,'CNY','Mandarin',
+       'The world\'s most populous country and second-largest economy, with a civilization spanning over 5,000 years and a rapidly modernizing society.',
+       '世界最多人口と第2位の経済大国。5,000年以上の文明を持ち、急速に近代化する社会。','+86','UTC+8'],
+  158:['Taiwan','台湾','Taipei','台北','AS',23.6,36193,'TWD','Mandarin, Taiwanese Hokkien',
+       'A dynamic island democracy off the southeastern coast of China, a global leader in semiconductor manufacturing and known for its vibrant culture and cuisine.',
+       '中国南東沿岸の活気ある島の民主主義国家。半導体製造の世界的リーダーで、活気ある文化と料理で知られる。','+886','UTC+8'],
+  170:['Colombia','コロンビア','Bogotá','ボゴタ','SA',51,1141748,'COP','Spanish',
+       'A diverse South American nation spanning Caribbean and Pacific coasts, known for its coffee, biodiversity, and vibrant cities.',
+       'カリブ海と太平洋の両岸にまたがる多様な南米の国。コーヒー、生物多様性、活気ある都市で知られる。','+57','UTC-5'],
+  178:['Republic of Congo','コンゴ共和国','Brazzaville','ブラザビル','AF',6,342000,'XAF','French',
+       'A Central African nation straddling the equator, covered largely by tropical rainforest and drained by the Congo River.',
+       '赤道をまたぐ中央アフリカの国。大部分は熱帯雨林に覆われ、コンゴ川が流れる。','+242','UTC+1'],
+  180:['DR Congo','コンゴ民主共和国','Kinshasa','キンシャサ','AF',100,2344858,'CDF','French',
+       'Africa\'s second-largest country, home to the Congo rainforest—the world\'s second-largest tropical forest—and immense mineral wealth.',
+       'アフリカ第2の大国。世界第2位の熱帯雨林であるコンゴ熱帯雨林と膨大な鉱物資源を持つ。','+243','UTC+1/+2'],
+  188:['Costa Rica','コスタリカ','San José','サンホセ','NA',5,51100,'CRC','Spanish',
+       'A Central American eco-paradise known for its biodiversity, rainforests, and commitment to renewable energy and environmental conservation.',
+       '中米のエコパラダイス。生物多様性、熱帯雨林、再生可能エネルギーと環境保全への取り組みで知られる。','+506','UTC-6'],
+  191:['Croatia','クロアチア','Zagreb','ザグレブ','EU',4,56594,'EUR','Croatian',
+       'An Adriatic nation with a stunning coastline, historic Dubrovnik, and scenic Dalmatian islands, a popular Mediterranean destination.',
+       'アドリア海に面した国。美しい海岸線、歴史あるドゥブロヴニク、ダルマチア諸島を持つ人気の地中海の目的地。','+385','UTC+1/+2'],
+  192:['Cuba','キューバ','Havana','ハバナ','NA',11,109884,'CUP','Spanish',
+       'The largest Caribbean island, known for its revolutionary history, classic American cars, salsa music, and colonial architecture.',
+       'カリブ海最大の島。革命の歴史、クラシックカー、サルサ音楽、植民地建築で知られる。','+53','UTC-5/-4'],
+  203:['Czech Republic','チェコ','Prague','プラハ','EU',11,78867,'CZK','Czech',
+       'A Central European nation famous for its medieval castles, Gothic cathedrals, and the fairy-tale city of Prague.',
+       '中欧の国。中世の城、ゴシック大聖堂、おとぎ話の街プラハで有名。','+420','UTC+1/+2'],
+  208:['Denmark','デンマーク','Copenhagen','コペンハーゲン','EU',6,42924,'DKK','Danish',
+       'A Scandinavian nation known for its high quality of life, Viking heritage, design culture, and the concept of hygge.',
+       'スカンジナビアの国。高い生活水準、バイキングの遺産、デザイン文化、ヒュッゲの概念で知られる。','+45','UTC+1/+2'],
+  218:['Ecuador','エクアドル','Quito','キト','SA',18,283561,'USD','Spanish',
+       'A megadiverse country straddling the equator, home to the Galápagos Islands, Amazon rainforest, and towering Andean volcanoes.',
+       '赤道をまたぐ超多様性国家。ガラパゴス諸島、アマゾン熱帯雨林、そびえ立つアンデスの火山を持つ。','+593','UTC-5'],
+  818:['Egypt','エジプト','Cairo','カイロ','AF',105,1001449,'EGP','Arabic',
+       'Home to one of the world\'s oldest civilizations, with the Pyramids of Giza, the Nile River, and thousands of years of pharaonic history.',
+       '世界最古の文明の地。ギザのピラミッド、ナイル川、数千年のファラオの歴史を持つ。','+20','UTC+2'],
+  231:['Ethiopia','エチオピア','Addis Ababa','アディスアベバ','AF',126,1104300,'ETB','Amharic',
+       'Africa\'s second-most populous country and one of the oldest nations in the world, the origin of coffee and a cradle of human civilization.',
+       'アフリカ第2の人口大国で世界最古の国の一つ。コーヒーの発祥地であり人類文明のゆりかご。','+251','UTC+3'],
+  246:['Finland','フィンランド','Helsinki','ヘルシンキ','EU',6,338435,'EUR','Finnish, Swedish',
+       'A Nordic nation of lakes and forests, famous for its education system, Northern Lights, sauna culture, and Santa Claus.',
+       '湖と森の北欧の国。教育制度、オーロラ、サウナ文化、サンタクロースで有名。','+358','UTC+2/+3'],
+  250:['France','フランス','Paris','パリ','EU',68,551695,'EUR','French',
+       'The most visited country in the world, home to the Eiffel Tower, haute cuisine, world-renowned art, and a rich revolutionary history.',
+       '世界で最も多くの観光客が訪れる国。エッフェル塔、高級料理、世界的に有名な芸術、豊かな革命の歴史。','+33','UTC+1/+2'],
+  266:['Gabon','ガボン','Libreville','リーブルヴィル','AF',2,267668,'XAF','French',
+       'A Central African country with vast equatorial rainforests covering 85% of its land, rich in oil and biodiversity.',
+       '国土の85%を広大な赤道熱帯雨林が覆う中央アフリカの国。石油と生物多様性に富む。','+241','UTC+1'],
+  276:['Germany','ドイツ','Berlin','ベルリン','EU',84,357114,'EUR','German',
+       'Europe\'s largest economy and a central player in the EU, renowned for engineering excellence, rich cultural history, and the Berlin Wall.',
+       'ヨーロッパ最大の経済大国でEUの中心的存在。エンジニアリングの卓越性、豊かな文化史、ベルリンの壁で知られる。','+49','UTC+1/+2'],
+  288:['Ghana','ガーナ','Accra','アクラ','AF',33,238533,'GHS','English',
+       'A stable West African democracy, the first sub-Saharan country to gain independence, known for gold, cocoa, and Kente cloth.',
+       '安定した西アフリカの民主主義国家。サハラ以南アフリカで最初に独立した国。金、カカオ、ケンテ布で知られる。','+233','UTC+0'],
+  300:['Greece','ギリシャ','Athens','アテネ','EU',10,131957,'EUR','Greek',
+       'The cradle of Western civilization and democracy, with ancient ruins, stunning Aegean islands, and a rich tradition of philosophy and mythology.',
+       '西洋文明と民主主義のゆりかご。古代遺跡、美しいエーゲ海の島々、哲学と神話の豊かな伝統。','+30','UTC+2/+3'],
+  320:['Guatemala','グアテマラ','Guatemala City','グアテマラシティ','NA',17,108889,'GTQ','Spanish',
+       'The heart of the ancient Maya civilization, with volcanic landscapes, colorful indigenous textiles, and colonial cities.',
+       '古代マヤ文明の中心地。火山の景観、色鮮やかな先住民の織物、植民地時代の都市。','+502','UTC-6'],
+  324:['Guinea','ギニア','Conakry','コナクリ','AF',13,245857,'GNF','French',
+       'A West African nation rich in mineral resources, including bauxite (the world\'s largest reserves), gold, and diamonds.',
+       '鉱物資源に富む西アフリカの国。ボーキサイト（世界最大の埋蔵量）、金、ダイヤモンドを産出。','+224','UTC+0'],
+  332:['Haiti','ハイチ','Port-au-Prince','ポルトープランス','NA',11,27750,'HTG','Haitian Creole, French',
+       'The first Black republic and the first Caribbean nation to gain independence, facing significant challenges while preserving vibrant Creole culture.',
+       '最初の黒人共和国であり、カリブ海で最初に独立した国。活気あるクレオール文化を守りながら大きな課題に直面。','+509','UTC-5/-4'],
+  340:['Honduras','ホンジュラス','Tegucigalpa','テグシガルパ','NA',10,112492,'HNL','Spanish',
+       'A Central American country with Caribbean and Pacific coastlines, Mayan ruins at Copán, and rich biodiversity.',
+       '中米の国。カリブ海と太平洋の両岸を持ち、コパンのマヤ遺跡と豊かな生物多様性が特徴。','+504','UTC-6'],
+  348:['Hungary','ハンガリー','Budapest','ブダペスト','EU',10,93028,'HUF','Hungarian',
+       'A Central European nation with a dramatic history as the heart of the Habsburg Empire, known for Budapest, thermal baths, and paprika cuisine.',
+       '中欧の国。ハプスブルク帝国の中心としての劇的な歴史を持ち、ブダペスト、温泉、パプリカ料理で知られる。','+36','UTC+1/+2'],
+  356:['India','インド','New Delhi','ニューデリー','AS',1400,3287263,'INR','Hindi, English',
+       'The world\'s most populous country and largest democracy, with an ancient civilization of 5,000 years, incredible diversity, and a booming tech economy.',
+       '世界最多人口と最大の民主主義国。5,000年の古代文明、驚異的な多様性、急成長するテック経済。','+91','UTC+5:30'],
+  360:['Indonesia','インドネシア','Jakarta','ジャカルタ','AS',277,1904569,'IDR','Indonesian',
+       'The world\'s largest archipelago nation with over 17,000 islands, the fourth-most populous country, and extraordinary cultural and biodiversity.',
+       '17,000以上の島からなる世界最大の群島国家。世界第4位の人口と驚異的な文化・生物多様性を持つ。','+62','UTC+7~+9'],
+  364:['Iran','イラン','Tehran','テヘラン','AS',86,1648195,'IRR','Persian',
+       'Home to one of the world\'s oldest civilizations, the Persian Empire, with spectacular ancient ruins, carpet weaving, and rich poetic tradition.',
+       '世界最古の文明の一つであるペルシャ帝国の地。壮大な古代遺跡、絨毯織り、豊かな詩の伝統。','+98','UTC+3:30/+4:30'],
+  368:['Iraq','イラク','Baghdad','バグダッド','AS',42,438317,'IQD','Arabic, Kurdish',
+       'Situated in ancient Mesopotamia, the "cradle of civilization," where writing and the earliest cities originated over 5,000 years ago.',
+       '古代メソポタミア「文明のゆりかご」に位置する。5,000年以上前に文字と最初の都市が生まれた地。','+964','UTC+3'],
+  372:['Ireland','アイルランド','Dublin','ダブリン','EU',5,70273,'EUR','English, Irish',
+       'The Emerald Isle, known for its stunning green landscapes, Celtic heritage, literary tradition, and lively pub culture.',
+       'エメラルドの島。美しい緑の景観、ケルトの遺産、文学の伝統、活気あるパブ文化で知られる。','+353','UTC+0/+1'],
+  376:['Israel','イスラエル','Jerusalem','エルサレム','AS',9,20770,'ILS','Hebrew, Arabic',
+       'A small but historically significant nation in the Middle East, at the crossroads of three world religions and home to ancient holy sites.',
+       '中東の小さくも歴史的に重要な国。3つの世界宗教の交差点で古代の聖地が点在する。','+972','UTC+2/+3'],
+  380:['Italy','イタリア','Rome','ローマ','EU',60,301340,'EUR','Italian',
+       'The birthplace of the Roman Empire and the Renaissance, a treasure of art, architecture, and cuisine stretching from the Alps to the Mediterranean.',
+       'ローマ帝国とルネサンスの発祥地。アルプスから地中海まで広がる芸術、建築、料理の宝庫。','+39','UTC+1/+2'],
+  392:['Japan','日本','Tokyo','東京','AS',125,377915,'JPY','Japanese',
+       'An island nation blending ancient samurai and Shinto traditions with cutting-edge technology, renowned for sushi, anime, and the bullet train.',
+       '島国。古代の武士と神道の伝統を最先端テクノロジーと融合。寿司、アニメ、新幹線で世界的に有名。','+81','UTC+9'],
+  400:['Jordan','ヨルダン','Amman','アンマン','AS',10,89342,'JOD','Arabic',
+       'A Middle Eastern kingdom containing Petra, one of the New Seven Wonders, the Dead Sea, and a tradition of generous Bedouin hospitality.',
+       '中東の王国。新世界七不思議の一つペトラ、死海、ベドウィンのもてなし文化を持つ。','+962','UTC+2/+3'],
+  404:['Kenya','ケニア','Nairobi','ナイロビ','AF',55,580367,'KES','Swahili, English',
+       'East Africa\'s economic hub, famed for the Great Rift Valley, Maasai culture, spectacular wildlife safaris, and Mount Kilimanjaro nearby.',
+       '東アフリカの経済の中心地。大地溝帯、マサイ文化、壮大なサファリ、キリマンジャロが近くにある。','+254','UTC+3'],
+  408:['North Korea','北朝鮮','Pyongyang','平壌','AS',26,120538,'KPW','Korean',
+       'One of the world\'s most isolated nations, ruled by the Kim dynasty, with a government-controlled society and significant military focus.',
+       '世界で最も孤立した国の一つ。金王朝が支配し、政府管理社会と強力な軍事体制が特徴。','+850','UTC+9'],
+  410:['South Korea','韓国','Seoul','ソウル','AS',52,100210,'KRW','Korean',
+       'A technological powerhouse and cultural exporter of K-pop, K-dramas, and Korean cuisine, with a remarkable economic transformation since the 1960s.',
+       'テクノロジーの強国でK-ポップ、韓国ドラマ、韓国料理の文化輸出国。1960年代以降の目覚ましい経済発展。','+82','UTC+9'],
+  418:['Laos','ラオス','Vientiane','ヴィエンチャン','AS',7,236800,'LAK','Lao',
+       'A landlocked Southeast Asian country known for its Buddhist temples, the Mekong River, and its laid-back pace of life.',
+       '内陸の東南アジアの国。仏教寺院、メコン川、のんびりとした生活様式で知られる。','+856','UTC+7'],
+  422:['Lebanon','レバノン','Beirut','ベイルート','AS',7,10452,'LBP','Arabic',
+       'A small Mediterranean nation with Phoenician roots, known for Beirut\'s vibrant culture, ancient ruins, and spectacular cedar forests.',
+       'フェニキアのルーツを持つ小さな地中海の国。ベイルートの活気ある文化、古代遺跡、壮大なスギの森。','+961','UTC+2/+3'],
+  430:['Liberia','リベリア','Monrovia','モンロビア','AF',5,111369,'LRD','English',
+       'Africa\'s oldest republic, founded by freed American slaves in 1847, with equatorial rainforests and a tradition of hospitality.',
+       'アフリカ最古の共和国。1847年に解放されたアメリカの奴隷によって建国。赤道熱帯雨林とおもてなしの伝統。','+231','UTC+0'],
+  434:['Libya','リビア','Tripoli','トリポリ','AF',7,1759540,'LYD','Arabic',
+       'A North African country mostly covered by the Sahara, with ancient Roman ruins at Leptis Magna and rich oil reserves.',
+       '北アフリカの国。大部分がサハラ砂漠。レプティス・マグナのローマ遺跡と豊富な石油埋蔵量を持つ。','+218','UTC+2'],
+  450:['Madagascar','マダガスカル','Antananarivo','アンタナナリボ','AF',28,587041,'MGA','Malagasy, French',
+       'The fourth-largest island in the world, an evolutionary marvel where 90% of wildlife is found nowhere else on Earth.',
+       '世界第4位の島。野生動物の90%が地球上の他の場所では見られない進化の驚異。','+261','UTC+3'],
+  458:['Malaysia','マレーシア','Kuala Lumpur','クアラルンプール','AS',33,329847,'MYR','Malay',
+       'A Southeast Asian country spanning the Malay Peninsula and Borneo, known for its diverse culture, Petronas Towers, and rainforest biodiversity.',
+       'マレー半島とボルネオにまたがる東南アジアの国。多様な文化、ペトロナスタワー、熱帯雨林の生物多様性で知られる。','+60','UTC+8'],
+  466:['Mali','マリ','Bamako','バマコ','AF',23,1240192,'XOF','French',
+       'A landlocked West African nation home to Timbuktu, once a great center of Islamic learning, and the ancient Dogon cliff dwellings.',
+       '内陸の西アフリカの国。かつてイスラム学問の大中心地であったティンブクトゥと古代ドゴン族の断崖住居がある。','+223','UTC+0'],
+  484:['Mexico','メキシコ','Mexico City','メキシコシティ','NA',128,1964375,'MXN','Spanish',
+       'A megadiverse nation with a rich pre-Columbian heritage, spanning Aztec and Maya civilizations, vibrant cities, and spectacular beaches.',
+       '豊かなコロンブス以前の遺産を持つ超多様性国家。アステカとマヤ文明、活気ある都市、壮大なビーチ。','+52','UTC-8~-5'],
+  478:['Mauritania','モーリタニア','Nouakchott','ヌアクショット','AF',4,1030700,'MRU','Arabic',
+       'A vast desert nation in Northwest Africa, where ancient caravan routes cross the Sahara and nomadic Berber traditions survive.',
+       '北西アフリカの広大な砂漠国家。古代のキャラバンルートがサハラを横断し、遊牧民ベルベルの伝統が残る。','+222','UTC+0'],
+  496:['Mongolia','モンゴル','Ulaanbaatar','ウランバートル','AS',3,1566500,'MNT','Mongolian',
+       'The world\'s most sparsely populated sovereign state, home to the Gobi Desert, vast steppes, and the legacy of Genghis Khan\'s empire.',
+       '世界で最も人口密度の低い主権国家。ゴビ砂漠、広大なステップ、チンギス・ハーンの帝国の遺産。','+976','UTC+7/+8'],
+  504:['Morocco','モロッコ','Rabat','ラバト','AF',37,446550,'MAD','Arabic, Berber',
+       'A North African kingdom blending Berber, Arab, and French influences, with ancient medinas, the Atlas Mountains, and the Sahara at its edge.',
+       '北アフリカの王国。ベルベル、アラブ、フランスの影響が混在。古い旧市街、アトラス山脈、その縁にサハラ砂漠。','+212','UTC+1'],
+  508:['Mozambique','モザンビーク','Maputo','マプト','AF',33,801590,'MZN','Portuguese',
+       'A Southeast African coastal nation with a long Indian Ocean coastline, Portuguese colonial heritage, and abundant marine biodiversity.',
+       '東南アフリカの沿岸国。長いインド洋の海岸線、ポルトガルの植民地遺産、豊富な海洋生物多様性。','+258','UTC+2'],
+  516:['Namibia','ナミビア','Windhoek','ウィントフック','AF',3,824292,'NAD','English',
+       'Home to the Namib Desert, the world\'s oldest desert, with dramatic landscapes of red sand dunes, vast savannas, and abundant wildlife.',
+       '世界最古のナミブ砂漠の国。赤い砂丘の劇的な景観、広大なサバンナ、豊富な野生動物。','+264','UTC+1/+2'],
+  524:['Nepal','ネパール','Kathmandu','カトマンズ','AS',30,147181,'NPR','Nepali',
+       'Home to eight of the world\'s ten highest peaks including Everest, a sacred Buddhist and Hindu kingdom in the heart of the Himalayas.',
+       'エベレストを含む世界最高峰10座のうち8座がある。ヒマラヤの中心部にある神聖な仏教・ヒンドゥー教の王国。','+977','UTC+5:45'],
+  528:['Netherlands','オランダ','Amsterdam','アムステルダム','EU',18,41543,'EUR','Dutch',
+       'A flat, low-lying country reclaimed from the sea, renowned for windmills, tulips, Rembrandt, and being a global trading hub since the Golden Age.',
+       '海から干拓した平坦な低地の国。風車、チューリップ、レンブラント、黄金時代からの世界的貿易拠点として有名。','+31','UTC+1/+2'],
+  554:['New Zealand','ニュージーランド','Wellington','ウェリントン','OC',5,270467,'NZD','English, Māori',
+       'A Pacific island nation of dramatic landscapes, Māori culture, Lord of the Rings scenery, and pioneering spirit, the first country to give women the vote.',
+       '太平洋の島国。劇的な景観、マオリ文化、ロード・オブ・ザ・リングスの撮影地、世界初の女性参政権付与国。','+64','UTC+12/+13'],
+  562:['Niger','ニジェール','Niamey','ニアメ','AF',25,1267000,'XOF','French',
+       'A landlocked West African nation, with most of its territory covered by the Sahara Desert and Sahel, home to the Air Mountains and ancient Tuareg culture.',
+       '内陸の西アフリカの国。国土の大部分がサハラ砂漠とサヘル地帯。アイル山脈と古代トゥアレグ文化がある。','+227','UTC+1'],
+  566:['Nigeria','ナイジェリア','Abuja','アブジャ','AF',220,923768,'NGN','English',
+       'Africa\'s most populous country and largest economy, with over 250 ethnic groups, a booming Nollywood film industry, and vast oil reserves.',
+       'アフリカ最多人口と最大経済。250以上の民族、急成長するノリウッド映画産業、膨大な石油埋蔵量を持つ。','+234','UTC+1'],
+  578:['Norway','ノルウェー','Oslo','オスロ','EU',5,385207,'NOK','Norwegian',
+       'A Scandinavian nation of dramatic fjords and Northern Lights, consistently ranked among the world\'s happiest and wealthiest countries.',
+       'フィヨルドとオーロラの北欧の国。世界で最も幸福で豊かな国として常にランク上位。','+47','UTC+1/+2'],
+  586:['Pakistan','パキスタン','Islamabad','イスラマバード','AS',231,881913,'PKR','Urdu, English',
+       'The world\'s fifth-most populous country, a land of ancient Indus Valley civilization, diverse cultures, and dramatic mountain landscapes including K2.',
+       '世界第5位の人口大国。古代インダス文明、多様な文化、K2を含む劇的な山岳景観の地。','+92','UTC+5'],
+  600:['Paraguay','パラグアイ','Asunción','アスンシオン','SA',8,406752,'PYG','Spanish, Guaraní',
+       'A landlocked South American nation with a unique bilingual culture, the Jesuit missions of the 17th century, and the vast Chaco wilderness.',
+       '内陸の南米の国。独自のバイリンガル文化、17世紀のイエズス会伝道所、広大なチャコの荒野。','+595','UTC-4'],
+  604:['Peru','ペルー','Lima','リマ','SA',33,1285216,'PEN','Spanish',
+       'Home to Machu Picchu, the Inca Empire\'s greatest achievement, and the Amazon\'s source, Peru spans coastal desert to Andean heights to tropical jungle.',
+       'マチュピチュとインカ帝国最大の成果の地。海岸砂漠からアンデスの高地、熱帯ジャングルまで広がる。','+51','UTC-5'],
+  608:['Philippines','フィリピン','Manila','マニラ','AS',115,300000,'PHP','Filipino, English',
+       'An archipelago of over 7,600 islands in Southeast Asia, known for its stunning beaches, rich biodiversity, and warm, hospitable culture.',
+       '東南アジアの7,600以上の島からなる群島国家。美しいビーチ、豊かな生物多様性、温かいおもてなし文化。','+63','UTC+8'],
+  616:['Poland','ポーランド','Warsaw','ワルシャワ','EU',38,312685,'PLN','Polish',
+       'A resilient Central European nation with a turbulent 20th-century history, beautiful medieval cities like Kraków, and a rapidly growing economy.',
+       '20世紀の激動の歴史を持つ中欧の国。クラクフのような美しい中世都市と急成長する経済。','+48','UTC+1/+2'],
+  620:['Portugal','ポルトガル','Lisbon','リスボン','EU',10,92212,'EUR','Portuguese',
+       'A maritime nation that once led global exploration, establishing the first global trading empire and spreading Portuguese language across five continents.',
+       'かつて世界探検を主導した海洋国家。世界初のグローバル貿易帝国を築き、5大陸にポルトガル語を広めた。','+351','UTC+0/+1'],
+  634:['Qatar','カタール','Doha','ドーハ','AS',3,11586,'QAR','Arabic',
+       'A tiny but enormously wealthy Gulf state with the world\'s highest per-capita income, transformed by natural gas wealth and host of the 2022 FIFA World Cup.',
+       '世界最高の一人当たり所得を持つ小さくも莫大な富を持つ湾岸国家。2022年FIFAワールドカップ開催国。','+974','UTC+3'],
+  642:['Romania','ルーマニア','Bucharest','ブカレスト','EU',19,238397,'RON','Romanian',
+       'An Eastern European nation of Carpathian castles, Transylvanian legends, painted monasteries, and the Danube Delta—Europe\'s largest river delta.',
+       '東欧の国。カルパティアの城、トランシルバニアの伝説、彩色修道院、ヨーロッパ最大のドナウ川デルタ。','+40','UTC+2/+3'],
+  643:['Russia','ロシア','Moscow','モスクワ','EU',144,17098242,'RUB','Russian',
+       'The world\'s largest country by area, spanning 11 time zones from Europe to the Pacific, with vast natural resources and a profound cultural heritage.',
+       '面積世界最大の国。ヨーロッパから太平洋まで11の時間帯にまたがる。膨大な天然資源と深い文化的遺産。','+7','UTC+2~+12'],
+  682:['Saudi Arabia','サウジアラビア','Riyadh','リヤド','AS',36,2149690,'SAR','Arabic',
+       'The birthplace of Islam and home to Mecca and Medina, the world\'s largest exporter of petroleum and a rapidly modernizing Gulf kingdom.',
+       'イスラム発祥の地でメッカとメディナがある。世界最大の石油輸出国で急速に近代化する湾岸王国。','+966','UTC+3'],
+  706:['Somalia','ソマリア','Mogadishu','モガディシュ','AF',17,637657,'SOS','Somali, Arabic',
+       'Located on Africa\'s Horn, Somalia has the continent\'s longest coastline, a nomadic pastoralist tradition, and is rebuilding from decades of conflict.',
+       'アフリカの角に位置し、大陸最長の海岸線を持つ。遊牧民の牧畜の伝統があり、数十年の紛争から立ち直りつつある。','+252','UTC+3'],
+  710:['South Africa','南アフリカ','Pretoria / Cape Town','プレトリア / ケープタウン','AF',60,1219090,'ZAR','11 official languages',
+       'The Rainbow Nation with 11 official languages, a dramatic post-apartheid transformation, spectacular wildlife, and the Cape winelands.',
+       '11の公用語を持つレインボーネーション。劇的なアパルトヘイト後の変革、壮大な野生動物、ケープワインランド。','+27','UTC+2'],
+  724:['Spain','スペイン','Madrid','マドリード','EU',48,505990,'EUR','Spanish',
+       'A vibrant Southern European nation of flamenco, Gaudí architecture, Real Madrid, La Tomatina, and a diverse tapas culinary tradition.',
+       '活気ある南欧の国。フラメンコ、ガウディ建築、レアル・マドリード、ラ・トマティーナ、多様なタパス料理の伝統。','+34','UTC+1/+2'],
+  729:['Sudan','スーダン','Khartoum','ハルツーム','AF',46,1861484,'SDG','Arabic, English',
+       'A northeastern African nation where the Blue and White Nile rivers meet, with ancient Nubian pyramids and a rich diversity of cultures.',
+       '青ナイルと白ナイルが合流する北東アフリカの国。古代ヌビアのピラミッドと豊かな文化的多様性。','+249','UTC+2'],
+  740:['Suriname','スリナム','Paramaribo','パラマリボ','SA',0.6,163820,'SRD','Dutch',
+       'South America\'s smallest and least populous country, a former Dutch colony where 93% of its territory is covered by tropical rainforest.',
+       '南アメリカ最小・最少人口の国。元オランダ植民地で国土の93%が熱帯雨林に覆われている。','+597','UTC-3'],
+  752:['Sweden','スウェーデン','Stockholm','ストックホルム','EU',10,450295,'SEK','Swedish',
+       'A Scandinavian nation of forests and lakes, known for IKEA, ABBA, Nobel Prizes, a high standard of living, and Viking heritage.',
+       '森と湖の北欧の国。IKEA、ABBA、ノーベル賞、高い生活水準、バイキングの遺産で知られる。','+46','UTC+1/+2'],
+  756:['Switzerland','スイス','Bern','ベルン','EU',9,41285,'CHF','German, French, Italian, Romansh',
+       'A mountainous Alpine nation renowned for its banking system, precision watches, chocolate, cheese, and permanent neutrality since 1815.',
+       'アルプスの山岳国家。銀行システム、精密時計、チョコレート、チーズ、1815年以来の永世中立で有名。','+41','UTC+1/+2'],
+  760:['Syria','シリア','Damascus','ダマスカス','AS',20,185180,'SYP','Arabic',
+       'Home to Damascus, one of the world\'s oldest continuously inhabited cities, and ancient ruins of Palmyra, now rebuilding from a devastating civil war.',
+       '世界最古の継続して居住された都市の一つダマスカスと古代パルミラ遺跡がある。壊滅的な内戦から再建中。','+963','UTC+2/+3'],
+  764:['Thailand','タイ','Bangkok','バンコク','AS',70,513120,'THB','Thai',
+       'The Land of Smiles, famous for its ornate Buddhist temples, vibrant street food, tropical beaches, and the ancient kingdom of Ayutthaya.',
+       '「微笑みの国」。豪華な仏教寺院、活気あるストリートフード、トロピカルビーチ、古代アユタヤ王国で有名。','+66','UTC+7'],
+  768:['Togo','トーゴ','Lomé','ロメ','AF',9,56785,'XOF','French',
+       'A narrow West African nation with a long Atlantic coastline, rainforest in the south, and the Atakora mountains with Kabyè culture in the north.',
+       '細長い西アフリカの国。南部に長い大西洋岸と熱帯雨林、北部にアタコラ山脈とカビエ文化。','+228','UTC+0'],
+  788:['Tunisia','チュニジア','Tunis','チュニス','AF',12,163610,'TND','Arabic',
+       'A Mediterranean North African nation, a crossroads of civilizations with Carthaginian ruins, Roman amphitheatres, and Saharan landscapes.',
+       '地中海に面した北アフリカの国。カルタゴ遺跡、ローマ円形劇場、サハラの景観を持つ文明の交差点。','+216','UTC+1'],
+  792:['Turkey','トルコ','Ankara','アンカラ','AS',85,783562,'TRY','Turkish',
+       'A transcontinental nation bridging Europe and Asia, heir to the Ottoman Empire, with Istanbul\'s historic mosques and bazaars.',
+       'ヨーロッパとアジアを橋渡しする大陸間国家。オスマン帝国の後継で、イスタンブールの歴史的モスクとバザール。','+90','UTC+3'],
+  800:['Uganda','ウガンダ','Kampala','カンパラ','AF',48,241038,'UGX','English, Swahili',
+       'Described by Churchill as the Pearl of Africa, Uganda is home to mountain gorillas, the source of the Nile, and Lake Victoria.',
+       'チャーチルが「アフリカの真珠」と称した国。マウンテンゴリラ、ナイル川の源流、ビクトリア湖がある。','+256','UTC+3'],
+  804:['Ukraine','ウクライナ','Kyiv','キーウ','EU',44,603550,'UAH','Ukrainian',
+       'Europe\'s second-largest country by area, home to the Kyivan Rus medieval civilization and one of the world\'s most fertile agricultural zones.',
+       '面積でヨーロッパ第2位。キエフ・ルーシ中世文明の地で、世界有数の肥沃な農業地帯。','+380','UTC+2/+3'],
+  784:['United Arab Emirates','アラブ首長国連邦','Abu Dhabi','アブダビ','AS',10,83600,'AED','Arabic',
+       'A federation of seven emirates transformed from a pearl-diving economy to a global hub of commerce, tourism, and architecture including the Burj Khalifa.',
+       '真珠採取経済から世界的な商業・観光・建築（ブルジュ・ハリファを含む）のハブへと変貌した7首長国の連邦。','+971','UTC+4'],
+  826:['United Kingdom','イギリス','London','ロンドン','EU',67,243610,'GBP','English',
+       'An island nation that once governed the world\'s largest empire, the birthplace of the Industrial Revolution, Shakespeare, and the Beatles.',
+       'かつて世界最大の帝国を支配した島国。産業革命、シェイクスピア、ビートルズの発祥地。','+44','UTC+0/+1'],
+  840:['United States','アメリカ合衆国','Washington D.C.','ワシントンD.C.','NA',335,9833517,'USD','English',
+       'The world\'s third-largest country and leading economic and military power, a nation of immigrants that has shaped global culture, science, and politics.',
+       '世界第3位の国土と世界最大の経済・軍事大国。移民の国として世界の文化・科学・政治を形成してきた。','+1','UTC-10~-4'],
+  858:['Uruguay','ウルグアイ','Montevideo','モンテビデオ','SA',4,176215,'UYU','Spanish',
+       'South America\'s smallest Spanish-speaking country, known for progressive politics, gaucho culture, excellent wine, and long Atlantic beaches.',
+       '南米最小のスペイン語圏の国。進歩的な政治、ガウチョ文化、上質なワイン、長い大西洋のビーチで知られる。','+598','UTC-3'],
+  862:['Venezuela','ベネズエラ','Caracas','カラカス','SA',32,916445,'VES','Spanish',
+       'A South American nation of dramatic contrasts, from Angel Falls—the world\'s highest waterfall—to the oil-rich Lake Maracaibo basin.',
+       '対比の激しい南米の国。世界最高の滝エンジェルフォールから石油豊富なマラカイボ湖盆地まで。','+58','UTC-4'],
+  704:['Vietnam','ベトナム','Hanoi','ハノイ','AS',98,331212,'VND','Vietnamese',
+       'A S-shaped Southeast Asian nation of dramatic landscapes, from terraced rice paddies in the north to the Mekong Delta in the south.',
+       'S字形の東南アジアの国。北部の棚田景観から南部のメコンデルタまで劇的な景観が続く。','+84','UTC+7'],
+  887:['Yemen','イエメン','Sanaa','サナア','AS',34,527968,'YER','Arabic',
+       'The Arab world\'s poorest nation, home to the ancient walled city of Shibam—the "Manhattan of the Desert"—and rich Sabaean archaeological sites.',
+       'アラブ世界最貧国。「砂漠のマンハッタン」と呼ばれる古代城壁都市シバームと豊かなサバ王国遺跡がある。','+967','UTC+3'],
+  894:['Zambia','ザンビア','Lusaka','ルサカ','AF',20,752612,'ZMW','English',
+       'A landlocked southern African country home to Victoria Falls—one of the world\'s seven natural wonders—and the vast Kafue National Park.',
+       '内陸の南部アフリカの国。世界七不思議の一つビクトリアの滝と広大なカフェ国立公園がある。','+260','UTC+2'],
+  716:['Zimbabwe','ジンバブエ','Harare','ハラレ','AF',15,390757,'ZWL','English (and 15 others)',
+       'Home to the ancient stone ruins of Great Zimbabwe, Victoria Falls, abundant wildlife in Hwange National Park, and a resilient, creative people.',
+       '古代石造遺跡グレート・ジンバブエ、ビクトリアの滝、ワンゲ国立公園の豊かな野生動物と力強い国民の国。','+263','UTC+2'],
+  702:['Singapore','シンガポール','Singapore','シンガポール','AS',6,728,'SGD','English, Malay, Mandarin, Tamil',
+       'A prosperous city-state at the southern tip of the Malay Peninsula, a global financial hub renowned for its efficiency, cleanliness, and multicultural harmony.',
+       'マレー半島南端の繁栄した都市国家。効率性、清潔さ、多文化共生で知られるグローバル金融ハブ。','+65','UTC+8'],
+};
+
+// ISO numeric → continent fallback mapping (for countries not in COUNTRIES dict)
+const ISO_CONTINENT = {
+  8:'EU',12:'AF',20:'EU',24:'AF',28:'NA',31:'AS',32:'SA',36:'OC',40:'EU',44:'NA',48:'AS',
+  50:'AS',51:'AS',56:'EU',60:'NA',64:'AS',68:'SA',70:'EU',72:'AF',76:'SA',84:'NA',90:'OC',
+  96:'AS',100:'EU',104:'AS',108:'AF',112:'EU',116:'AS',120:'AF',124:'NA',132:'AF',136:'NA',
+  140:'AF',144:'AS',148:'AF',152:'SA',156:'AS',158:'AS',170:'SA',174:'AF',175:'AF',178:'AF',
+  180:'AF',184:'OC',188:'NA',191:'EU',192:'NA',196:'EU',203:'EU',204:'AF',208:'EU',212:'NA',
+  214:'NA',218:'SA',222:'NA',226:'AF',231:'AF',232:'AF',233:'EU',242:'OC',246:'EU',250:'EU',
+  258:'OC',262:'AF',266:'AF',270:'AF',275:'AS',276:'EU',288:'AF',292:'EU',296:'OC',300:'EU',
+  308:'NA',316:'OC',320:'NA',324:'AF',328:'SA',332:'NA',334:'OC',336:'EU',340:'NA',344:'AS',
+  348:'EU',352:'EU',356:'AS',360:'AS',364:'AS',368:'AS',372:'EU',376:'AS',380:'EU',384:'AF',
+  388:'NA',392:'AS',398:'AS',400:'AS',404:'AF',408:'AS',410:'AS',414:'AS',417:'AS',418:'AS',
+  422:'AS',426:'AF',430:'AF',434:'AF',438:'EU',440:'EU',442:'EU',446:'AS',450:'AF',454:'AF',
+  458:'AS',462:'AS',466:'AF',470:'EU',478:'AF',480:'AF',484:'NA',492:'EU',496:'AS',498:'EU',
+  504:'AF',508:'AF',516:'AF',520:'OC',524:'AS',528:'EU',540:'OC',548:'OC',554:'OC',558:'NA',
+  562:'AF',566:'AF',570:'OC',574:'OC',578:'EU',580:'OC',583:'OC',584:'OC',585:'OC',586:'AS',
+  591:'NA',598:'OC',600:'SA',604:'SA',608:'AS',612:'OC',616:'EU',620:'EU',624:'AF',626:'AS',
+  630:'NA',634:'AS',638:'AF',642:'EU',643:'EU',646:'AF',659:'NA',662:'NA',670:'NA',674:'EU',
+  678:'AF',682:'AS',686:'AF',688:'EU',690:'AF',694:'AF',703:'EU',706:'AF',710:'AF',716:'AF',
+  724:'EU',728:'AF',729:'AF',740:'SA',744:'AN',748:'AF',752:'EU',756:'EU',760:'AS',762:'AS',
+  764:'AS',768:'AF',772:'OC',776:'OC',780:'NA',784:'AS',788:'AF',792:'AS',795:'AS',796:'NA',
+  798:'OC',800:'AF',804:'EU',807:'EU',818:'AF',826:'EU',831:'EU',832:'EU',833:'EU',834:'AF',
+  840:'NA',850:'NA',858:'SA',860:'AS',862:'SA',876:'OC',882:'OC',887:'AS',894:'AF',
+  702:'AS',
+};
+
+// ── Active filter ───────────────────────────────────────────────────────────
+let activeContinent = null;
+let selectedId = null;
+let svgSel, gSel;
+let currentRotate = [0, 0, 0];
+let _projection, _path;
+
+// ── Language functions ──────────────────────────────────────────────────────
+function toggleLang() {
+  lang = lang === 'en' ? 'ja' : 'en';
+  applyLang();
+}
+
+function applyLang() {
+  const u = UI[lang];
+  document.getElementById('pageTitle').textContent  = u.title;
+  document.getElementById('langBtn').textContent    = u.langBtn;
+  document.getElementById('searchInput').placeholder= u.placeholder;
+  document.getElementById('clearBtn').textContent   = u.clear;
+  document.getElementById('lblCapital').textContent = u.capital;
+  document.getElementById('lblPop').textContent     = u.pop;
+  document.getElementById('lblArea').textContent    = u.area;
+  document.getElementById('lblCurrency').textContent = u.currency;
+  document.getElementById('lblLang').textContent     = u.langLabel;
+  document.getElementById('lblTel').textContent      = u.tel;
+  document.getElementById('lblTimezone').textContent = u.timezone;
+  document.getElementById('dpPlaceholder').textContent = u.hint;
+  renderLegend();
+  filterCountries();
+  if (selectedId) showDetail(selectedId);
+}
+
+// ── Legend ─────────────────────────────────────────────────────────────────
+function renderLegend() {
+  const u = UI[lang];
+  const leg = document.getElementById('legend');
+  const items = Object.entries(u.continents).map(([code, name]) =>
+    `<div class="legend-item${activeContinent === code ? ' active' : ''}" onclick="toggleContinent('${code}')">
+       <div class="legend-dot" style="background:${CONTINENT_COLOR[code]||'#636e72'}"></div>
+       ${name}
+     </div>`
+  ).join('');
+  leg.innerHTML = items;
+}
+
+function toggleContinent(code) {
+  activeContinent = (activeContinent === code) ? null : code;
+  renderLegend();
+  applyFilter();
+}
+
+// ── Filter + search ─────────────────────────────────────────────────────────
+function getCountryName(id) {
+  const d = COUNTRIES[id];
+  if (!d) return null;
+  return lang === 'en' ? d[0] : d[1];
+}
+
+function filterCountries() {
+  applyFilter();
+}
+
+function applyFilter() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!gSel) return;
+  gSel.selectAll('.country-path').each(function(d) {
+    const id = +d.id;
+    const data = COUNTRIES[id];
+    const continent = data ? data[4] : (ISO_CONTINENT[id] || '??');
+    const name = (data ? (lang === 'en' ? data[0] : data[1]) : '').toLowerCase();
+    const matchContinent = !activeContinent || continent === activeContinent;
+    const matchSearch = !q || name.includes(q);
+    const visible = matchContinent && matchSearch;
+    d3.select(this).classed('dimmed', !visible);
+  });
+  // Singapore marker: apply continent + search filter
+  const sgData = COUNTRIES[702];
+  if (gSel && sgData) {
+    const sgName = (lang === 'en' ? sgData[0] : sgData[1]).toLowerCase();
+    const matchContinent = !activeContinent || activeContinent === 'AS';
+    const matchSearch = !q || sgName.includes(q);
+    gSel.select('.sg-marker').classed('dimmed', !(matchContinent && matchSearch));
+    if (q && sgName === q) showDetail(702);
+  }
+  // If search matches exactly one country-path, highlight it
+  if (q) {
+    let exactId = null;
+    gSel.selectAll('.country-path').each(function(d) {
+      const id = +d.id;
+      const data = COUNTRIES[id];
+      if (!data) return;
+      const name = (lang === 'en' ? data[0] : data[1]).toLowerCase();
+      if (name === q) exactId = id;
+    });
+    if (exactId) showDetail(exactId);
+  }
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  applyFilter();
+}
+
+// ── Detail panel ───────────────────────────────────────────────────────────
+function showDetail(id) {
+  selectedId = id;
+  const panel = document.getElementById('detailPanel');
+  const u = UI[lang];
+  const data = COUNTRIES[id];
+  const continent = data ? data[4] : (ISO_CONTINENT[id] || '??');
+  const color = CONTINENT_COLOR[continent] || '#636e72';
+
+  const box = document.getElementById('dpColorBox');
+  box.style.background = color;
+  box.textContent = '';
+
+  if (data) {
+    document.getElementById('dpName').textContent      = lang === 'en' ? data[0] : data[1];
+    document.getElementById('dpContinent').textContent = u.continents[continent] || continent;
+    document.getElementById('dpCapital').textContent   = lang === 'en' ? data[2] : data[3];
+    document.getElementById('dpPop').textContent       = data[5] >= 1
+      ? (lang === 'en' ? data[5] + 'M' : data[5] + '百万人')
+      : (lang === 'en' ? (data[5]*1000|0) + 'K' : (data[5]*1000|0) + '千人');
+    document.getElementById('dpArea').textContent      = Number(data[6]).toLocaleString() + ' km²';
+    document.getElementById('dpCurrency').textContent  = data[7];
+    document.getElementById('dpLang').textContent      = data[8];
+    document.getElementById('dpDesc').textContent      = lang === 'en' ? data[9] : data[10];
+    document.getElementById('dpTel').textContent       = data[11] || u.unknown;
+    document.getElementById('dpTimezone').textContent  = data[12] || u.unknown;
+  } else {
+    const name = (ISO_CONTINENT[id] ? '' : 'ISO ' + id);
+    document.getElementById('dpName').textContent      = name || u.unknown;
+    document.getElementById('dpContinent').textContent = u.continents[continent] || u.unknown;
+    document.getElementById('dpCapital').textContent   = u.unknown;
+    document.getElementById('dpPop').textContent       = u.unknown;
+    document.getElementById('dpArea').textContent      = u.unknown;
+    document.getElementById('dpCurrency').textContent  = u.unknown;
+    document.getElementById('dpLang').textContent      = u.unknown;
+    document.getElementById('dpTel').textContent       = u.unknown;
+    document.getElementById('dpTimezone').textContent  = u.unknown;
+    document.getElementById('dpDesc').textContent      = u.nodata;
+  }
+
+  panel.classList.add('visible');
+}
+
+// ── Singapore marker (too small for TopoJSON) ───────────────────────────────
+function drawSgMarker() {
+  if (!gSel || !_projection) return;
+  const coords = _projection([103.82, 1.35]);
+  if (!coords) return;
+  const tooltip = document.getElementById('tooltip');
+  let m = gSel.select('.sg-marker');
+  if (m.empty()) {
+    m = gSel.append('circle')
+      .attr('class', 'sg-marker')
+      .attr('r', 1)
+      .attr('fill', CONTINENT_COLOR['AS'])
+      .attr('stroke', '#1a1a2e')
+      .attr('stroke-width', 0.5)
+      .style('cursor', 'pointer')
+      .on('mousemove', function(event) {
+        const name = lang === 'en' ? 'Singapore' : 'シンガポール';
+        tooltip.textContent = name;
+        tooltip.classList.add('visible');
+        tooltip.style.left = (event.clientX + 14) + 'px';
+        tooltip.style.top  = (event.clientY - 28) + 'px';
+        if (!d3.select(this).classed('sg-selected')) {
+          d3.select(this).attr('stroke', 'rgba(255,255,255,0.7)').attr('stroke-width', 1.2);
+        }
+      })
+      .on('mouseleave', function() {
+        tooltip.classList.remove('visible');
+        if (!d3.select(this).classed('sg-selected')) {
+          d3.select(this).attr('stroke', '#1a1a2e').attr('stroke-width', 0.5);
+        }
+      })
+      .on('click', function(event) {
+        event.stopPropagation();
+        gSel.selectAll('.country-path').classed('selected', false);
+        d3.select(this).classed('sg-selected', true)
+          .attr('stroke', '#fff').attr('stroke-width', 1.5);
+        showDetail(702);
+      });
+  }
+  m.attr('cx', coords[0]).attr('cy', coords[1]);
+  // Apply continent filter dimming
+  const dimmed = activeContinent && activeContinent !== 'AS';
+  m.classed('dimmed', dimmed);
+}
+
+// ── Rotation helpers ────────────────────────────────────────────────────────
+function redrawPaths() {
+  if (!gSel || !_path) return;
+  gSel.selectAll('path').attr('d', _path);
+  drawSgMarker();
+}
+
+function rotateBy(deg) {
+  currentRotate[0] += deg;
+  _projection.rotate(currentRotate);
+  redrawPaths();
+}
+
+// ── Reset rotation ──────────────────────────────────────────────────────────
+function resetRotation() {
+  currentRotate = [0, 0, 0];
+  _projection.rotate(currentRotate);
+  redrawPaths();
+}
+
+// ── Map rendering ───────────────────────────────────────────────────────────
+async function initMap() {
+  const world = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  const countries = topojson.feature(world, world.objects.countries);
+
+  const width = 960, height = 500;
+  _projection = d3.geoNaturalEarth1()
+    .scale(153)
+    .translate([width / 2, height / 2])
+    .rotate(currentRotate);
+  _path = d3.geoPath().projection(_projection);
+  const projection = _projection;
+  const path = _path;
+
+  svgSel = d3.select('#map-svg');
+  gSel   = svgSel.append('g');
+
+  // Ocean sphere
+  gSel.append('path')
+    .datum({ type: 'Sphere' })
+    .attr('class', 'sphere')
+    .attr('d', path);
+
+  // Graticule
+  gSel.append('path')
+    .datum(d3.geoGraticule()())
+    .attr('class', 'graticule')
+    .attr('d', path);
+
+  const tooltip = document.getElementById('tooltip');
+
+  // Countries
+  gSel.selectAll('.country-path')
+    .data(countries.features)
+    .join('path')
+    .attr('class', 'country-path')
+    .attr('d', path)
+    .attr('fill', d => {
+      const id = +d.id;
+      const data = COUNTRIES[id];
+      const continent = data ? data[4] : (ISO_CONTINENT[id] || '??');
+      return CONTINENT_COLOR[continent] || '#636e72';
+    })
+    .on('mousemove', function(event, d) {
+      const id = +d.id;
+      const data = COUNTRIES[id];
+      const name = data ? (lang === 'en' ? data[0] : data[1]) : ('ISO ' + id);
+      tooltip.textContent = name;
+      tooltip.classList.add('visible');
+      tooltip.style.left = (event.clientX + 14) + 'px';
+      tooltip.style.top  = (event.clientY - 28) + 'px';
+      if (!d3.select(this).classed('selected')) {
+        d3.select(this).classed('highlighted', true);
+      }
+    })
+    .on('mouseleave', function() {
+      tooltip.classList.remove('visible');
+      d3.select(this).classed('highlighted', false);
+    })
+    .on('click', function(event, d) {
+      const id = +d.id;
+      // Deselect previous
+      gSel.selectAll('.country-path').classed('selected', false);
+      gSel.select('.sg-marker').classed('sg-selected', false)
+        .attr('stroke', '#1a1a2e').attr('stroke-width', 0.5);
+      d3.select(this).classed('selected', true).classed('highlighted', false);
+      showDetail(id);
+    });
+
+  // Drag → horizontal rotation (native events)
+  let _dragging = false, _dragStartX = null, _dragStartRot = null;
+  const svgEl = svgSel.node();
+
+  svgEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    _dragging    = true;
+    _dragStartX  = e.clientX;
+    _dragStartRot = currentRotate[0];
+    svgEl.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!_dragging) return;
+    const dx = e.clientX - _dragStartX;
+    currentRotate[0] = _dragStartRot + dx * 0.4;
+    _projection.rotate(currentRotate);
+    redrawPaths();
+  });
+  document.addEventListener('mouseup', () => {
+    if (!_dragging) return;
+    _dragging = false;
+    svgEl.style.cursor = 'grab';
+  });
+
+  // Two-finger trackpad swipe → horizontal rotation (macOS)
+  svgEl.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      // Horizontal swipe: rotate (block default to prevent page scroll)
+      e.preventDefault();
+      currentRotate[0] -= e.deltaX * 0.3;
+      _projection.rotate(currentRotate);
+      redrawPaths();
+    }
+    // Vertical swipe / mouse wheel: let default scroll the page
+  }, { passive: false });
+
+  // Initial render
+  renderLegend();
+  drawSgMarker();
+}
+
+initMap();
+</script>
+</body>
+</html>
