@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Periodic Table</title>
+<style>
+  :root {
+    --alkali: #ff6b6b;
+    --alkaline: #ffa94d;
+    --transition: #74b9ff;
+    --post-transition: #a29bfe;
+    --metalloid: #55efc4;
+    --nonmetal: #fdcb6e;
+    --halogen: #fd79a8;
+    --noble: #81ecec;
+    --lanthanide: #dfe6e9;
+    --actinide: #b2bec3;
+    --unknown: #636e72;
+    --bg: #0f0f1a;
+    --surface: #1a1a2e;
+    --surface2: #16213e;
+    --text: #e0e0e0;
+    --text-dim: #a0a0b0;
+    --accent: #7c83ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 12px;
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #7c83ff, #a29bfe, #81ecec);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 1px;
+  }
+
+  .lang-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  .lang-btn:hover { background: var(--accent); color: #fff; }
+
+  /* Search */
+  .search-bar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 12px;
+    gap: 8px;
+  }
+  .search-bar input {
+    width: 280px;
+    padding: 8px 14px;
+    border-radius: 24px;
+    border: 1.5px solid #444;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar button {
+    padding: 8px 14px;
+    border-radius: 24px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: opacity 0.2s;
+  }
+  .search-bar button:hover { opacity: 0.85; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: var(--surface2);
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+  .legend-item:hover { border-color: #555; }
+  .legend-item.active { border-color: var(--accent); }
+  .legend-dot {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* Table wrapper */
+  .table-wrapper {
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+  /* Periodic Table Grid */
+  .periodic-table {
+    display: grid;
+    grid-template-columns: repeat(18, minmax(54px, 1fr));
+    grid-template-rows: repeat(10, auto);
+    gap: 3px;
+    min-width: 980px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+
+  /* Element Cell */
+  .element {
+    position: relative;
+    border-radius: 6px;
+    padding: 4px 3px 3px;
+    cursor: pointer;
+    text-align: center;
+    border: 1.5px solid rgba(255,255,255,0.08);
+    transition: transform 0.15s, box-shadow 0.15s, opacity 0.2s;
+    user-select: none;
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .element:hover {
+    transform: scale(1.18);
+    z-index: 10;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6);
+    border-color: rgba(255,255,255,0.4);
+  }
+  .element.dimmed { opacity: 0.18; }
+  .element.highlighted {
+    outline: 2.5px solid #fff;
+    outline-offset: 1px;
+    opacity: 1 !important;
+    transform: scale(1.1);
+    z-index: 5;
+    box-shadow: 0 0 16px rgba(255,255,255,0.3);
+  }
+  .element.selected {
+    outline: 2.5px solid #fff;
+    outline-offset: 2px;
+    z-index: 6;
+    box-shadow: 0 0 20px rgba(255,255,255,0.35);
+  }
+
+  .el-number {
+    font-size: 0.58rem;
+    color: rgba(0,0,0,0.65);
+    font-weight: 600;
+    line-height: 1;
+    align-self: flex-start;
+  }
+  .el-symbol {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #000;
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+  }
+  .el-name {
+    font-size: 0.5rem;
+    color: rgba(0,0,0,0.7);
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .el-mass {
+    font-size: 0.5rem;
+    color: rgba(0,0,0,0.6);
+    line-height: 1;
+  }
+
+  /* Category colors */
+  .alkali        { background: var(--alkali); }
+  .alkaline      { background: var(--alkaline); }
+  .transition    { background: var(--transition); }
+  .post-transition { background: var(--post-transition); }
+  .metalloid     { background: var(--metalloid); }
+  .nonmetal      { background: var(--nonmetal); }
+  .halogen       { background: var(--halogen); }
+  .noble         { background: var(--noble); }
+  .lanthanide    { background: var(--lanthanide); }
+  .actinide      { background: var(--actinide); }
+  .unknown-elem  { background: var(--unknown); }
+  .unknown-elem .el-number,
+  .unknown-elem .el-symbol,
+  .unknown-elem .el-name,
+  .unknown-elem .el-mass { color: #ccc; }
+
+  /* Period labels */
+  .period-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  /* Group labels row */
+  .group-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    padding: 2px 0;
+    font-weight: 600;
+  }
+
+  /* Placeholder cell */
+  .empty { background: transparent; border-color: transparent; cursor: default; }
+  .empty:hover { transform: none; box-shadow: none; }
+
+  /* State badge */
+  .state-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .state-solid { background: #636e72; color: #fff; }
+  .state-liquid { background: #0984e3; color: #fff; }
+  .state-gas { background: #00b894; color: #fff; }
+  .state-unknown { background: #444; color: #aaa; }
+
+  /* Detail panel */
+  .detail-panel {
+    max-width: 1300px;
+    margin: 18px auto 0;
+    background: var(--surface);
+    border: 1.5px solid #2a2a3e;
+    border-radius: 14px;
+    padding: 20px 28px;
+    display: none;
+    animation: panelIn 0.22s ease;
+  }
+  .detail-panel.visible { display: block; }
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .detail-panel .dp-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 18px;
+  }
+  .dp-symbol-box {
+    width: 80px; height: 80px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .dp-symbol-box .dp-num {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: rgba(0,0,0,0.55);
+  }
+  .dp-symbol-box .dp-sym {
+    font-size: 2.2rem;
+    font-weight: 900;
+    color: #000;
+    line-height: 1;
+  }
+  .dp-header-text h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+  }
+  .dp-header-text p {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+  .dp-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px 24px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 760px) {
+    .dp-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .dp-field label {
+    display: block;
+    font-size: 0.67rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+  .dp-field span {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .dp-desc {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    line-height: 1.65;
+    border-top: 1px solid #2a2a3e;
+    padding-top: 14px;
+  }
+</style>
+</head>
+<body>
+
+<div class="title-row">
+  <h1 id="pageTitle">Interactive Periodic Table</h1>
+  <button class="lang-btn" id="langBtn" onclick="toggleLang()">日本語</button>
+</div>
+
+<div class="search-bar">
+  <input type="text" id="searchInput" placeholder="Search element name or symbol..." oninput="filterElements()">
+  <button id="clearBtn" onclick="clearSearch()">Clear</button>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="table-wrapper">
+  <div class="periodic-table" id="periodicTable"></div>
+</div>
+
+<!-- Detail panel below the table -->
+<div class="detail-panel" id="detailPanel">
+  <div class="dp-header">
+    <div class="dp-symbol-box" id="dpSymBox">
+      <span class="dp-num" id="dpNum"></span>
+      <span class="dp-sym" id="dpSym"></span>
+    </div>
+    <div class="dp-header-text">
+      <h2 id="dpName"></h2>
+      <p id="dpCategory"></p>
+    </div>
+  </div>
+  <div class="dp-grid">
+    <div class="dp-field"><label id="lblAtomicNum">Atomic Number</label><span id="dpAtomicNum"></span></div>
+    <div class="dp-field"><label id="lblMass">Atomic Mass</label><span id="dpMass"></span></div>
+    <div class="dp-field"><label id="lblState">State at Room Temp.</label><span id="dpState"></span></div>
+    <div class="dp-field"><label id="lblDiscovery">Discovery Year</label><span id="dpDiscovery"></span></div>
+    <div class="dp-field"><label id="lblConfig">Electron Configuration</label><span id="dpConfig" style="font-size:0.82rem;word-break:break-all;"></span></div>
+  </div>
+  <div class="dp-desc" id="dpDesc"></div>
+</div>
+
+<script>
+// ── Language ───────────────────────────────────────────────────────────────
+let lang = 'en';
+
+const UI = {
+  en: {
+    title:       'Interactive Periodic Table',
+    langBtn:     '日本語',
+    placeholder: 'Search element name or symbol...',
+    clear:       'Clear',
+    atomicNum:   'Atomic Number',
+    mass:        'Atomic Mass',
+    state:       'State at Room Temp.',
+    discovery:   'Discovery Year',
+    config:      'Electron Configuration',
+    ancient:     'Ancient / Unknown',
+    lanthanides: 'Lanthanides',
+    actinides:   'Actinides',
+    states: { Solid:'Solid', Liquid:'Liquid', Gas:'Gas', Unknown:'Unknown' },
+  },
+  ja: {
+    title:       '元素周期表',
+    langBtn:     'English',
+    placeholder: '元素名または記号を検索...',
+    clear:       'クリア',
+    atomicNum:   '原子番号',
+    mass:        '原子量',
+    state:       '常温の状態',
+    discovery:   '発見年',
+    config:      '電子配置',
+    ancient:     '古代より / 不明',
+    lanthanides: 'ランタノイド',
+    actinides:   'アクチノイド',
+    states: { Solid:'固体', Liquid:'液体', Gas:'気体', Unknown:'不明' },
+  },
+};
+
+// ── Categories ─────────────────────────────────────────────────────────────
+const CATEGORIES = {
+  'alkali':          { en: 'Alkali Metals',           ja: 'アルカリ金属',     color: '#ff6b6b' },
+  'alkaline':        { en: 'Alkaline Earth Metals',   ja: 'アルカリ土類金属', color: '#ffa94d' },
+  'transition':      { en: 'Transition Metals',       ja: '遷移金属',         color: '#74b9ff' },
+  'post-transition': { en: 'Post-transition Metals',  ja: '典型金属',         color: '#a29bfe' },
+  'metalloid':       { en: 'Metalloids',              ja: '半金属',           color: '#55efc4' },
+  'nonmetal':        { en: 'Reactive Nonmetals',      ja: '非金属',           color: '#fdcb6e' },
+  'halogen':         { en: 'Halogens',                ja: 'ハロゲン',         color: '#fd79a8' },
+  'noble':           { en: 'Noble Gases',             ja: '希ガス',           color: '#81ecec' },
+  'lanthanide':      { en: 'Lanthanides',             ja: 'ランタノイド',     color: '#dfe6e9' },
+  'actinide':        { en: 'Actinides',               ja: 'アクチノイド',     color: '#b2bec3' },
+  'unknown':         { en: 'Unknown',                 ja: '未分類',           color: '#636e72' },
+};
+
+// ── Element data ───────────────────────────────────────────────────────────
+// [Z, symbol, nameEN, nameJA, mass, category, col, row, config, year, state, descEN, descJA]
+const ELEMENTS = [
+  [1,'H','Hydrogen','水素','1.008','nonmetal',1,2,'1s¹',1766,'Gas',
+   'The lightest and most abundant element in the universe, essential for stars and water.',
+   '宇宙で最も軽く最も豊富な元素。恒星と水の主成分。'],
+  [2,'He','Helium','ヘリウム','4.003','noble',18,2,'1s²',1868,'Gas',
+   'The second most abundant element; used in balloons and cryogenics due to its extremely low boiling point.',
+   '宇宙で2番目に豊富な元素。非常に低い沸点のため気球や極低温工学に使用される。'],
+  [3,'Li','Lithium','リチウム','6.941','alkali',1,3,'[He] 2s¹',1817,'Solid',
+   'The lightest metal; widely used in rechargeable batteries, ceramics, and psychiatric medication.',
+   '最も軽い金属。リチウムイオン電池・セラミックス・精神科薬に広く使用される。'],
+  [4,'Be','Beryllium','ベリリウム','9.012','alkaline',2,3,'[He] 2s²',1798,'Solid',
+   'A hard, lightweight metal used in aerospace alloys and X-ray equipment windows.',
+   '硬く軽い金属。航空宇宙合金やX線装置の窓に使用される。'],
+  [5,'B','Boron','ホウ素','10.811','metalloid',13,3,'[He] 2s² 2p¹',1808,'Solid',
+   'A metalloid essential in glass, ceramics, and as a neutron absorber in nuclear reactors.',
+   'ガラス・セラミックスに不可欠な半金属。原子炉の中性子吸収材にも使用される。'],
+  [6,'C','Carbon','炭素','12.011','nonmetal',14,3,'[He] 2s² 2p²',null,'Solid',
+   'The basis of all organic life; occurs as graphite, diamond, and fullerenes, with unique bonding versatility.',
+   '有機生命の基盤。黒鉛・ダイヤモンド・フラーレンとして存在し、多彩な結合を形成する。'],
+  [7,'N','Nitrogen','窒素','14.007','nonmetal',15,3,'[He] 2s² 2p³',1772,'Gas',
+   'Makes up 78% of Earth\'s atmosphere; essential in amino acids, DNA, and fertilizers.',
+   '大気の78%を占める。アミノ酸・DNA・肥料に不可欠。'],
+  [8,'O','Oxygen','酸素','15.999','nonmetal',16,3,'[He] 2s² 2p⁴',1774,'Gas',
+   'Essential for respiration and combustion; the third most abundant element in the universe.',
+   '呼吸と燃焼に不可欠。宇宙で3番目に豊富な元素。'],
+  [9,'F','Fluorine','フッ素','18.998','halogen',17,3,'[He] 2s² 2p⁵',1886,'Gas',
+   'The most electronegative element; highly reactive and used in PTFE (Teflon) and refrigerants.',
+   '最も電気陰性度が高い元素。非常に反応性が高くPTFE（テフロン）や冷媒に使用される。'],
+  [10,'Ne','Neon','ネオン','20.180','noble',18,3,'[He] 2s² 2p⁶',1898,'Gas',
+   'An inert gas that glows bright orange-red in discharge tubes; used in signs and lasers.',
+   '放電管内でオレンジ赤色に輝く不活性ガス。ネオンサインやレーザーに使用される。'],
+  [11,'Na','Sodium','ナトリウム','22.990','alkali',1,4,'[Ne] 3s¹',1807,'Solid',
+   'A highly reactive soft metal; an essential electrolyte in biological systems and used in table salt.',
+   '非常に反応性の高い軟金属。生体の必須電解質で食塩（塩化ナトリウム）の成分。'],
+  [12,'Mg','Magnesium','マグネシウム','24.305','alkaline',2,4,'[Ne] 3s²',1755,'Solid',
+   'A lightweight structural metal used in alloys for aerospace and automotive; essential in chlorophyll.',
+   '軽量構造金属。航空宇宙・自動車合金に使用され、クロロフィルの中心元素。'],
+  [13,'Al','Aluminum','アルミニウム','26.982','post-transition',13,4,'[Ne] 3s² 3p¹',1825,'Solid',
+   'The most abundant metal in Earth\'s crust; lightweight and corrosion-resistant, used widely in industry.',
+   '地殻中で最も豊富な金属。軽量で耐食性が高く産業界で広く使用される。'],
+  [14,'Si','Silicon','ケイ素','28.086','metalloid',14,4,'[Ne] 3s² 3p²',1824,'Solid',
+   'The backbone of modern electronics; the second most abundant element in Earth\'s crust after oxygen.',
+   '現代エレクトロニクスの根幹。酸素に次いで地殻で2番目に豊富な元素。'],
+  [15,'P','Phosphorus','リン','30.974','nonmetal',15,4,'[Ne] 3s² 3p³',1669,'Solid',
+   'Essential for DNA, ATP, and bone; highly reactive white phosphorus was once used in matches.',
+   'DNA・ATP・骨格に不可欠。高反応性の白リンはかつてマッチに使用されていた。'],
+  [16,'S','Sulfur','硫黄','32.065','nonmetal',16,4,'[Ne] 3s² 3p⁴',null,'Solid',
+   'A yellow solid essential in proteins and used to make sulfuric acid, the world\'s most produced chemical.',
+   'タンパク質に不可欠な黄色固体。世界最大量生産される化学物質・硫酸の原料。'],
+  [17,'Cl','Chlorine','塩素','35.453','halogen',17,4,'[Ne] 3s² 3p⁵',1774,'Gas',
+   'A toxic yellowish-green gas used in water purification, PVC production, and chemical synthesis.',
+   '有毒な黄緑色ガス。水の浄化・PVC製造・化学合成に使用される。'],
+  [18,'Ar','Argon','アルゴン','39.948','noble',18,4,'[Ne] 3s² 3p⁶',1894,'Gas',
+   'The third most abundant gas in Earth\'s atmosphere; used as an inert shielding gas in welding.',
+   '大気中3番目に豊富なガス。溶接のシールドガスとして使用される。'],
+  [19,'K','Potassium','カリウム','39.098','alkali',1,5,'[Ar] 4s¹',1807,'Solid',
+   'Essential for plant and animal cell function; reacts vigorously with water to produce hydrogen gas.',
+   '動植物の細胞機能に不可欠。水と激しく反応して水素ガスを発生させる。'],
+  [20,'Ca','Calcium','カルシウム','40.078','alkaline',2,5,'[Ar] 4s²',1808,'Solid',
+   'Essential for bones and teeth; the fifth most abundant element in Earth\'s crust.',
+   '骨と歯に不可欠。地殻で5番目に豊富な元素。'],
+  [21,'Sc','Scandium','スカンジウム','44.956','transition',3,5,'[Ar] 3d¹ 4s²',1879,'Solid',
+   'A rare metal used in aerospace alloys; its oxide is used in high-intensity lighting.',
+   '希少金属で航空宇宙合金に使用される。酸化物は高輝度照明に利用される。'],
+  [22,'Ti','Titanium','チタン','47.867','transition',4,5,'[Ar] 3d² 4s²',1791,'Solid',
+   'Strong and lightweight with excellent corrosion resistance; used in aircraft, medical implants, and spacecraft.',
+   '強度が高く軽量で耐食性に優れる。航空機・医療インプラント・宇宙船に使用される。'],
+  [23,'V','Vanadium','バナジウム','50.942','transition',5,5,'[Ar] 3d³ 4s²',1801,'Solid',
+   'Used to strengthen steel alloys; vanadium redox batteries show promise for grid energy storage.',
+   '鋼合金の強化に使用される。バナジウム液流電池はグリッド蓄電に有望。'],
+  [24,'Cr','Chromium','クロム','51.996','transition',6,5,'[Ar] 3d⁵ 4s¹',1797,'Solid',
+   'Gives stainless steel its corrosion resistance; chromium plating provides a shiny, hard surface.',
+   'ステンレス鋼に耐食性を与える。クロムめっきは光沢のある硬い表面を提供する。'],
+  [25,'Mn','Manganese','マンガン','54.938','transition',7,5,'[Ar] 3d⁵ 4s²',1774,'Solid',
+   'Essential in steel production; plays a role in enzyme function in living organisms.',
+   '鋼鉄生産に不可欠。生体内の酵素機能にも重要な役割を果たす。'],
+  [26,'Fe','Iron','鉄','55.845','transition',8,5,'[Ar] 3d⁶ 4s²',null,'Solid',
+   'The most widely used metal; the core of Earth is mostly iron; essential in hemoglobin for oxygen transport.',
+   '最も広く使用される金属。地球の核の主成分。ヘモグロビンの酸素運搬に不可欠。'],
+  [27,'Co','Cobalt','コバルト','58.933','transition',9,5,'[Ar] 3d⁷ 4s²',1735,'Solid',
+   'Used in superalloys, batteries, and as a blue pigment; essential cofactor in vitamin B12.',
+   '超合金・電池・青色顔料に使用される。ビタミンB12の補因子として必須。'],
+  [28,'Ni','Nickel','ニッケル','58.693','transition',10,5,'[Ar] 3d⁸ 4s²',1751,'Solid',
+   'Resistant to corrosion and oxidation; widely used in coins, stainless steel, and battery electrodes.',
+   '耐食性・耐酸化性に優れる。硬貨・ステンレス鋼・電池電極に広く使用される。'],
+  [29,'Cu','Copper','銅','63.546','transition',11,5,'[Ar] 3d¹⁰ 4s¹',null,'Solid',
+   'One of the first metals used by humans; excellent electrical conductor widely used in wiring and electronics.',
+   '人類が最初に使用した金属の一つ。優れた電気伝導体として配線・電子機器に広く使用される。'],
+  [30,'Zn','Zinc','亜鉛','65.38','transition',12,5,'[Ar] 3d¹⁰ 4s²',1746,'Solid',
+   'Used to galvanize steel; essential trace element in enzymes and immune function.',
+   '鋼の亜鉛めっきに使用される。酵素機能と免疫機能に必須の微量元素。'],
+  [31,'Ga','Gallium','ガリウム','69.723','post-transition',13,5,'[Ar] 3d¹⁰ 4s² 4p¹',1875,'Solid',
+   'A metal that melts just above room temperature; used in semiconductors (GaAs) and LEDs.',
+   '室温をわずかに上回る温度で融解する金属。半導体（GaAs）やLEDに使用される。'],
+  [32,'Ge','Germanium','ゲルマニウム','72.631','metalloid',14,5,'[Ar] 3d¹⁰ 4s² 4p²',1886,'Solid',
+   'A key semiconductor material historically; now used in fiber optics, infrared optics, and solar cells.',
+   '歴史的に重要な半導体材料。現在は光ファイバー・赤外線光学・太陽電池に使用される。'],
+  [33,'As','Arsenic','ヒ素','74.922','metalloid',15,5,'[Ar] 3d¹⁰ 4s² 4p³',null,'Solid',
+   'A highly toxic metalloid historically used as a poison; used in semiconductors and wood preservatives.',
+   '歴史的に毒物として使用された高毒性半金属。半導体と木材防腐剤に使用される。'],
+  [34,'Se','Selenium','セレン','78.971','nonmetal',16,5,'[Ar] 3d¹⁰ 4s² 4p⁴',1817,'Solid',
+   'A photoconductor used in photocopiers and solar cells; essential trace element in antioxidant enzymes.',
+   '複写機や太陽電池に使われる光導電体。抗酸化酵素の必須微量元素。'],
+  [35,'Br','Bromine','臭素','79.904','halogen',17,5,'[Ar] 3d¹⁰ 4s² 4p⁵',1826,'Liquid',
+   'One of only two elements liquid at room temperature (the other being mercury); used in flame retardants.',
+   '室温で液体の2元素のうちの一つ（もう一つは水銀）。難燃剤に使用される。'],
+  [36,'Kr','Krypton','クリプトン','83.798','noble',18,5,'[Ar] 3d¹⁰ 4s² 4p⁶',1898,'Gas',
+   'A noble gas used in high-performance light bulbs and lasers; formerly used to define the meter.',
+   '高性能電球やレーザーに使用される希ガス。かつてメートルの定義に使用されていた。'],
+  [37,'Rb','Rubidium','ルビジウム','85.468','alkali',1,6,'[Kr] 5s¹',1861,'Solid',
+   'A highly reactive alkali metal; used in atomic clocks and as a getter in vacuum tubes.',
+   '高反応性のアルカリ金属。原子時計や真空管のゲッターに使用される。'],
+  [38,'Sr','Strontium','ストロンチウム','87.62','alkaline',2,6,'[Kr] 5s²',1790,'Solid',
+   'Its red flame is used in fireworks; radioactive Sr-90 from nuclear fallout is a bone-seeking hazard.',
+   '赤い炎は花火に使用される。核実験由来の放射性Sr-90は骨に蓄積する危険物質。'],
+  [39,'Y','Yttrium','イットリウム','88.906','transition',3,6,'[Kr] 4d¹ 5s²',1794,'Solid',
+   'Used in phosphors for TV screens and LEDs; also in superconductors (YBCO) and laser crystals.',
+   'テレビ・LEDの蛍光体に使用される。超伝導体（YBCO）やレーザー結晶にも利用される。'],
+  [40,'Zr','Zirconium','ジルコニウム','91.224','transition',4,6,'[Kr] 4d² 5s²',1789,'Solid',
+   'Highly resistant to corrosion; used in nuclear reactor cladding and as a refractory material.',
+   '高い耐食性を持つ。原子炉燃料被覆管と耐火材料に使用される。'],
+  [41,'Nb','Niobium','ニオブ','92.906','transition',5,6,'[Kr] 4d⁴ 5s¹',1801,'Solid',
+   'Used in high-strength steel alloys; a superconductor used in MRI machines and particle accelerators.',
+   '高強度鋼合金に使用される超伝導体。MRI装置や粒子加速器にも利用される。'],
+  [42,'Mo','Molybdenum','モリブデン','95.96','transition',6,6,'[Kr] 4d⁵ 5s¹',1781,'Solid',
+   'Has one of the highest melting points; used in high-strength alloys and as a catalyst.',
+   '最も高い融点の一つを持つ。高強度合金や触媒として使用される。'],
+  [43,'Tc','Technetium','テクネチウム','98','transition',7,6,'[Kr] 4d⁵ 5s²',1937,'Solid',
+   'The first artificially produced element; its metastable isotope Tc-99m is widely used in medical imaging.',
+   '最初に人工的に生成された元素。準安定同位体Tc-99mは核医学検査に広く使用される。'],
+  [44,'Ru','Ruthenium','ルテニウム','101.07','transition',8,6,'[Kr] 4d⁷ 5s¹',1844,'Solid',
+   'A platinum group metal used as a hardening agent in alloys; catalyst in chemical synthesis.',
+   '白金族金属で合金の硬化剤に使用される。化学合成の触媒としても利用される。'],
+  [45,'Rh','Rhodium','ロジウム','102.906','transition',9,6,'[Kr] 4d⁸ 5s¹',1803,'Solid',
+   'Extremely rare and valuable; used as a catalyst in automotive catalytic converters.',
+   '非常に希少で高価。自動車用触媒コンバーターの触媒として使用される。'],
+  [46,'Pd','Palladium','パラジウム','106.42','transition',10,6,'[Kr] 4d¹⁰',1803,'Solid',
+   'Can absorb hydrogen at room temperature; used in catalytic converters and electronics.',
+   '室温で水素を吸収できる。触媒コンバーターや電子機器に使用される。'],
+  [47,'Ag','Silver','銀','107.868','transition',11,6,'[Kr] 4d¹⁰ 5s¹',null,'Solid',
+   'The best electrical and thermal conductor; used in jewelry, photography, and antibacterial applications.',
+   '最高の電気・熱伝導体。宝飾品・写真・抗菌用途に使用される。'],
+  [48,'Cd','Cadmium','カドミウム','112.411','transition',12,6,'[Kr] 4d¹⁰ 5s²',1817,'Solid',
+   'A toxic heavy metal; used in rechargeable NiCd batteries and as a neutron absorber in nuclear reactors.',
+   '有毒な重金属。ニッカド電池の充電池や原子炉の中性子吸収材に使用される。'],
+  [49,'In','Indium','インジウム','114.818','post-transition',13,6,'[Kr] 4d¹⁰ 5s² 5p¹',1863,'Solid',
+   'A soft metal used in ITO (indium tin oxide) coatings for touchscreens and LCD displays.',
+   '柔らかい金属。タッチパネルやLCDのITO（酸化インジウムスズ）コーティングに使用される。'],
+  [50,'Sn','Tin','スズ','118.710','post-transition',14,6,'[Kr] 4d¹⁰ 5s² 5p²',null,'Solid',
+   'One of the earliest metals used by humans; used to make bronze and as a solder in electronics.',
+   '人類が最初に使用した金属の一つ。青銅の原料や電子機器のはんだに使用される。'],
+  [51,'Sb','Antimony','アンチモン','121.760','metalloid',15,6,'[Kr] 4d¹⁰ 5s² 5p³',null,'Solid',
+   'A metalloid used in flame retardants, semiconductors, and as an alloy hardener in lead-acid batteries.',
+   '難燃剤・半導体・鉛蓄電池の合金硬化剤に使用される半金属。'],
+  [52,'Te','Tellurium','テルル','127.60','metalloid',16,6,'[Kr] 4d¹⁰ 5s² 5p⁴',1783,'Solid',
+   'A rare metalloid used in CdTe solar cells and phase-change memory; tellurium is rarer than gold.',
+   'CdTe太陽電池や相変化メモリに使用される希少半金属。金よりも希少。'],
+  [53,'I','Iodine','ヨウ素','126.904','halogen',17,6,'[Kr] 4d¹⁰ 5s² 5p⁵',1811,'Solid',
+   'Essential trace element for thyroid hormones; used as an antiseptic and in photography.',
+   '甲状腺ホルモンに必須の微量元素。消毒剤や写真術に使用される。'],
+  [54,'Xe','Xenon','キセノン','131.293','noble',18,6,'[Kr] 4d¹⁰ 5s² 5p⁶',1898,'Gas',
+   'A heavy noble gas used in high-intensity lamps, anesthesia, and ion propulsion systems for spacecraft.',
+   '高輝度ランプ・麻酔・宇宙船のイオン推進システムに使用される重い希ガス。'],
+  [55,'Cs','Cesium','セシウム','132.905','alkali',1,7,'[Xe] 6s¹',1860,'Solid',
+   'The most electropositive element; cesium-133 defines the SI second via atomic clock oscillations.',
+   '最も陽電性の高い元素。セシウム133はSI秒の定義基準（原子時計）。'],
+  [56,'Ba','Barium','バリウム','137.327','alkaline',2,7,'[Xe] 6s²',1808,'Solid',
+   'Used as a contrast agent in medical X-ray imaging (barium swallow); its compounds color fireworks green.',
+   '医療X線撮影（バリウム造影）の造影剤。化合物は花火に緑色を与える。'],
+  [57,'La','Lanthanum','ランタン','138.905','lanthanide',4,9,'[Xe] 5d¹ 6s²',1839,'Solid',
+   'The first lanthanide; used in camera lenses, hydrogen storage alloys, and fluid catalytic cracking.',
+   '最初のランタノイド。カメラレンズ・水素貯蔵合金・流動接触分解に使用される。'],
+  [58,'Ce','Cerium','セリウム','140.116','lanthanide',5,9,'[Xe] 4f¹ 5d¹ 6s²',1803,'Solid',
+   'The most abundant rare earth; used in catalytic converters, glass polishing powder, and lighter flints.',
+   '最も豊富な希土類元素。触媒コンバーター・ガラス研磨粉・ライターの発火石に使用される。'],
+  [59,'Pr','Praseodymium','プラセオジム','140.908','lanthanide',6,9,'[Xe] 4f³ 6s²',1885,'Solid',
+   'Its green salts are used in glass coloring; alloyed with neodymium in powerful permanent magnets.',
+   '緑色の塩はガラス着色に使用される。ネオジムと合金化して強力永久磁石に使用される。'],
+  [60,'Nd','Neodymium','ネオジム','144.242','lanthanide',7,9,'[Xe] 4f⁴ 6s²',1885,'Solid',
+   'Makes the strongest permanent magnets (Nd₂Fe₁₄B); used in wind turbines, electric motors, and hard drives.',
+   '最強の永久磁石（Nd₂Fe₁₄B）を作る。風力タービン・電動機・ハードディスクに使用される。'],
+  [61,'Pm','Promethium','プロメチウム','145','lanthanide',8,9,'[Xe] 4f⁵ 6s²',1945,'Solid',
+   'The only lanthanide with no stable isotopes; used in nuclear batteries and luminescent paint.',
+   '安定同位体を持たない唯一のランタノイド。核電池や蛍光塗料に使用される。'],
+  [62,'Sm','Samarium','サマリウム','150.36','lanthanide',9,9,'[Xe] 4f⁶ 6s²',1879,'Solid',
+   'Used in SmCo permanent magnets that retain strength at high temperatures; a neutron absorber in reactors.',
+   '高温でも強度を保つSmCo永久磁石に使用される。原子炉の中性子吸収材にも利用される。'],
+  [63,'Eu','Europium','ユウロピウム','151.964','lanthanide',10,9,'[Xe] 4f⁷ 6s²',1901,'Solid',
+   'The most reactive rare earth; used as a red phosphor in TVs and in euro banknote security features.',
+   '最も反応性の高い希土類元素。テレビの赤色蛍光体やユーロ紙幣の偽造防止に使用される。'],
+  [64,'Gd','Gadolinium','ガドリニウム','157.25','lanthanide',11,9,'[Xe] 4f⁷ 5d¹ 6s²',1880,'Solid',
+   'Has the highest neutron capture cross-section; its chelates are used as MRI contrast agents.',
+   '最大の中性子捕獲断面積を持つ。キレート化合物はMRI造影剤として使用される。'],
+  [65,'Tb','Terbium','テルビウム','158.925','lanthanide',12,9,'[Xe] 4f⁹ 6s²',1843,'Solid',
+   'Used in green phosphors in displays; its alloy Terfenol-D is a highly magnetostrictive material.',
+   'ディスプレイの緑色蛍光体に使用される。合金Terfenol-Dは高い磁歪特性を持つ。'],
+  [66,'Dy','Dysprosium','ジスプロシウム','162.500','lanthanide',13,9,'[Xe] 4f¹⁰ 6s²',1886,'Solid',
+   'Has the highest magnetic moment of any element; added to neodymium magnets for high-temperature use.',
+   '全元素中最大の磁気モーメントを持つ。ネオジム磁石に添加して高温特性を向上させる。'],
+  [67,'Ho','Holmium','ホルミウム','164.930','lanthanide',14,9,'[Xe] 4f¹¹ 6s²',1878,'Solid',
+   'Has the highest magnetic moment of any element; used in high-power magnets and laser medicine.',
+   '最大の磁気モーメントを持つ元素の一つ。高出力磁石やレーザー医療に使用される。'],
+  [68,'Er','Erbium','エルビウム','167.259','lanthanide',15,9,'[Xe] 4f¹² 6s²',1843,'Solid',
+   'Used as a dopant in optical fibers (EDFA) to amplify signals in telecommunications.',
+   '光ファイバー（EDFA）のドーパントとして通信信号を増幅するために使用される。'],
+  [69,'Tm','Thulium','ツリウム','168.934','lanthanide',16,9,'[Xe] 4f¹³ 6s²',1879,'Solid',
+   'The rarest and least abundant naturally occurring lanthanide; used in portable X-ray sources.',
+   '最も希少な天然ランタノイド。可搬式X線源に使用される。'],
+  [70,'Yb','Ytterbium','イッテルビウム','173.054','lanthanide',17,9,'[Xe] 4f¹⁴ 6s²',1878,'Solid',
+   'Used in high-precision atomic clocks and as a dopant in fiber lasers.',
+   '高精度原子時計とファイバーレーザーのドーパントに使用される。'],
+  [71,'Lu','Lutetium','ルテチウム','174.967','lanthanide',18,9,'[Xe] 4f¹⁴ 5d¹ 6s²',1907,'Solid',
+   'The last lanthanide; used in PET scan detectors and as a catalyst in petroleum cracking.',
+   '最後のランタノイド。PET検出器や石油分解の触媒として使用される。'],
+  [72,'Hf','Hafnium','ハフニウム','178.49','transition',4,7,'[Xe] 4f¹⁴ 5d² 6s²',1923,'Solid',
+   'Used in nuclear reactor control rods; hafnium oxide is a high-k dielectric in modern transistors.',
+   '原子炉制御棒に使用される。酸化ハフニウムは最新トランジスタの高誘電率絶縁体。'],
+  [73,'Ta','Tantalum','タンタル','180.948','transition',5,7,'[Xe] 4f¹⁴ 5d³ 6s²',1802,'Solid',
+   'Highly corrosion-resistant; used in capacitors for smartphones, medical implants, and aircraft parts.',
+   '高い耐食性を持つ。スマートフォンのコンデンサ・医療インプラント・航空機部品に使用される。'],
+  [74,'W','Tungsten','タングステン','183.84','transition',6,7,'[Xe] 4f¹⁴ 5d⁴ 6s²',1783,'Solid',
+   'Has the highest melting point of any element (3422°C); used in light bulb filaments and cutting tools.',
+   '全元素中最高の融点（3422°C）を持つ。電球フィラメントや切削工具に使用される。'],
+  [75,'Re','Rhenium','レニウム','186.207','transition',7,7,'[Xe] 4f¹⁴ 5d⁵ 6s²',1925,'Solid',
+   'One of the rarest elements; used in high-temperature superalloys for jet engine components.',
+   '最も希少な元素の一つ。ジェットエンジン部品の高温超合金に使用される。'],
+  [76,'Os','Osmium','オスミウム','190.23','transition',8,7,'[Xe] 4f¹⁴ 5d⁶ 6s²',1803,'Solid',
+   'The densest naturally occurring element; its tetroxide is used as a biological stain.',
+   '天然で最も密度の高い元素。四酸化オスミウムは生物学的染色剤として使用される。'],
+  [77,'Ir','Iridium','イリジウム','192.217','transition',9,7,'[Xe] 4f¹⁴ 5d⁷ 6s²',1803,'Solid',
+   'The most corrosion-resistant metal; anomalous iridium abundance is evidence for the K-Pg asteroid impact.',
+   '最も耐食性の高い金属。異常な存在量はK-Pg境界の小惑星衝突の証拠。'],
+  [78,'Pt','Platinum','白金','195.084','transition',10,7,'[Xe] 4f¹⁴ 5d⁹ 6s¹',1735,'Solid',
+   'A precious metal highly resistant to corrosion; used in catalytic converters, jewelry, and fuel cells.',
+   '高い耐食性を持つ貴金属。触媒コンバーター・宝飾品・燃料電池に使用される。'],
+  [79,'Au','Gold','金','196.967','transition',11,7,'[Xe] 4f¹⁴ 5d¹⁰ 6s¹',null,'Solid',
+   'The most prized metal; excellent conductor that doesn\'t tarnish; used in electronics, jewelry, and currency.',
+   '最も珍重される金属。変色しない優れた導体。電子機器・宝飾品・通貨に使用される。'],
+  [80,'Hg','Mercury','水銀','200.592','transition',12,7,'[Xe] 4f¹⁴ 5d¹⁰ 6s²',null,'Liquid',
+   'The only metal liquid at room temperature; used in thermometers, barometers, and fluorescent lighting.',
+   '室温で液体の唯一の金属。温度計・気圧計・蛍光灯に使用される。'],
+  [81,'Tl','Thallium','タリウム','204.383','post-transition',13,7,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p¹',1861,'Solid',
+   'A highly toxic post-transition metal; used in infrared detectors and historically as a rat poison.',
+   '高毒性の典型金属。赤外線検出器に使用され、かつてネズミ殺しに使われていた。'],
+  [82,'Pb','Lead','鉛','207.2','post-transition',14,7,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p²',null,'Solid',
+   'Dense and malleable; historically used in plumbing and paint; still used in batteries and radiation shielding.',
+   '密度が高く展性がある。歴史的に配管や塗料に使用され、現在も電池や放射線遮蔽に利用される。'],
+  [83,'Bi','Bismuth','ビスマス','208.980','post-transition',15,7,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p³',null,'Solid',
+   'The heaviest stable element; used in Pepto-Bismol, low-melting alloys, and as a lead substitute.',
+   '最も重い安定元素。胃腸薬・低融点合金・鉛の代替品として使用される。'],
+  [84,'Po','Polonium','ポロニウム','209','metalloid',16,7,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁴',1898,'Solid',
+   'Highly radioactive; discovered by Marie Curie; used as an alpha particle source and in antistatic devices.',
+   '高放射性。マリー・キュリーが発見。アルファ線源や帯電防止装置に使用される。'],
+  [85,'At','Astatine','アスタチン','210','halogen',17,7,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁵',1940,'Solid',
+   'The rarest naturally occurring element; highly radioactive with no stable isotopes; studied for cancer therapy.',
+   '最も希少な天然元素。高放射性で安定同位体なし。がん治療への応用が研究されている。'],
+  [86,'Rn','Radon','ラドン','222','noble',18,7,'[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁶',1900,'Gas',
+   'A radioactive noble gas; the second leading cause of lung cancer after smoking; emanates from uranium decay.',
+   '放射性希ガス。喫煙に次ぐ肺がんの原因第2位。ウランの崩壊から生成される。'],
+  [87,'Fr','Francium','フランシウム','223','alkali',1,8,'[Rn] 7s¹',1939,'Solid',
+   'The second most electropositive element; highly unstable with no stable isotopes; extremely rare in nature.',
+   '2番目に陽電性の高い元素。非常に不安定で安定同位体なし。自然界で極めて希少。'],
+  [88,'Ra','Radium','ラジウム','226','alkaline',2,8,'[Rn] 7s²',1898,'Solid',
+   'Discovered by Marie Curie; used in cancer radiotherapy; formerly used in luminescent watch dials.',
+   'マリー・キュリーが発見。がん放射線治療に使用され、かつて時計の蛍光文字盤に使われていた。'],
+  [89,'Ac','Actinium','アクチニウム','227','actinide',4,10,'[Rn] 6d¹ 7s²',1899,'Solid',
+   'The first actinide; gives its name to the series; highly radioactive and used as a neutron source.',
+   '最初のアクチノイド。系列名の由来。高放射性で中性子線源として使用される。'],
+  [90,'Th','Thorium','トリウム','232.038','actinide',5,10,'[Rn] 6d² 7s²',1829,'Solid',
+   'A radioactive metal with potential as nuclear fuel; more abundant than uranium in Earth\'s crust.',
+   '核燃料として有望な放射性金属。地殻中の存在量はウランより多い。'],
+  [91,'Pa','Protactinium','プロトアクチニウム','231.036','actinide',6,10,'[Rn] 5f² 6d¹ 7s²',1913,'Solid',
+   'A rare, radioactive metal; a decay product of uranium-235 in reactor fuel cycles.',
+   '希少な放射性金属。原子炉燃料サイクルにおけるウラン235の崩壊生成物。'],
+  [92,'U','Uranium','ウラン','238.029','actinide',7,10,'[Rn] 5f³ 6d¹ 7s²',1789,'Solid',
+   'The heaviest naturally occurring element; fuel for nuclear reactors and weapons; also used in armor-piercing ammunition.',
+   '最も重い天然元素。原子炉・核兵器の燃料。劣化ウラン弾にも使用される。'],
+  [93,'Np','Neptunium','ネプツニウム','237','actinide',8,10,'[Rn] 5f⁴ 6d¹ 7s²',1940,'Solid',
+   'The first transuranium element; produced in nuclear reactors; used in neutron detection instruments.',
+   '最初の超ウラン元素。原子炉で生成され、中性子検出器に使用される。'],
+  [94,'Pu','Plutonium','プルトニウム','244','actinide',9,10,'[Rn] 5f⁶ 7s²',1940,'Solid',
+   'Crucial for nuclear weapons and reactors; Pu-238 powers deep space probes via RTGs.',
+   '核兵器と原子炉に不可欠。Pu-238はRTGによって深宇宙探査機に電力を供給する。'],
+  [95,'Am','Americium','アメリシウム','243','actinide',10,10,'[Rn] 5f⁷ 7s²',1944,'Solid',
+   'Found in household smoke detectors (Am-241); produced by neutron bombardment of plutonium.',
+   '家庭用煙感知器（Am-241）に含まれる。プルトニウムへの中性子照射で生成される。'],
+  [96,'Cm','Curium','キュリウム','247','actinide',11,10,'[Rn] 5f⁷ 6d¹ 7s²',1944,'Solid',
+   'Named after Marie and Pierre Curie; an intense alpha emitter used as a power source in spacecraft.',
+   'マリーとピエール・キュリーにちなんで命名。強いアルファ線放射体で宇宙船の電源に使用される。'],
+  [97,'Bk','Berkelium','バークリウム','247','actinide',12,10,'[Rn] 5f⁹ 7s²',1949,'Solid',
+   'Produced in cyclotrons; named after Berkeley, California; primarily used in research.',
+   'サイクロトロンで生成。カリフォルニア州バークレーにちなんで命名。主に研究目的で使用される。'],
+  [98,'Cf','Californium','カリホルニウム','251','actinide',13,10,'[Rn] 5f¹⁰ 7s²',1950,'Solid',
+   'A powerful neutron emitter used in portable neutron sources for oil well logging and cancer treatment.',
+   '強力な中性子放射体。油井検層用可搬式中性子線源やがん治療に使用される。'],
+  [99,'Es','Einsteinium','アインスタイニウム','252','actinide',14,10,'[Rn] 5f¹¹ 7s²',1952,'Solid',
+   'Discovered in the fallout of the first hydrogen bomb test; named after Albert Einstein.',
+   '最初の水爆実験の放射性降下物から発見。アルベルト・アインシュタインにちなんで命名。'],
+  [100,'Fm','Fermium','フェルミウム','257','actinide',15,10,'[Rn] 5f¹² 7s²',1952,'Solid',
+   'Named after Enrico Fermi; also discovered in H-bomb fallout; no practical applications due to scarcity.',
+   'エンリコ・フェルミにちなんで命名。水爆の放射性降下物から発見。希少なため実用化されていない。'],
+  [101,'Md','Mendelevium','メンデレビウム','258','actinide',16,10,'[Rn] 5f¹³ 7s²',1955,'Solid',
+   'Named after Dmitri Mendeleev; produced by bombarding einsteinium with helium ions in a cyclotron.',
+   'ドミトリ・メンデレーエフにちなんで命名。サイクロトロンでアインスタイニウムにヘリウムイオンを照射して生成。'],
+  [102,'No','Nobelium','ノーベリウム','259','actinide',17,10,'[Rn] 5f¹⁴ 7s²',1958,'Solid',
+   'Named after Alfred Nobel; produced in cyclotrons; has a half-life of only minutes in its most stable form.',
+   'アルフレッド・ノーベルにちなんで命名。サイクロトロンで生成。最安定同位体の半減期は数分。'],
+  [103,'Lr','Lawrencium','ローレンシウム','266','actinide',18,10,'[Rn] 5f¹⁴ 7s² 7p¹',1961,'Solid',
+   'The last actinide; named after Ernest Lawrence, inventor of the cyclotron; only a few atoms ever produced.',
+   '最後のアクチノイド。サイクロトロン発明者アーネスト・ローレンスにちなんで命名。'],
+  [104,'Rf','Rutherfordium','ラザホージウム','267','transition',4,8,'[Rn] 5f¹⁴ 6d² 7s²',1969,'Solid',
+   'The first transactinide element; named after Ernest Rutherford; produced by bombarding californium with carbon.',
+   '最初の超アクチノイド元素。アーネスト・ラザフォードにちなんで命名。'],
+  [105,'Db','Dubnium','ドブニウム','268','transition',5,8,'[Rn] 5f¹⁴ 6d³ 7s²',1968,'Solid',
+   'Named after Dubna, Russia; produced in nuclear reactions; only a few atoms produced at a time.',
+   'ロシアのドゥブナにちなんで命名。核反応で生成され、一度に数原子しか得られない。'],
+  [106,'Sg','Seaborgium','シーボーギウム','271','transition',6,8,'[Rn] 5f¹⁴ 6d⁴ 7s²',1974,'Solid',
+   'Named after Glenn Seaborg; the first element named after a living person at the time of naming.',
+   'グレン・シーボーグにちなんで命名。命名時に存命の人物に因んで命名された最初の元素。'],
+  [107,'Bh','Bohrium','ボーリウム','270','transition',7,8,'[Rn] 5f¹⁴ 6d⁵ 7s²',1981,'Solid',
+   'Named after Niels Bohr; synthesized by bombarding bismuth-209 with chromium-54 ions.',
+   'ニールス・ボーアにちなんで命名。ビスマス209にクロム54イオンを照射して合成される。'],
+  [108,'Hs','Hassium','ハッシウム','277','transition',8,8,'[Rn] 5f¹⁴ 6d⁶ 7s²',1984,'Solid',
+   'Named after Hesse, Germany; behaves similarly to osmium in chemical reactions.',
+   'ドイツのヘッセ州にちなんで命名。化学反応においてオスミウムと類似した挙動を示す。'],
+  [109,'Mt','Meitnerium','マイトネリウム','278','unknown',9,8,'[Rn] 5f¹⁴ 6d⁷ 7s²',1982,'Solid',
+   'Named after Lise Meitner; only a few atoms produced; chemical properties largely unknown.',
+   'リーゼ・マイトナーにちなんで命名。生成原子数は僅か。化学的性質はほぼ未解明。'],
+  [110,'Ds','Darmstadtium','ダームスタチウム','281','unknown',10,8,'[Rn] 5f¹⁴ 6d⁹ 7s¹',1994,'Solid',
+   'Named after Darmstadt, Germany; a superheavy synthetic element with extremely short half-lives.',
+   'ドイツのダルムシュタットにちなんで命名。極めて短い半減期を持つ超重合成元素。'],
+  [111,'Rg','Roentgenium','レントゲニウム','282','unknown',11,8,'[Rn] 5f¹⁴ 6d¹⁰ 7s¹',1994,'Solid',
+   'Named after Wilhelm Röntgen, discoverer of X-rays; an extremely unstable synthetic element.',
+   'X線発見者ヴィルヘルム・レントゲンにちなんで命名。極めて不安定な合成元素。'],
+  [112,'Cn','Copernicium','コペルニシウム','285','transition',12,8,'[Rn] 5f¹⁴ 6d¹⁰ 7s²',1996,'Gas',
+   'Named after Nicolaus Copernicus; predicted to be a gas at room temperature due to relativistic effects.',
+   'ニコラウス・コペルニクスにちなんで命名。相対論的効果により室温で気体と予測される。'],
+  [113,'Nh','Nihonium','ニホニウム','286','unknown',13,8,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p¹',2004,'Solid',
+   'First element discovered in Asia (Japan); named after Nihon (Japan); synthesized in 2004.',
+   'アジア（日本）で初めて発見された元素。日本語の「日本」にちなんで命名。2004年に合成。'],
+  [114,'Fl','Flerovium','フレロビウム','289','unknown',14,8,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p²',1999,'Solid',
+   'Named after Flerov Laboratory; predicted to behave like a noble gas due to relativistic effects.',
+   'フリョロフ核反応研究所にちなんで命名。相対論的効果により希ガスのような挙動が予測される。'],
+  [115,'Mc','Moscovium','モスコビウム','290','unknown',15,8,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p³',2003,'Solid',
+   'Named after Moscow Oblast, Russia; synthesized by bombarding americium with calcium ions.',
+   'ロシアのモスクワ州にちなんで命名。アメリシウムにカルシウムイオンを照射して合成される。'],
+  [116,'Lv','Livermorium','リバモリウム','293','unknown',16,8,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁴',2000,'Solid',
+   'Named after Lawrence Livermore National Laboratory; an extremely unstable synthetic element.',
+   'ローレンス・リバモア国立研究所にちなんで命名。極めて不安定な合成元素。'],
+  [117,'Ts','Tennessine','テネシン','294','unknown',17,8,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁵',2010,'Solid',
+   'Named after Tennessee; the second heaviest element known; discovered jointly by US and Russia.',
+   'テネシー州にちなんで命名。既知の元素で2番目に重い。米国とロシアが共同発見。'],
+  [118,'Og','Oganesson','オガネソン','294','noble',18,8,'[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁶',2002,'Solid',
+   'Named after Yuri Oganessian; the heaviest known element; predicted to be a solid at room temperature.',
+   'ユーリ・オガネシアンにちなんで命名。既知の最重元素。室温で固体と予測される。'],
+];
+
+// ── Derived maps ───────────────────────────────────────────────────────────
+const elementMap = {};
+ELEMENTS.forEach(e => {
+  elementMap[e[0]] = {
+    z: e[0], symbol: e[1], nameEN: e[2], nameJA: e[3], mass: e[4],
+    category: e[5], col: e[6], row: e[7],
+    config: e[8], discovery: e[9], state: e[10],
+    descEN: e[11], descJA: e[12]
+  };
+});
+
+function eName(e)  { return lang === 'ja' ? e.nameJA  : e.nameEN;  }
+function eDesc(e)  { return lang === 'ja' ? e.descJA  : e.descEN;  }
+function catLabel(key) { return CATEGORIES[key][lang] || CATEGORIES[key].en; }
+function ui(key)   { return UI[lang][key]; }
+
+// ── Lang toggle ────────────────────────────────────────────────────────────
+function toggleLang() {
+  lang = lang === 'en' ? 'ja' : 'en';
+  applyLang();
+}
+
+function applyLang() {
+  document.getElementById('pageTitle').textContent  = ui('title');
+  document.getElementById('langBtn').textContent    = ui('langBtn');
+  document.getElementById('searchInput').placeholder = ui('placeholder');
+  document.getElementById('clearBtn').textContent   = ui('clear');
+  document.getElementById('lblAtomicNum').textContent = ui('atomicNum');
+  document.getElementById('lblMass').textContent    = ui('mass');
+  document.getElementById('lblState').textContent   = ui('state');
+  document.getElementById('lblDiscovery').textContent = ui('discovery');
+  document.getElementById('lblConfig').textContent  = ui('config');
+
+  // Update legend labels
+  document.querySelectorAll('.legend-item[data-cat]').forEach(item => {
+    const key = item.dataset.cat;
+    item.querySelector('span').textContent = catLabel(key);
+  });
+
+  // Update element cell names
+  document.querySelectorAll('.element[data-z]').forEach(cell => {
+    const z = parseInt(cell.dataset.z);
+    const e = elementMap[z];
+    if (e) cell.querySelector('.el-name').textContent = eName(e);
+  });
+
+  // Re-render detail panel if visible
+  if (document.getElementById('detailPanel').classList.contains('visible') && currentZ) {
+    renderDetail(currentZ);
+  }
+}
+
+// ── State badge ────────────────────────────────────────────────────────────
+function stateBadge(state) {
+  const cls = { Solid:'state-solid', Liquid:'state-liquid', Gas:'state-gas', Unknown:'state-unknown' }[state] || 'state-unknown';
+  const label = UI[lang].states[state] || state;
+  return `<span class="state-badge ${cls}">${label}</span>`;
+}
+
+// ── Legend ─────────────────────────────────────────────────────────────────
+let activeFilter = null;
+
+function buildLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  Object.entries(CATEGORIES).forEach(([key, val]) => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.dataset.cat = key;
+    item.innerHTML = `<div class="legend-dot" style="background:${val.color}"></div><span>${catLabel(key)}</span>`;
+    item.addEventListener('click', () => toggleCategoryFilter(key, item));
+    legend.appendChild(item);
+  });
+}
+
+function toggleCategoryFilter(cat, item) {
+  if (activeFilter === cat) {
+    activeFilter = null;
+    document.querySelectorAll('.legend-item').forEach(i => i.classList.remove('active'));
+    document.querySelectorAll('.element').forEach(el => el.classList.remove('dimmed','highlighted'));
+  } else {
+    activeFilter = cat;
+    document.querySelectorAll('.legend-item').forEach(i => i.classList.remove('active'));
+    item.classList.add('active');
+    document.querySelectorAll('.element[data-z]').forEach(el => {
+      const z = parseInt(el.dataset.z);
+      const elem = elementMap[z];
+      if (elem && elem.category === cat) {
+        el.classList.remove('dimmed'); el.classList.add('highlighted');
+      } else {
+        el.classList.add('dimmed'); el.classList.remove('highlighted');
+      }
+    });
+  }
+  filterElements();
+}
+
+// ── Table ──────────────────────────────────────────────────────────────────
+function getCategoryClass(cat) {
+  const map = {
+    'alkali':'alkali','alkaline':'alkaline','transition':'transition',
+    'post-transition':'post-transition','metalloid':'metalloid','nonmetal':'nonmetal',
+    'halogen':'halogen','noble':'noble','lanthanide':'lanthanide','actinide':'actinide',
+    'unknown':'unknown-elem'
+  };
+  return map[cat] || 'unknown-elem';
+}
+
+function buildTable() {
+  const table = document.getElementById('periodicTable');
+
+  for (let g = 1; g <= 18; g++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'group-label';
+    lbl.style.gridColumn = g;
+    lbl.style.gridRow = 1;
+    lbl.textContent = g;
+    table.appendChild(lbl);
+  }
+
+  for (let p = 1; p <= 7; p++) {
+    const lbl = document.createElement('div');
+    lbl.className = 'period-label';
+    lbl.style.gridColumn = 1;
+    lbl.style.gridRow = p + 1;
+    lbl.textContent = p;
+    table.appendChild(lbl);
+  }
+
+  ELEMENTS.forEach(e => {
+    const elem = elementMap[e[0]];
+    const cell = document.createElement('div');
+    cell.className = `element ${getCategoryClass(elem.category)}`;
+    cell.dataset.z = elem.z;
+    cell.dataset.nameen = elem.nameEN.toLowerCase();
+    cell.dataset.nameja = elem.nameJA;
+    cell.dataset.symbol = elem.symbol.toLowerCase();
+    cell.dataset.category = elem.category;
+    cell.style.gridColumn = elem.col;
+    cell.style.gridRow = elem.row;
+    cell.innerHTML = `
+      <span class="el-number">${elem.z}</span>
+      <span class="el-symbol">${elem.symbol}</span>
+      <span class="el-name">${eName(elem)}</span>
+      <span class="el-mass">${elem.mass}</span>
+    `;
+    cell.addEventListener('click', () => openDetail(elem.z));
+    table.appendChild(cell);
+  });
+
+  // Placeholders
+  const laP = document.createElement('div');
+  laP.className = 'element lanthanide';
+  laP.style.cssText = 'grid-column:3;grid-row:7;opacity:0.5;cursor:default';
+  laP.innerHTML = `<span class="el-number" style="font-size:.55rem">57-71</span><span class="el-symbol" style="font-size:.75rem">La-Lu</span>`;
+  table.appendChild(laP);
+
+  const acP = document.createElement('div');
+  acP.className = 'element actinide';
+  acP.style.cssText = 'grid-column:3;grid-row:8;opacity:0.5;cursor:default';
+  acP.innerHTML = `<span class="el-number" style="font-size:.55rem">89-103</span><span class="el-symbol" style="font-size:.75rem">Ac-Lr</span>`;
+  table.appendChild(acP);
+
+  // Series labels
+  [['Lanthanides', 9], ['Actinides', 10]].forEach(([key, row]) => {
+    const lbl = document.createElement('div');
+    lbl.dataset.serieskey = key.toLowerCase();
+    lbl.style.cssText = `grid-column:1/span 3;grid-row:${row};display:flex;align-items:center;justify-content:flex-end;padding-right:6px;font-size:0.6rem;color:var(--text-dim);font-weight:600`;
+    lbl.textContent = ui(key.toLowerCase());
+    table.appendChild(lbl);
+  });
+}
+
+// ── Detail panel ───────────────────────────────────────────────────────────
+let currentZ = null;
+let selectedCell = null;
+
+function openDetail(z) {
+  currentZ = z;
+  if (selectedCell) selectedCell.classList.remove('selected');
+  selectedCell = document.querySelector(`.element[data-z="${z}"]`);
+  if (selectedCell) selectedCell.classList.add('selected');
+  renderDetail(z);
+  const panel = document.getElementById('detailPanel');
+  panel.classList.add('visible');
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderDetail(z) {
+  const e = elementMap[z];
+  if (!e) return;
+  const catInfo = CATEGORIES[e.category] || CATEGORIES['unknown'];
+  document.getElementById('dpSymBox').style.background = catInfo.color;
+  document.getElementById('dpNum').textContent  = e.z;
+  document.getElementById('dpSym').textContent  = e.symbol;
+  document.getElementById('dpName').textContent = eName(e);
+  document.getElementById('dpCategory').textContent = catLabel(e.category);
+  document.getElementById('dpAtomicNum').textContent = e.z;
+  document.getElementById('dpMass').textContent = e.mass + ' u';
+  document.getElementById('dpConfig').textContent = e.config;
+  document.getElementById('dpDiscovery').textContent = e.discovery || ui('ancient');
+  document.getElementById('dpState').innerHTML = stateBadge(e.state);
+  document.getElementById('dpDesc').textContent = eDesc(e);
+}
+
+// ── Search ─────────────────────────────────────────────────────────────────
+function filterElements() {
+  const query = document.getElementById('searchInput').value.trim().toLowerCase();
+  const cells = document.querySelectorAll('.element[data-z]');
+  if (!query) {
+    if (activeFilter) {
+      cells.forEach(el => {
+        const z = parseInt(el.dataset.z);
+        const elem = elementMap[z];
+        if (elem && elem.category === activeFilter) {
+          el.classList.remove('dimmed'); el.classList.add('highlighted');
+        } else {
+          el.classList.add('dimmed'); el.classList.remove('highlighted');
+        }
+      });
+    } else {
+      cells.forEach(el => el.classList.remove('dimmed','highlighted'));
+    }
+    return;
+  }
+  cells.forEach(el => {
+    const nameEN = el.dataset.nameen || '';
+    const nameJA = el.dataset.nameja || '';
+    const sym    = el.dataset.symbol || '';
+    const matches = nameEN.includes(query) || sym.includes(query) || nameJA.includes(query);
+    if (matches) {
+      el.classList.remove('dimmed'); el.classList.add('highlighted');
+    } else {
+      el.classList.add('dimmed'); el.classList.remove('highlighted');
+    }
+  });
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  activeFilter = null;
+  document.querySelectorAll('.legend-item').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.element[data-z]').forEach(el => el.classList.remove('dimmed','highlighted'));
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+buildLegend();
+buildTable();
+</script>
+</body>
+</html>

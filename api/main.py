@@ -1532,7 +1532,25 @@ async def action(request: Request):
         "login_username": login_username,
         "time_zone": time_zone,
         "tab_page_active": "action",
+        "function_sub_tab_active": "",
     })
+
+@app.get("/action/periodic_table/")
+async def action_periodic_table(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    return templates.TemplateResponse("function_periodic_table.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "action",
+        "function_sub_tab_active": "periodic_table",
+    })
+
+@app.get("/table/")
+async def table_index():
+    file_path = os.path.join(base_dir, "table", "index.html")
+    return FileResponse(file_path, media_type="text/html")
 
 @app.get("/sqlite/")
 async def sqlite_page(request: Request):

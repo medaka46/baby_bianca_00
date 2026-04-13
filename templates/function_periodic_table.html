@@ -17,16 +17,12 @@
         flex-direction: column;
         min-height: 0;
     }
-    .scrollable-content {
+    #periodic-frame {
         flex: 1;
-        overflow-y: auto;
-        padding-bottom: 0;
-        scrollbar-width: thin;
-        scrollbar-color: #666 #333;
+        width: 100%;
+        border: none;
+        min-height: 0;
     }
-    .scrollable-content::-webkit-scrollbar { width: 8px; }
-    .scrollable-content::-webkit-scrollbar-track { background: #333; }
-    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
 </style>
 
 <header class="tab_00">
@@ -36,13 +32,11 @@
         </form>
     </div>
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-        <div class="title_00" style="margin: 0;">Function</div>
+        <div class="title_00" style="margin: 0;">Function — Periodic Table</div>
     </div>
 </header>
 
 <main class="tab_00">
-    <div class="scrollable-content" style="padding: 12px;">
-        <div style="color: #aaa; font-size: 13px;">Select a sub-tag above.</div>
-    </div>
+    <iframe id="periodic-frame" src="/table/"></iframe>
 </main>
 {% endblock %}
