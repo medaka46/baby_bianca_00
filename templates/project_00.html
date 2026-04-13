@@ -369,6 +369,8 @@
                         <select id="chart-label2-select" class="proj-select" style="display:none;"></select>
                         <span id="chart-label3-label" style="color:#88f; font-size:11px; display:none;">3:</span>
                         <select id="chart-label3-select" class="proj-select" style="display:none;"></select>
+                        <span id="chart-color-label" style="color:#88f; font-size:11px; display:none;">Color:</span>
+                        <select id="chart-color-select" class="proj-select" style="display:none;"></select>
                         <button id="chart-draw-btn" class="proj-btn" style="display:none;">Draw</button>
                     </div>
 
@@ -466,6 +468,7 @@
         sessionStorage.removeItem('proj_chart_label');
         sessionStorage.removeItem('proj_chart_label_2');
         sessionStorage.removeItem('proj_chart_label_3');
+        sessionStorage.removeItem('proj_chart_color');
         sessionStorage.removeItem('proj_chart_rows');
         setStatus('Reading file...', '#ff0');
         setProgress(0, true);
@@ -795,6 +798,7 @@
             const labelCol  = document.getElementById('chart-label-select').value;
             const labelCol2 = document.getElementById('chart-label2-select').value;
             const labelCol3 = document.getElementById('chart-label3-select').value;
+            const colorCol  = document.getElementById('chart-color-select').value;
             sessionStorage.setItem('proj_chart_category', document.getElementById('chart-category-select').value);
             sessionStorage.setItem('proj_chart_type', chartType);
             sessionStorage.setItem('proj_chart_x', xCol);
@@ -803,6 +807,7 @@
             sessionStorage.setItem('proj_chart_label',   labelCol);
             sessionStorage.setItem('proj_chart_label_2', labelCol2);
             sessionStorage.setItem('proj_chart_label_3', labelCol3);
+            sessionStorage.setItem('proj_chart_color',   colorCol);
             sessionStorage.setItem('proj_chart_rows', JSON.stringify(_currentRows));
             window.location.href = '/project/chart/';
         });
@@ -825,8 +830,8 @@
         function _showAxes(is3D) {
             const show = ['chart-x-label','chart-x-select','chart-y-label','chart-y-select'];
             if (is3D) show.push('chart-z-label','chart-z-select');
-            show.push('chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn');
-            const all  = ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-z-label','chart-z-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'];
+            show.push('chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-color-label','chart-color-select','chart-draw-btn');
+            const all  = ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-z-label','chart-z-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-color-label','chart-color-select','chart-draw-btn'];
             all.forEach(id => document.getElementById(id).style.display = show.includes(id) ? '' : 'none');
         }
 
@@ -837,7 +842,7 @@
             document.getElementById('chart-x-select').innerHTML = colOptions;
             document.getElementById('chart-y-select').innerHTML = colOptions;
             document.getElementById('chart-z-select').innerHTML = colOptions;
-            ['chart-label-select','chart-label2-select','chart-label3-select'].forEach(id => {
+            ['chart-label-select','chart-label2-select','chart-label3-select','chart-color-select'].forEach(id => {
                 document.getElementById(id).innerHTML = colOptionsNone;
             });
             const sv = k => sessionStorage.getItem(k);
@@ -847,6 +852,7 @@
             if (sv('proj_chart_label')   !== null) document.getElementById('chart-label-select').value  = sv('proj_chart_label');
             if (sv('proj_chart_label_2') !== null) document.getElementById('chart-label2-select').value = sv('proj_chart_label_2');
             if (sv('proj_chart_label_3') !== null) document.getElementById('chart-label3-select').value = sv('proj_chart_label_3');
+            if (sv('proj_chart_color')   !== null) document.getElementById('chart-color-select').value  = sv('proj_chart_color');
             _showAxes(is3D);
             sessionStorage.setItem('proj_chart_axis_open', '1');
         }
@@ -858,7 +864,7 @@
             if (savedCat) {
                 document.getElementById('chart-category-select').value = savedCat;
                 const types = _chartTypes[savedCat] || [];
-                document.getElementById('chart-type-select').innerHTML = types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+                document.getElementById('chart-type-select').innerHTML = '<option value="">-- select --</option>' + types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
                 document.getElementById('chart-type-label').style.display = '';
                 document.getElementById('chart-type-select').style.display = '';
                 if (savedType) document.getElementById('chart-type-select').value = savedType;
@@ -875,11 +881,11 @@
             sessionStorage.removeItem('proj_chart_type');
             sessionStorage.removeItem('proj_chart_axis_open');
             const types = _chartTypes[cat] || [];
-            document.getElementById('chart-type-select').innerHTML = types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+            document.getElementById('chart-type-select').innerHTML = '<option value="">-- select --</option>' + types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
             document.getElementById('chart-type-label').style.display = cat ? '' : 'none';
             document.getElementById('chart-type-select').style.display = cat ? '' : 'none';
             // Hide all axis selectors until type is chosen
-            ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-z-label','chart-z-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-draw-btn'].forEach(id => {
+            ['chart-x-label','chart-x-select','chart-y-label','chart-y-select','chart-z-label','chart-z-select','chart-label-label','chart-label-select','chart-label2-label','chart-label2-select','chart-label3-label','chart-label3-select','chart-color-label','chart-color-select','chart-draw-btn'].forEach(id => {
                 document.getElementById(id).style.display = 'none';
             });
         });
@@ -898,6 +904,7 @@
         document.getElementById('chart-label-select').addEventListener('change',  function() { sessionStorage.setItem('proj_chart_label',   this.value); });
         document.getElementById('chart-label2-select').addEventListener('change', function() { sessionStorage.setItem('proj_chart_label_2', this.value); });
         document.getElementById('chart-label3-select').addEventListener('change', function() { sessionStorage.setItem('proj_chart_label_3', this.value); });
+        document.getElementById('chart-color-select').addEventListener('change',  function() { sessionStorage.setItem('proj_chart_color',   this.value); });
 
         // Filter bar event delegation
         const condArea = document.getElementById('select-conditions');

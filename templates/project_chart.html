@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const xCol     = sessionStorage.getItem('proj_chart_x');
     const yCol     = sessionStorage.getItem('proj_chart_y');
     const zCol     = sessionStorage.getItem('proj_chart_z') || '';
+    const colorCol = sessionStorage.getItem('proj_chart_color') || '';
     const labelCols = [
         sessionStorage.getItem('proj_chart_label')   || '',
         sessionStorage.getItem('proj_chart_label_2') || '',
@@ -83,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('no-data-msg').style.display = 'none';
     document.getElementById('chart-info').textContent =
         chartType.toUpperCase() + '  |  X: ' + xCol + (yCol ? '  |  Y: ' + yCol : '') +
+        (colorCol ? '  |  Color: ' + colorCol : '') +
         (labelCols.length ? '  |  Label: ' + labelCols.join(', ') : '') + '  |  ' + rows.length + ' rows';
 
     const xVals   = rows.map(r => r[xCol] ?? null);
@@ -91,6 +93,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const lblVals = labelCols.length
         ? rows.map(r => labelCols.map(c => String(r[c] ?? '')).join(' | '))
         : null;
+
+    // --- Color logic ---
+    const PALETTE = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22','#e91e63','#00bcd4','#8bc34a','#ff5722','#607d8b'];
+    let colorVals = null, isNumericColor = false, catColorMap = null, uniqueCats = null;
+    if (colorCol) {
+        const raw = rows.map(r => r[colorCol] ?? null);
+        const numParsed = raw.map(v => parseFloat(v));
+        isNumericColor = numParsed.every(v => !isNaN(v));
+        if (isNumericColor) {
+            colorVals = numParsed;
+        } else {
+            colorVals = raw;
+            uniqueCats = [...new Set(raw.filter(v => v !== null).map(String))];
+            catColorMap = Object.fromEntries(uniqueCats.map((v, i) => [v, PALETTE[i % PALETTE.length]]));
+        }
+    }
+
+    function catColors() {
+        return colorVals.map(v => v !== null ? (catColorMap[String(v)] || '#888') : '#888');
+    }
+    function numericMarkerExtra(title) {
+        return { colorscale: 'Viridis', showscale: true,
+            colorbar: { title: title, thickness: 12, len: 0.7,
+                tickfont: { color: '#aaa', size: 10 }, titlefont: { color: '#aaa', size: 10 } } };
+    }
 
     const is3D = (chartType === 'scatter3d' || chartType === 'line3d');
 
@@ -122,6 +149,13 @@ document.addEventListener('DOMContentLoaded', function() {
         layout.yaxis = { title: yCol, gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' };
     }
 
+    // Show legend for categorical color on scatter/scatter3d
+    if (colorCol && !isNumericColor && (chartType === 'scatter' || chartType === 'scatter3d')) {
+        layout.legend = { font: { color: '#ccc', size: 10 }, bgcolor: '#222', bordercolor: '#444', borderwidth: 1 };
+        layout.showlegend = true;
+        layout.margin.r = 120;
+    }
+
     const config = {
         responsive: true,
         displayModeBar: true,
@@ -129,35 +163,82 @@ document.addEventListener('DOMContentLoaded', function() {
         displaylogo: false,
     };
 
-    let trace;
-    if (chartType === 'scatter') {
-        trace = { x: xVals, y: yVals, mode: 'markers', type: 'scatter',
-            text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol),
-            marker: { color: '#0f0', size: 5, opacity: 0.8 } };
-    } else if (chartType === 'line') {
-        trace = { x: xVals, y: yVals, mode: 'lines+markers', type: 'scatter',
-            text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol),
-            line: { color: '#0f0', width: 1.5 }, marker: { color: '#0f0', size: 4 } };
-    } else if (chartType === 'bar') {
-        trace = { x: xVals, y: yVals, type: 'bar',
-            text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol),
-            marker: { color: '#0a6' } };
-        layout.xaxis.type = 'category';
-    } else if (chartType === 'histogram') {
-        trace = { x: xVals, type: 'histogram',
-            marker: { color: '#06a' }, autobinx: true };
-        layout.yaxis = { title: 'Count', gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' };
-    } else if (chartType === 'scatter3d') {
-        trace = { x: xVals, y: yVals, z: zVals, mode: 'markers', type: 'scatter3d',
-            text: lblVals || undefined, hovertemplate: hoverTpl3d(xCol, yCol, zCol),
-            marker: { color: '#0f0', size: 4, opacity: 0.8 } };
-    } else if (chartType === 'line3d') {
-        trace = { x: xVals, y: yVals, z: zVals, mode: 'lines+markers', type: 'scatter3d',
-            text: lblVals || undefined, hovertemplate: hoverTpl3d(xCol, yCol, zCol),
-            line: { color: '#0f0', width: 2 }, marker: { color: '#0f0', size: 3 } };
+    // Helper: build categorical multi-traces for scatter
+    function catScatter2D() {
+        return uniqueCats.map((cat, ci) => {
+            const mask = rows.reduce((acc, r, idx) => { if (String(r[colorCol] ?? '') === cat) acc.push(idx); return acc; }, []);
+            return { x: mask.map(i => xVals[i]), y: mask.map(i => yVals[i]),
+                mode: 'markers', type: 'scatter', name: String(cat),
+                text: lblVals ? mask.map(i => lblVals[i]) : undefined,
+                hovertemplate: hoverTpl2d(xCol, yCol),
+                marker: { color: PALETTE[ci % PALETTE.length], size: 5, opacity: 0.8 } };
+        });
+    }
+    function catScatter3D() {
+        return uniqueCats.map((cat, ci) => {
+            const mask = rows.reduce((acc, r, idx) => { if (String(r[colorCol] ?? '') === cat) acc.push(idx); return acc; }, []);
+            return { x: mask.map(i => xVals[i]), y: mask.map(i => yVals[i]), z: mask.map(i => zVals[i]),
+                mode: 'markers', type: 'scatter3d', name: String(cat),
+                text: lblVals ? mask.map(i => lblVals[i]) : undefined,
+                hovertemplate: hoverTpl3d(xCol, yCol, zCol),
+                marker: { color: PALETTE[ci % PALETTE.length], size: 4, opacity: 0.8 } };
+        });
     }
 
-    Plotly.newPlot('chart-div', [trace], layout, config);
+    let traces;
+    if (chartType === 'scatter') {
+        if (colorCol && !isNumericColor) {
+            traces = catScatter2D();
+        } else {
+            const mColor = isNumericColor
+                ? { color: colorVals, size: 5, opacity: 0.8, ...numericMarkerExtra(colorCol) }
+                : { color: '#0f0', size: 5, opacity: 0.8 };
+            traces = [{ x: xVals, y: yVals, mode: 'markers', type: 'scatter',
+                text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol), marker: mColor }];
+        }
+    } else if (chartType === 'line') {
+        const mColor = colorVals
+            ? (isNumericColor
+                ? { color: colorVals, size: 4, ...numericMarkerExtra(colorCol) }
+                : { color: catColors(), size: 4 })
+            : { color: '#0f0', size: 4 };
+        traces = [{ x: xVals, y: yVals, mode: 'lines+markers', type: 'scatter',
+            text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol),
+            line: { color: '#0f0', width: 1.5 }, marker: mColor }];
+    } else if (chartType === 'bar') {
+        const mColor = colorVals
+            ? (isNumericColor
+                ? { color: colorVals, ...numericMarkerExtra(colorCol) }
+                : { color: catColors() })
+            : { color: '#0a6' };
+        traces = [{ x: xVals, y: yVals, type: 'bar',
+            text: lblVals || undefined, hovertemplate: hoverTpl2d(xCol, yCol), marker: mColor }];
+        layout.xaxis.type = 'category';
+    } else if (chartType === 'histogram') {
+        traces = [{ x: xVals, type: 'histogram', marker: { color: '#06a' }, autobinx: true }];
+        layout.yaxis = { title: 'Count', gridcolor: '#333', zerolinecolor: '#555', color: '#aaa' };
+    } else if (chartType === 'scatter3d') {
+        if (colorCol && !isNumericColor) {
+            traces = catScatter3D();
+        } else {
+            const mColor = isNumericColor
+                ? { color: colorVals, size: 4, opacity: 0.8, ...numericMarkerExtra(colorCol) }
+                : { color: '#0f0', size: 4, opacity: 0.8 };
+            traces = [{ x: xVals, y: yVals, z: zVals, mode: 'markers', type: 'scatter3d',
+                text: lblVals || undefined, hovertemplate: hoverTpl3d(xCol, yCol, zCol), marker: mColor }];
+        }
+    } else if (chartType === 'line3d') {
+        const mColor = colorVals
+            ? (isNumericColor
+                ? { color: colorVals, size: 3, ...numericMarkerExtra(colorCol) }
+                : { color: catColors(), size: 3 })
+            : { color: '#0f0', size: 3 };
+        traces = [{ x: xVals, y: yVals, z: zVals, mode: 'lines+markers', type: 'scatter3d',
+            text: lblVals || undefined, hovertemplate: hoverTpl3d(xCol, yCol, zCol),
+            line: { color: '#0f0', width: 2 }, marker: mColor }];
+    }
+
+    Plotly.newPlot('chart-div', traces, layout, config);
 });
 </script>
 {% endblock %}
