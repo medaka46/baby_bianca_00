@@ -304,7 +304,7 @@
     transition: border-color 0.2s, color 0.2s, background 0.2s;
   }
   .dp-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(124,131,255,0.15); }
-  #dtHolidays, #dtClimate { max-height: 320px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #666 #333; }
+  #dtHolidays, #dtClimate { max-height: 740px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #666 #333; }
   #dtHolidays::-webkit-scrollbar, #dtClimate::-webkit-scrollbar { width: 6px; }
   #dtHolidays::-webkit-scrollbar-thumb, #dtClimate::-webkit-scrollbar-thumb { background: #666; border-radius: 3px; }
   .dp-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; margin-top: 2px; }
@@ -372,8 +372,8 @@
     <button class="lang-btn" id="langBtn" onclick="toggleLang()">日本語</button>
   </div>
   <div class="proj-toggle">
-    <button id="btnGlobe" class="proj-btn"        onclick="switchProjection('globe')">Globe</button>
     <button id="btnFlat"  class="proj-btn active" onclick="switchProjection('flat')">Flat</button>
+    <button id="btnGlobe" class="proj-btn"        onclick="switchProjection('globe')">Globe</button>
   </div>
   <div class="zoom-slider-wrap">
     <label for="zoomSlider">🔍</label>

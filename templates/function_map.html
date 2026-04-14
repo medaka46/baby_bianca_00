@@ -36,8 +36,22 @@
     </div>
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
         <div class="title_00" style="margin: 0;">Function — World Map</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_function" class="title_00" style="margin: 0;"></div>
     </div>
 </header>
+
+<script>
+    function updateClockFunction() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('clock_function').textContent = `${h}:${m}:${s}`;
+    }
+    updateClockFunction();
+    setInterval(updateClockFunction, 1000);
+</script>
 
 <main class="tab_00">
     <iframe id="map-frame" src="/map/"></iframe>

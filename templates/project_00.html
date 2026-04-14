@@ -288,6 +288,8 @@
     </div>
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
         <div class="title_00" style="margin: 0;">Project</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_project" class="title_00" style="margin: 0;"></div>
         <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
             <label style="color: #0f0; font-size: 11px;">Table Height:</label>
             <input type="range" id="tableHeight" min="400" max="1000" value="400" style="width: 100px;">
@@ -999,6 +1001,18 @@
             }
         }
     });
+</script>
+
+<script>
+    function updateClockProject() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('clock_project').textContent = `${h}:${m}:${s}`;
+    }
+    updateClockProject();
+    setInterval(updateClockProject, 1000);
 </script>
 
 {% endblock %}

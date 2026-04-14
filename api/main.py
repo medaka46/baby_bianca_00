@@ -1460,6 +1460,7 @@ async def music(request: Request):
         "time_zone": time_zone,
         "tab_page_active": tab_page_active,
         "music_tab_active": music_tab_active,
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.post("/music/upload_cookies/")
@@ -1542,6 +1543,7 @@ async def action_periodic_table(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "action",
         "function_sub_tab_active": "periodic_table",
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.get("/table/")
@@ -1560,6 +1562,7 @@ async def action_map(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "action",
         "function_sub_tab_active": "map",
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.get("/map/")
@@ -1581,6 +1584,7 @@ async def sqlite_page(request: Request):
         "login_username": login_username,
         "time_zone": time_zone,
         "tab_page_active": "sqlite",
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.get("/game/")
@@ -1594,6 +1598,7 @@ async def game(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "game",
         "game_tab_active": "invader",
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.get("/game/invader/")
@@ -1607,6 +1612,7 @@ async def game_invader(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "game",
         "game_tab_active": "invader",
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.get("/game/game01/")
@@ -1620,6 +1626,7 @@ async def game_game01(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "game",
         "game_tab_active": "game01",
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.get("/project/")
@@ -1634,6 +1641,7 @@ async def project(request: Request):
         "tab_page_active": "project",
         "message_color": message_color,
         "project_sub_tab_active": "sort_select",
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.get("/project/edit/")
