@@ -1525,18 +1525,14 @@ async def music_serve_file(filename: str):
 
 @app.get("/action/")
 async def action(request: Request):
-    login_username = request.session.get('login_username')
-    time_zone = request.session.get('time_zone')
-    return templates.TemplateResponse("function_00.html", {
-        "request": request,
-        "login_username": login_username,
-        "time_zone": time_zone,
-        "tab_page_active": "action",
-        "function_sub_tab_active": "",
-    })
+    last = request.session.get('function_sub_tab_active', 'map')
+    if last == 'periodic_table':
+        return RedirectResponse(url="/action/periodic_table/")
+    return RedirectResponse(url="/action/map/")
 
 @app.get("/action/periodic_table/")
 async def action_periodic_table(request: Request):
+    request.session['function_sub_tab_active'] = 'periodic_table'
     login_username = request.session.get('login_username')
     time_zone = request.session.get('time_zone')
     return templates.TemplateResponse("function_periodic_table.html", {
@@ -1554,6 +1550,7 @@ async def table_index():
 
 @app.get("/action/map/")
 async def action_map(request: Request):
+    request.session['function_sub_tab_active'] = 'map'
     login_username = request.session.get('login_username')
     time_zone = request.session.get('time_zone')
     return templates.TemplateResponse("function_map.html", {

@@ -31,11 +31,11 @@
 
 <header class="tab_00">
     <div style="display: flex;">
-        <form action="/action/periodic_table/" method="get">
-            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'periodic_table' else '#aaa' }};">Periodic Table</button>
-        </form>
         <form action="/action/map/" method="get">
             <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'map' else '#aaa' }};">World Map</button>
+        </form>
+        <form action="/action/periodic_table/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'periodic_table' else '#aaa' }};">Periodic Table</button>
         </form>
     </div>
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
