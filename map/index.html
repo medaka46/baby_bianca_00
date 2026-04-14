@@ -36,9 +36,17 @@
   .title-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 14px;
+    justify-content: flex-end;
     margin-bottom: 5px;
+    position: relative;
+  }
+  .title-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
   h1 {
@@ -67,12 +75,12 @@
 
   .search-bar {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     margin-bottom: 5px;
     gap: 8px;
   }
   .search-bar input {
-    width: 300px;
+    width: 100%;
     padding: 8px 14px;
     border-radius: 24px;
     border: 1.5px solid #444;
@@ -98,7 +106,7 @@
   .legend {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 6px;
     margin-bottom: 5px;
   }
@@ -126,9 +134,9 @@
 
   .zoom-controls {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 6px;
-    margin-bottom: 4px;
+    margin-bottom: 8px;
   }
   .zoom-btn {
     width: 32px; height: 32px;
@@ -283,34 +291,91 @@
     border-top: 1px solid #2a2a3e;
     padding-top: 14px;
   }
+
+  .proj-toggle {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    margin-right: 10px;
+  }
+  .proj-btn {
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1.5px solid #555;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .proj-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(124,131,255,0.15);
+  }
+
+  .zoom-slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .zoom-slider-wrap label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  #zoomSlider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 4px;
+    border-radius: 2px;
+    background: #444;
+    outline: none;
+    cursor: pointer;
+  }
+  #zoomSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
 
 <div class="title-row">
-  <h1 id="pageTitle">Interactive World Map</h1>
-  <button class="lang-btn" id="langBtn" onclick="toggleLang()">日本語</button>
-</div>
-
-<div class="search-bar">
-  <input type="text" id="searchInput" placeholder="Search country name..." oninput="filterCountries()">
-  <button onclick="clearSearch()" id="clearBtn">Clear</button>
-</div>
-
-<div class="legend" id="legend"></div>
-
-<div class="zoom-controls">
-  <button class="zoom-btn" onclick="rotateBy(-30)" title="Rotate Left">◀</button>
-  <button class="zoom-btn" onclick="rotateBy(30)"  title="Rotate Right">▶</button>
-  <button class="zoom-btn" onclick="resetRotation()" title="Reset" style="width:auto;padding:0 10px;font-size:0.75rem;">Reset</button>
+  <div class="title-center">
+    <h1 id="pageTitle">Interactive World Map</h1>
+    <button class="lang-btn" id="langBtn" onclick="toggleLang()">日本語</button>
+  </div>
+  <div class="proj-toggle">
+    <button id="btnGlobe" class="proj-btn"        onclick="switchProjection('globe')">Globe</button>
+    <button id="btnFlat"  class="proj-btn active" onclick="switchProjection('flat')">Flat</button>
+  </div>
+  <div class="zoom-slider-wrap">
+    <label for="zoomSlider">🔍</label>
+    <input type="range" id="zoomSlider" min="50" max="600" value="90" oninput="applyZoom(this.value)">
+  </div>
 </div>
 
 <div class="content-row">
   <div class="map-wrapper" id="mapWrapper">
-    <svg id="map-svg" viewBox="0 18 960 464"></svg>
+    <svg id="map-svg" viewBox="0 0 500 500"></svg>
   </div>
 
   <div class="detail-panel" id="detailPanel">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search country name..." oninput="filterCountries()">
+      <button onclick="clearSearch()" id="clearBtn">Clear</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="zoom-controls">
+      <button class="zoom-btn" onclick="rotateBy(-30)" title="Rotate Left">◀</button>
+      <button class="zoom-btn" onclick="rotateBy(30)"  title="Rotate Right">▶</button>
+      <button class="zoom-btn" onclick="resetRotation()" title="Reset" style="width:auto;padding:0 10px;font-size:0.75rem;">Reset</button>
+    </div>
     <div class="dp-placeholder" id="dpPlaceholder">Click a country to see details</div>
     <div class="dp-content">
       <div class="dp-header">
@@ -941,6 +1006,38 @@ function drawSgMarker() {
   m.classed('dimmed', dimmed);
 }
 
+// ── Projection switch ────────────────────────────────────────────────────────
+let projType = 'flat';
+
+function switchProjection(type) {
+  if (type === projType || !gSel) return;
+  projType = type;
+  document.getElementById('btnGlobe').classList.toggle('active', type === 'globe');
+  document.getElementById('btnFlat').classList.toggle('active', type === 'flat');
+
+  const width = 500;
+  if (type === 'globe') {
+    const height = 250;
+    _projection = d3.geoOrthographic()
+      .scale(120)
+      .translate([width / 2, height / 2])
+      .clipAngle(90)
+      .rotate(currentRotate);
+    gSel.select('.sphere').style('display', null);
+    document.getElementById('zoomSlider').value = 120;
+  } else {
+    currentRotate[1] = 0; currentRotate[2] = 0;
+    _projection = d3.geoNaturalEarth1()
+      .scale(80)
+      .translate([width / 2, width / 4])
+      .rotate(currentRotate);
+    gSel.select('.sphere').style('display', 'none');
+    document.getElementById('zoomSlider').value = 90;
+  }
+  _path = d3.geoPath().projection(_projection);
+  redrawPaths();
+}
+
 // ── Rotation helpers ────────────────────────────────────────────────────────
 function redrawPaths() {
   if (!gSel || !_path) return;
@@ -961,15 +1058,22 @@ function resetRotation() {
   redrawPaths();
 }
 
+// ── Zoom ─────────────────────────────────────────────────────────────────────
+function applyZoom(value) {
+  if (!_projection) return;
+  _projection.scale(+value);
+  redrawPaths();
+}
+
 // ── Map rendering ───────────────────────────────────────────────────────────
 async function initMap() {
   const world = await d3.json('/map/countries-110m.json');
   const countries = topojson.feature(world, world.objects.countries);
 
-  const width = 960, height = 500;
+  const width = 500;
   _projection = d3.geoNaturalEarth1()
-    .scale(153)
-    .translate([width / 2, height / 2])
+    .scale(90)
+    .translate([width / 2, width / 4])
     .rotate(currentRotate);
   _path = d3.geoPath().projection(_projection);
   const projection = _projection;
@@ -978,11 +1082,12 @@ async function initMap() {
   svgSel = d3.select('#map-svg');
   gSel   = svgSel.append('g');
 
-  // Ocean sphere
+  // Ocean sphere (hidden by default in flat mode)
   gSel.append('path')
     .datum({ type: 'Sphere' })
     .attr('class', 'sphere')
-    .attr('d', path);
+    .attr('d', path)
+    .style('display', 'none');
 
   // Graticule
   gSel.append('path')
@@ -1030,22 +1135,27 @@ async function initMap() {
       showDetail(id);
     });
 
-  // Drag → horizontal rotation (native events)
-  let _dragging = false, _dragStartX = null, _dragStartRot = null;
+  // Drag → rotation (native events)
+  let _dragging = false, _dragStartX = null, _dragStartY = null, _dragStartRot = null;
   const svgEl = svgSel.node();
 
   svgEl.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
-    _dragging    = true;
-    _dragStartX  = e.clientX;
-    _dragStartRot = currentRotate[0];
+    _dragging     = true;
+    _dragStartX   = e.clientX;
+    _dragStartY   = e.clientY;
+    _dragStartRot = [...currentRotate];
     svgEl.style.cursor = 'grabbing';
     e.preventDefault();
   });
   document.addEventListener('mousemove', (e) => {
     if (!_dragging) return;
     const dx = e.clientX - _dragStartX;
-    currentRotate[0] = _dragStartRot + dx * 0.4;
+    const dy = e.clientY - _dragStartY;
+    currentRotate[0] = _dragStartRot[0] - dx * 0.4;
+    if (projType === 'globe') {
+      currentRotate[1] = Math.max(-85, Math.min(85, _dragStartRot[1] + dy * 0.4));
+    }
     _projection.rotate(currentRotate);
     redrawPaths();
   });
@@ -1055,16 +1165,18 @@ async function initMap() {
     svgEl.style.cursor = 'grab';
   });
 
-  // Two-finger trackpad swipe → horizontal rotation (macOS)
+  // Two-finger trackpad swipe → rotation (macOS)
   svgEl.addEventListener('wheel', (e) => {
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-      // Horizontal swipe: rotate (block default to prevent page scroll)
-      e.preventDefault();
+    e.preventDefault();
+    if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) {
+      // Horizontal swipe → horizontal rotation
       currentRotate[0] -= e.deltaX * 0.3;
-      _projection.rotate(currentRotate);
-      redrawPaths();
+    } else if (projType === 'globe') {
+      // Vertical swipe → vertical rotation (globe only, clamped to ±85°)
+      currentRotate[1] = Math.max(-85, Math.min(85, currentRotate[1] + e.deltaY * 0.3));
     }
-    // Vertical swipe / mouse wheel: let default scroll the page
+    _projection.rotate(currentRotate);
+    redrawPaths();
   }, { passive: false });
 
   // Initial render

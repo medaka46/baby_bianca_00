@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 app.add_middleware(SessionMiddleware, secret_key="your_secret_key")
 
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
