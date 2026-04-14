@@ -292,6 +292,27 @@
     padding-top: 14px;
   }
 
+  .dp-tabs { display: flex; gap: 4px; margin: 8px 0 6px; }
+  .dp-tab {
+    padding: 3px 10px;
+    border-radius: 10px;
+    border: 1.5px solid #444;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .dp-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(124,131,255,0.15); }
+  #dtHolidays, #dtClimate { max-height: 320px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #666 #333; }
+  #dtHolidays::-webkit-scrollbar, #dtClimate::-webkit-scrollbar { width: 6px; }
+  #dtHolidays::-webkit-scrollbar-thumb, #dtClimate::-webkit-scrollbar-thumb { background: #666; border-radius: 3px; }
+  .dp-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; margin-top: 2px; }
+  .dp-table th { color: var(--text-dim); font-weight: 600; padding: 3px 4px; border-bottom: 1px solid #2a2a3e; text-align: left; white-space: nowrap; }
+  .dp-table td { padding: 3px 4px; border-bottom: 1px solid #1a1a2e; }
+  .dp-loading { color: var(--text-dim); font-size: 0.82rem; padding: 10px 0; }
+  .dp-unavail { color: var(--text-dim); font-size: 0.82rem; padding: 10px 0; font-style: italic; }
+
   .proj-toggle {
     display: flex;
     gap: 4px;
@@ -385,16 +406,25 @@
           <p id="dpContinent"></p>
         </div>
       </div>
-      <div class="dp-grid">
-        <div class="dp-field"><label id="lblCapital">Capital</label><span id="dpCapital"></span></div>
-        <div class="dp-field"><label id="lblPop">Population</label><span id="dpPop"></span></div>
-        <div class="dp-field"><label id="lblArea">Area</label><span id="dpArea"></span></div>
-        <div class="dp-field"><label id="lblCurrency">Currency</label><span id="dpCurrency"></span></div>
-        <div class="dp-field"><label id="lblLang">Languages</label><span id="dpLang"></span></div>
-        <div class="dp-field"><label id="lblTel">Tel Code</label><span id="dpTel"></span></div>
-        <div class="dp-field"><label id="lblTimezone">Time Zone</label><span id="dpTimezone"></span></div>
+      <div class="dp-tabs">
+        <button class="dp-tab active" data-tab="info"     onclick="setDetailTab('info')">Info</button>
+        <button class="dp-tab"        data-tab="holidays" onclick="setDetailTab('holidays')">Holidays</button>
+        <button class="dp-tab"        data-tab="climate"  onclick="setDetailTab('climate')">Climate</button>
       </div>
-      <div class="dp-desc" id="dpDesc"></div>
+      <div id="dtInfo">
+        <div class="dp-grid">
+          <div class="dp-field"><label id="lblCapital">Capital</label><span id="dpCapital"></span></div>
+          <div class="dp-field"><label id="lblPop">Population</label><span id="dpPop"></span></div>
+          <div class="dp-field"><label id="lblArea">Area</label><span id="dpArea"></span></div>
+          <div class="dp-field"><label id="lblCurrency">Currency</label><span id="dpCurrency"></span></div>
+          <div class="dp-field"><label id="lblLang">Languages</label><span id="dpLang"></span></div>
+          <div class="dp-field"><label id="lblTel">Tel Code</label><span id="dpTel"></span></div>
+          <div class="dp-field"><label id="lblTimezone">Time Zone</label><span id="dpTimezone"></span></div>
+        </div>
+        <div class="dp-desc" id="dpDesc"></div>
+      </div>
+      <div id="dtHolidays" style="display:none"></div>
+      <div id="dtClimate"  style="display:none"></div>
     </div>
   </div>
 </div>
@@ -477,7 +507,7 @@ const COUNTRIES = {
        '南アメリカ第二の大国。タンゴ、ガウチョ文化、パタゴニア、アンデス山脈で有名。','+54','UTC-3'],
   36: ['Australia','オーストラリア','Canberra','キャンベラ','OC',26,7692024,'AUD','English',
        'The world\'s sixth-largest country and the only nation covering an entire continent, home to unique wildlife and diverse landscapes.',
-       '世界第6位の国土面積を持つ、大陸全体を覆う唯一の国。独自の野生動物と多様な景観が魅力。','+61','UTC+8~+11'],
+       '世界第6位の国土面積を持つ、大陸全体を覆う唯一の国。独自の野生動物と多様な景観が魅力。','+61','UTC+8~+11','AU',[-35.28,149.13]],
   40: ['Austria','オーストリア','Vienna','ウィーン','EU',9,83871,'EUR','German',
        'A landlocked Alpine nation in Central Europe, renowned for its imperial Habsburg history, classical music, and stunning mountain scenery.',
        '中央ヨーロッパのアルプス内陸国。ハプスブルク帝国の歴史、クラシック音楽、雄大な山岳景観で知られる。','+43','UTC+1/+2'],
@@ -495,7 +525,7 @@ const COUNTRIES = {
        '内陸のアンデス国家。世界最高地の首都を持ち、先住民文化とリチウムを含む豊富な天然資源が特徴。','+591','UTC-4'],
   76: ['Brazil','ブラジル','Brasília','ブラジリア','SA',215,8515767,'BRL','Portuguese',
        'South America\'s largest country and the world\'s fifth-largest, home to the Amazon rainforest, vibrant carnival culture, and diverse ecosystems.',
-       '南アメリカ最大・世界第5位の大国。アマゾン熱帯雨林、活気あるカーニバル文化、多様な生態系を擁する。','+55','UTC-5~-2'],
+       '南アメリカ最大・世界第5位の大国。アマゾン熱帯雨林、活気あるカーニバル文化、多様な生態系を擁する。','+55','UTC-5~-2','BR',[-15.78,-47.93]],
   100:['Bulgaria','ブルガリア','Sofia','ソフィア','EU',6,110879,'BGN','Bulgarian',
        'An Eastern European nation with ancient Thracian roots, Orthodox Christian heritage, and a beautiful Black Sea coastline.',
        '古代トラキアのルーツを持つ東欧の国。正教会の遺産と美しい黒海沿岸が特徴。','+359','UTC+2/+3'],
@@ -513,7 +543,7 @@ const COUNTRIES = {
        '多様な景観と文化から「アフリカの縮図」と呼ばれる。熱帯雨林、サバンナ、カメルーン高地にわたる。','+237','UTC+1'],
   124:['Canada','カナダ','Ottawa','オタワ','NA',38,9984670,'CAD','English, French',
        'The world\'s second-largest country by area, spanning from the Atlantic to Pacific to Arctic oceans, renowned for its multicultural cities and vast wilderness.',
-       '面積世界第2位の国。大西洋から太平洋、北極海まで広がり、多文化都市と広大な自然で知られる。','+1','UTC-8~-3:30'],
+       '面積世界第2位の国。大西洋から太平洋、北極海まで広がり、多文化都市と広大な自然で知られる。','+1','UTC-8~-3:30','CA',[45.42,-75.70]],
   144:['Sri Lanka','スリランカ','Colombo / Sri Jayawardenepura Kotte','コロンボ','AS',22,65610,'LKR','Sinhala, Tamil',
        'A teardrop-shaped island nation off southern India, rich in Buddhist heritage, spice trade history, and biodiverse tropical rainforests.',
        '南インド沖のしずく型の島国。仏教遺産、スパイス貿易の歴史、生物多様性豊かな熱帯雨林が特徴。','+94','UTC+5:30'],
@@ -522,10 +552,10 @@ const COUNTRIES = {
        '南米太平洋岸に沿って4,300km伸びる細長い国。世界最乾燥の砂漠からパタゴニアの氷原まで。','+56','UTC-4/-3'],
   156:['China','中国','Beijing','北京','AS',1412,9596960,'CNY','Mandarin',
        'The world\'s most populous country and second-largest economy, with a civilization spanning over 5,000 years and a rapidly modernizing society.',
-       '世界最多人口と第2位の経済大国。5,000年以上の文明を持ち、急速に近代化する社会。','+86','UTC+8'],
+       '世界最多人口と第2位の経済大国。5,000年以上の文明を持ち、急速に近代化する社会。','+86','UTC+8','CN',[39.91,116.40]],
   158:['Taiwan','台湾','Taipei','台北','AS',23.6,36193,'TWD','Mandarin, Taiwanese Hokkien',
        'A dynamic island democracy off the southeastern coast of China, a global leader in semiconductor manufacturing and known for its vibrant culture and cuisine.',
-       '中国南東沿岸の活気ある島の民主主義国家。半導体製造の世界的リーダーで、活気ある文化と料理で知られる。','+886','UTC+8'],
+       '中国南東沿岸の活気ある島の民主主義国家。半導体製造の世界的リーダーで、活気ある文化と料理で知られる。','+886','UTC+8','TW',[25.04,121.57]],
   170:['Colombia','コロンビア','Bogotá','ボゴタ','SA',51,1141748,'COP','Spanish',
        'A diverse South American nation spanning Caribbean and Pacific coasts, known for its coffee, biodiversity, and vibrant cities.',
        'カリブ海と太平洋の両岸にまたがる多様な南米の国。コーヒー、生物多様性、活気ある都市で知られる。','+57','UTC-5'],
@@ -564,13 +594,13 @@ const COUNTRIES = {
        '湖と森の北欧の国。教育制度、オーロラ、サウナ文化、サンタクロースで有名。','+358','UTC+2/+3'],
   250:['France','フランス','Paris','パリ','EU',68,551695,'EUR','French',
        'The most visited country in the world, home to the Eiffel Tower, haute cuisine, world-renowned art, and a rich revolutionary history.',
-       '世界で最も多くの観光客が訪れる国。エッフェル塔、高級料理、世界的に有名な芸術、豊かな革命の歴史。','+33','UTC+1/+2'],
+       '世界で最も多くの観光客が訪れる国。エッフェル塔、高級料理、世界的に有名な芸術、豊かな革命の歴史。','+33','UTC+1/+2','FR',[48.85,2.35]],
   266:['Gabon','ガボン','Libreville','リーブルヴィル','AF',2,267668,'XAF','French',
        'A Central African country with vast equatorial rainforests covering 85% of its land, rich in oil and biodiversity.',
        '国土の85%を広大な赤道熱帯雨林が覆う中央アフリカの国。石油と生物多様性に富む。','+241','UTC+1'],
   276:['Germany','ドイツ','Berlin','ベルリン','EU',84,357114,'EUR','German',
        'Europe\'s largest economy and a central player in the EU, renowned for engineering excellence, rich cultural history, and the Berlin Wall.',
-       'ヨーロッパ最大の経済大国でEUの中心的存在。エンジニアリングの卓越性、豊かな文化史、ベルリンの壁で知られる。','+49','UTC+1/+2'],
+       'ヨーロッパ最大の経済大国でEUの中心的存在。エンジニアリングの卓越性、豊かな文化史、ベルリンの壁で知られる。','+49','UTC+1/+2','DE',[52.52,13.40]],
   288:['Ghana','ガーナ','Accra','アクラ','AF',33,238533,'GHS','English',
        'A stable West African democracy, the first sub-Saharan country to gain independence, known for gold, cocoa, and Kente cloth.',
        '安定した西アフリカの民主主義国家。サハラ以南アフリカで最初に独立した国。金、カカオ、ケンテ布で知られる。','+233','UTC+0'],
@@ -594,7 +624,7 @@ const COUNTRIES = {
        '中欧の国。ハプスブルク帝国の中心としての劇的な歴史を持ち、ブダペスト、温泉、パプリカ料理で知られる。','+36','UTC+1/+2'],
   356:['India','インド','New Delhi','ニューデリー','AS',1400,3287263,'INR','Hindi, English',
        'The world\'s most populous country and largest democracy, with an ancient civilization of 5,000 years, incredible diversity, and a booming tech economy.',
-       '世界最多人口と最大の民主主義国。5,000年の古代文明、驚異的な多様性、急成長するテック経済。','+91','UTC+5:30'],
+       '世界最多人口と最大の民主主義国。5,000年の古代文明、驚異的な多様性、急成長するテック経済。','+91','UTC+5:30','IN',[28.63,77.21]],
   360:['Indonesia','インドネシア','Jakarta','ジャカルタ','AS',277,1904569,'IDR','Indonesian',
        'The world\'s largest archipelago nation with over 17,000 islands, the fourth-most populous country, and extraordinary cultural and biodiversity.',
        '17,000以上の島からなる世界最大の群島国家。世界第4位の人口と驚異的な文化・生物多様性を持つ。','+62','UTC+7~+9'],
@@ -612,10 +642,10 @@ const COUNTRIES = {
        '中東の小さくも歴史的に重要な国。3つの世界宗教の交差点で古代の聖地が点在する。','+972','UTC+2/+3'],
   380:['Italy','イタリア','Rome','ローマ','EU',60,301340,'EUR','Italian',
        'The birthplace of the Roman Empire and the Renaissance, a treasure of art, architecture, and cuisine stretching from the Alps to the Mediterranean.',
-       'ローマ帝国とルネサンスの発祥地。アルプスから地中海まで広がる芸術、建築、料理の宝庫。','+39','UTC+1/+2'],
+       'ローマ帝国とルネサンスの発祥地。アルプスから地中海まで広がる芸術、建築、料理の宝庫。','+39','UTC+1/+2','IT',[41.90,12.50]],
   392:['Japan','日本','Tokyo','東京','AS',125,377915,'JPY','Japanese',
        'An island nation blending ancient samurai and Shinto traditions with cutting-edge technology, renowned for sushi, anime, and the bullet train.',
-       '島国。古代の武士と神道の伝統を最先端テクノロジーと融合。寿司、アニメ、新幹線で世界的に有名。','+81','UTC+9'],
+       '島国。古代の武士と神道の伝統を最先端テクノロジーと融合。寿司、アニメ、新幹線で世界的に有名。','+81','UTC+9','JP',[35.68,139.69]],
   400:['Jordan','ヨルダン','Amman','アンマン','AS',10,89342,'JOD','Arabic',
        'A Middle Eastern kingdom containing Petra, one of the New Seven Wonders, the Dead Sea, and a tradition of generous Bedouin hospitality.',
        '中東の王国。新世界七不思議の一つペトラ、死海、ベドウィンのもてなし文化を持つ。','+962','UTC+2/+3'],
@@ -627,7 +657,7 @@ const COUNTRIES = {
        '世界で最も孤立した国の一つ。金王朝が支配し、政府管理社会と強力な軍事体制が特徴。','+850','UTC+9'],
   410:['South Korea','韓国','Seoul','ソウル','AS',52,100210,'KRW','Korean',
        'A technological powerhouse and cultural exporter of K-pop, K-dramas, and Korean cuisine, with a remarkable economic transformation since the 1960s.',
-       'テクノロジーの強国でK-ポップ、韓国ドラマ、韓国料理の文化輸出国。1960年代以降の目覚ましい経済発展。','+82','UTC+9'],
+       'テクノロジーの強国でK-ポップ、韓国ドラマ、韓国料理の文化輸出国。1960年代以降の目覚ましい経済発展。','+82','UTC+9','KR',[37.57,126.98]],
   418:['Laos','ラオス','Vientiane','ヴィエンチャン','AS',7,236800,'LAK','Lao',
        'A landlocked Southeast Asian country known for its Buddhist temples, the Mekong River, and its laid-back pace of life.',
        '内陸の東南アジアの国。仏教寺院、メコン川、のんびりとした生活様式で知られる。','+856','UTC+7'],
@@ -651,7 +681,7 @@ const COUNTRIES = {
        '内陸の西アフリカの国。かつてイスラム学問の大中心地であったティンブクトゥと古代ドゴン族の断崖住居がある。','+223','UTC+0'],
   484:['Mexico','メキシコ','Mexico City','メキシコシティ','NA',128,1964375,'MXN','Spanish',
        'A megadiverse nation with a rich pre-Columbian heritage, spanning Aztec and Maya civilizations, vibrant cities, and spectacular beaches.',
-       '豊かなコロンブス以前の遺産を持つ超多様性国家。アステカとマヤ文明、活気ある都市、壮大なビーチ。','+52','UTC-8~-5'],
+       '豊かなコロンブス以前の遺産を持つ超多様性国家。アステカとマヤ文明、活気ある都市、壮大なビーチ。','+52','UTC-8~-5','MX',[19.43,-99.13]],
   478:['Mauritania','モーリタニア','Nouakchott','ヌアクショット','AF',4,1030700,'MRU','Arabic',
        'A vast desert nation in Northwest Africa, where ancient caravan routes cross the Sahara and nomadic Berber traditions survive.',
        '北西アフリカの広大な砂漠国家。古代のキャラバンルートがサハラを横断し、遊牧民ベルベルの伝統が残る。','+222','UTC+0'],
@@ -762,10 +792,10 @@ const COUNTRIES = {
        '真珠採取経済から世界的な商業・観光・建築（ブルジュ・ハリファを含む）のハブへと変貌した7首長国の連邦。','+971','UTC+4'],
   826:['United Kingdom','イギリス','London','ロンドン','EU',67,243610,'GBP','English',
        'An island nation that once governed the world\'s largest empire, the birthplace of the Industrial Revolution, Shakespeare, and the Beatles.',
-       'かつて世界最大の帝国を支配した島国。産業革命、シェイクスピア、ビートルズの発祥地。','+44','UTC+0/+1'],
+       'かつて世界最大の帝国を支配した島国。産業革命、シェイクスピア、ビートルズの発祥地。','+44','UTC+0/+1','GB',[51.51,-0.13]],
   840:['United States','アメリカ合衆国','Washington D.C.','ワシントンD.C.','NA',335,9833517,'USD','English',
        'The world\'s third-largest country and leading economic and military power, a nation of immigrants that has shaped global culture, science, and politics.',
-       '世界第3位の国土と世界最大の経済・軍事大国。移民の国として世界の文化・科学・政治を形成してきた。','+1','UTC-10~-4'],
+       '世界第3位の国土と世界最大の経済・軍事大国。移民の国として世界の文化・科学・政治を形成してきた。','+1','UTC-10~-4','US',[38.90,-77.04]],
   858:['Uruguay','ウルグアイ','Montevideo','モンテビデオ','SA',4,176215,'UYU','Spanish',
        'South America\'s smallest Spanish-speaking country, known for progressive politics, gaucho culture, excellent wine, and long Atlantic beaches.',
        '南米最小のスペイン語圏の国。進歩的な政治、ガウチョ文化、上質なワイン、長い大西洋のビーチで知られる。','+598','UTC-3'],
@@ -786,7 +816,7 @@ const COUNTRIES = {
        '古代石造遺跡グレート・ジンバブエ、ビクトリアの滝、ワンゲ国立公園の豊かな野生動物と力強い国民の国。','+263','UTC+2'],
   702:['Singapore','シンガポール','Singapore','シンガポール','AS',6,728,'SGD','English, Malay, Mandarin, Tamil',
        'A prosperous city-state at the southern tip of the Malay Peninsula, a global financial hub renowned for its efficiency, cleanliness, and multicultural harmony.',
-       'マレー半島南端の繁栄した都市国家。効率性、清潔さ、多文化共生で知られるグローバル金融ハブ。','+65','UTC+8'],
+       'マレー半島南端の繁栄した都市国家。効率性、清潔さ、多文化共生で知られるグローバル金融ハブ。','+65','UTC+8','SG',[1.35,103.82]],
 };
 
 // ISO numeric → continent fallback mapping (for countries not in COUNTRIES dict)
@@ -958,6 +988,15 @@ function showDetail(id) {
     document.getElementById('dpDesc').textContent      = u.nodata;
   }
 
+  // Reset to Info tab on new country selection
+  _currentDetailTab = 'info';
+  document.querySelectorAll('.dp-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === 'info');
+  });
+  document.getElementById('dtInfo').style.display     = '';
+  document.getElementById('dtHolidays').style.display = 'none';
+  document.getElementById('dtClimate').style.display  = 'none';
+
   panel.classList.add('visible');
 }
 
@@ -1004,6 +1043,104 @@ function drawSgMarker() {
   // Apply continent filter dimming
   const dimmed = activeContinent && activeContinent !== 'AS';
   m.classed('dimmed', dimmed);
+}
+
+// ── Detail tabs ──────────────────────────────────────────────────────────────
+const _holidayCache = {};
+const _climateCache = {};
+let _currentDetailTab = 'info';
+
+function setDetailTab(tab) {
+  _currentDetailTab = tab;
+  document.querySelectorAll('.dp-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.getElementById('dtInfo').style.display     = tab === 'info'     ? '' : 'none';
+  document.getElementById('dtHolidays').style.display = tab === 'holidays' ? '' : 'none';
+  document.getElementById('dtClimate').style.display  = tab === 'climate'  ? '' : 'none';
+  if (tab === 'holidays' && selectedId != null) loadHolidays(selectedId);
+  if (tab === 'climate'  && selectedId != null) loadClimate(selectedId);
+}
+
+async function loadHolidays(id) {
+  const data = COUNTRIES[id];
+  const alpha2 = data && data[13];
+  const el = document.getElementById('dtHolidays');
+  if (!alpha2) { el.innerHTML = '<div class="dp-unavail">Not available for this country.</div>'; return; }
+  const year = new Date().getFullYear();
+  const key = alpha2 + year;
+  if (_holidayCache[key]) { renderHolidays(_holidayCache[key]); return; }
+  el.innerHTML = '<div class="dp-loading">Loading...</div>';
+  try {
+    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${alpha2}`);
+    if (!res.ok) throw new Error();
+    const list = await res.json();
+    _holidayCache[key] = list;
+    renderHolidays(list);
+  } catch {
+    el.innerHTML = '<div class="dp-unavail">Failed to load holiday data.</div>';
+  }
+}
+
+function renderHolidays(list) {
+  const el = document.getElementById('dtHolidays');
+  if (!list || !list.length) { el.innerHTML = '<div class="dp-unavail">No data available.</div>'; return; }
+  const rows = list.map(h =>
+    `<tr><td>${h.date}</td><td>${h.localName}</td><td>${h.name}</td></tr>`
+  ).join('');
+  el.innerHTML = `<table class="dp-table"><thead><tr><th>Date</th><th>Local</th><th>English</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function loadClimate(id) {
+  const data = COUNTRIES[id];
+  const coords = data && data[14];
+  const el = document.getElementById('dtClimate');
+  if (!coords) { el.innerHTML = '<div class="dp-unavail">Not available for this country.</div>'; return; }
+  const [lat, lon] = coords;
+  const key = `${lat},${lon}`;
+  if (_climateCache[key]) { renderClimate(_climateCache[key]); return; }
+  el.innerHTML = '<div class="dp-loading">Loading...</div>';
+  try {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=2023-01-01&end_date=2023-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum&timezone=GMT`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const json = await res.json();
+    const monthly = aggregateMonthly(json.daily);
+    _climateCache[key] = monthly;
+    renderClimate(monthly);
+  } catch {
+    el.innerHTML = '<div class="dp-unavail">Failed to load climate data.</div>';
+  }
+}
+
+function aggregateMonthly(daily) {
+  const buckets = Array.from({length: 12}, () => ({max:[], min:[], mean:[], rain:[]}));
+  daily.time.forEach((t, i) => {
+    const m = parseInt(t.split('-')[1]) - 1;
+    if (daily.temperature_2m_max[i]  != null) buckets[m].max.push(daily.temperature_2m_max[i]);
+    if (daily.temperature_2m_min[i]  != null) buckets[m].min.push(daily.temperature_2m_min[i]);
+    if (daily.temperature_2m_mean[i] != null) buckets[m].mean.push(daily.temperature_2m_mean[i]);
+    if (daily.precipitation_sum[i]   != null) buckets[m].rain.push(daily.precipitation_sum[i]);
+  });
+  const avg = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : null;
+  const sum = a => a.length ? a.reduce((s,v)=>s+v,0) : null;
+  return {
+    temperature_2m_max:  buckets.map(b => avg(b.max)),
+    temperature_2m_min:  buckets.map(b => avg(b.min)),
+    temperature_2m_mean: buckets.map(b => avg(b.mean)),
+    precipitation_sum:   buckets.map(b => sum(b.rain)),
+  };
+}
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderClimate(m) {
+  const el = document.getElementById('dtClimate');
+  if (!m) { el.innerHTML = '<div class="dp-unavail">No data available.</div>'; return; }
+  const rows = MONTHS_SHORT.map((mo, i) =>
+    `<tr><td>${mo}</td><td>${m.temperature_2m_max[i]?.toFixed(1)??'—'}</td><td>${m.temperature_2m_min[i]?.toFixed(1)??'—'}</td><td>${m.temperature_2m_mean[i]?.toFixed(1)??'—'}</td><td>${m.precipitation_sum[i]?.toFixed(0)??'—'}</td></tr>`
+  ).join('');
+  el.innerHTML = `<table class="dp-table"><thead><tr><th>Month</th><th>Max°C</th><th>Min°C</th><th>Avg°C</th><th>Rain mm</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── Projection switch ────────────────────────────────────────────────────────
