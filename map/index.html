@@ -1231,6 +1231,7 @@ function setDetailTab(tab) {
 // Countries not supported by nager.at — use alternative API (tallyfy.com)
 const HOLIDAY_ALT_API = {
   MY: year => `https://tallyfy.com/national-holidays/api/MY/${year}.json`,
+  TW: year => `https://tallyfy.com/national-holidays/api/TW/${year}.json`,
 };
 
 async function loadHolidays(id) {
@@ -1389,6 +1390,19 @@ const ECONOMY_INDICATORS = [
   { code: 'NY.GNP.PCAP.CD',   labelEN: 'GNI per Capita',  labelJA: '一人当たりGNI',   fmt: 'usd'       },
 ];
 
+const ECONOMY_STATIC = {
+  TW: [
+    { code: 'NY.GDP.MKTP.CD',    labelEN: 'GDP',             labelJA: 'GDP',           fmt: 'usd_large', value: 751930000000, yearLabel: '2023' },
+    { code: 'NY.GDP.PCAP.CD',    labelEN: 'GDP per Capita',  labelJA: '一人当たりGDP',  fmt: 'usd',       value: 32339,        yearLabel: '2023' },
+    { code: 'NY.GDP.MKTP.KD.ZG', labelEN: 'GDP Growth',      labelJA: 'GDP成長率',      fmt: 'pct',       value: 1.31,         yearLabel: '2023' },
+    { code: 'FP.CPI.TOTL.ZG',    labelEN: 'Inflation',       labelJA: 'インフレ率',     fmt: 'pct',       value: 2.49,         yearLabel: '2023' },
+    { code: 'SL.UEM.TOTL.ZS',    labelEN: 'Unemployment',    labelJA: '失業率',         fmt: 'pct',       value: 3.53,         yearLabel: '2023' },
+    { code: 'NE.EXP.GNFS.ZS',    labelEN: 'Exports (% GDP)', labelJA: '輸出（GDP比）',  fmt: 'pct',       value: 65.2,         yearLabel: '2023' },
+    { code: 'NE.IMP.GNFS.ZS',    labelEN: 'Imports (% GDP)', labelJA: '輸入（GDP比）',  fmt: 'pct',       value: 53.8,         yearLabel: '2023' },
+    { code: 'NY.GNP.PCAP.CD',    labelEN: 'GNI per Capita',  labelJA: '一人当たりGNI',  fmt: 'usd',       value: 33040,        yearLabel: '2023' },
+  ],
+};
+
 function fmtEconValue(value, fmt) {
   if (value == null) return '—';
   switch (fmt) {
@@ -1430,6 +1444,7 @@ async function loadEconomy(id) {
   const tbl = document.getElementById('dtEconomyTable');
   renderEconomyControls();
   if (!alpha2) { tbl.innerHTML = '<div class="dp-unavail">Not available for this country.</div>'; return; }
+  if (ECONOMY_STATIC[alpha2]) { renderEconomy(ECONOMY_STATIC[alpha2], true); return; }
   const mrv = _economyYears;
   const key = `${alpha2},${mrv}`;
   if (_economyCache[key]) { renderEconomy(_economyCache[key]); return; }
@@ -1458,7 +1473,7 @@ async function loadEconomy(id) {
   }
 }
 
-function renderEconomy(processed) {
+function renderEconomy(processed, isStatic = false) {
   const tbl = document.getElementById('dtEconomyTable');
   const th1 = lang === 'en' ? 'Indicator' : '指標';
   const th2 = lang === 'en' ? 'Value'     : '値';
@@ -1468,7 +1483,10 @@ function renderEconomy(processed) {
     const val   = fmtEconValue(ind.value, ind.fmt);
     return `<tr><td>${label}</td><td style="text-align:right;font-weight:600">${val}</td><td style="color:var(--text-dim);white-space:nowrap">${ind.yearLabel}</td></tr>`;
   }).join('');
-  tbl.innerHTML = `<table class="dp-table"><thead><tr><th>${th1}</th><th style="text-align:right">${th2}</th><th>${th3}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const note = isStatic
+    ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px">* Source: IMF World Economic Outlook 2024 (static data)</div>`
+    : '';
+  tbl.innerHTML = `<table class="dp-table"><thead><tr><th>${th1}</th><th style="text-align:right">${th2}</th><th>${th3}</th></tr></thead><tbody>${rows}</tbody></table>${note}`;
 }
 
 // ── Projection switch ────────────────────────────────────────────────────────
