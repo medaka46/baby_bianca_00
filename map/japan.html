@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Japan Prefecture Map</title>
+<style>
+  :root {
+    --hokkaido:  #74b9ff;
+    --tohoku:    #a29bfe;
+    --kanto:     #fd79a8;
+    --chubu:     #fdcb6e;
+    --kansai:    #ff7675;
+    --chugoku:   #55efc4;
+    --shikoku:   #e17055;
+    --kyushu:    #00b894;
+    --okinawa:   #6c5ce7;
+    --unknown:   #636e72;
+    --bg:        #0f0f1a;
+    --surface:   #1a1a2e;
+    --surface2:  #16213e;
+    --text:      #e0e0e0;
+    --text-dim:  #a0a0b0;
+    --accent:    #7c83ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 3px 12px;
+    overflow-x: hidden;
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 5px;
+    position: relative;
+  }
+  .title-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #7c83ff, #a29bfe, #81ecec);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 1px;
+  }
+
+  .lang-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  .lang-btn:hover { background: var(--accent); color: #fff; }
+
+  .back-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid #555;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .right-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .zoom-slider-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .zoom-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  #zoomPct {
+    font-size: 0.70rem;
+    color: var(--text-dim);
+  }
+  .zoom-slider-wrap label {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  #zoomSlider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 4px;
+    border-radius: 2px;
+    background: #444;
+    outline: none;
+    cursor: pointer;
+  }
+  #zoomSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  .content-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .map-wrapper {
+    flex: 1;
+    min-width: 0;
+    height: 93vh;
+    background: var(--surface2);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1.5px solid #2a2a3e;
+    cursor: grab;
+  }
+  .map-wrapper:active { cursor: grabbing; }
+
+  #map-svg {
+    display: block;
+    width: 100%;
+    height: 93vh;
+  }
+
+  .pref-path {
+    stroke: #1a1a2e;
+    stroke-width: 0.4px;
+    transition: opacity 0.2s;
+  }
+  .pref-path.dimmed     { opacity: 0.15; }
+  .pref-path.highlighted { stroke: rgba(255,255,255,0.7); stroke-width: 1.2px; }
+  .pref-path.selected    { stroke: #fff; stroke-width: 1.5px; filter: brightness(1.25); }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid #3a3a5e;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    color: var(--text);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  #tooltip.visible { opacity: 1; }
+
+  /* Detail panel */
+  .detail-panel {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1.5px solid #2a2a3e;
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .search-bar {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+  .search-bar input {
+    width: 100%;
+    padding: 8px 14px;
+    border-radius: 24px;
+    border: 1.5px solid #444;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar button {
+    padding: 8px 14px;
+    border-radius: 24px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: opacity 0.2s;
+  }
+  .search-bar button:hover { opacity: 0.85; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.70rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 3px 7px;
+    border-radius: 12px;
+    background: var(--surface2);
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+    user-select: none;
+  }
+  .legend-item:hover { border-color: #555; }
+  .legend-item.active { border-color: var(--accent); }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .dp-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .dp-content { display: none; animation: panelIn 0.22s ease; }
+  .detail-panel.visible .dp-content { display: block; }
+  .detail-panel.visible .dp-placeholder { display: none; }
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .dp-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .dp-color-box {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+  .dp-header-text h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0;
+  }
+  .dp-header-text p {
+    font-size: 0.82rem;
+    color: var(--text-dim);
+    margin-top: 3px;
+  }
+
+  .dp-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px 12px;
+    margin-bottom: 14px;
+  }
+  .dp-field label {
+    display: block;
+    font-size: 0.67rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+  .dp-field span {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .dp-desc {
+    font-size: 0.83rem;
+    color: var(--text-dim);
+    line-height: 1.65;
+    border-top: 1px solid #2a2a3e;
+    padding-top: 12px;
+  }
+
+  .dp-tabs { display: flex; gap: 4px; margin: 8px 0 6px; }
+  .dp-tab {
+    padding: 3px 10px;
+    border-radius: 10px;
+    border: 1.5px solid #444;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .dp-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(124,131,255,0.15); }
+
+  #dtHolidays, #dtClimate { max-height: 640px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #666 #333; }
+  #dtHolidays::-webkit-scrollbar, #dtClimate::-webkit-scrollbar { width: 6px; }
+  #dtHolidays::-webkit-scrollbar-thumb, #dtClimate::-webkit-scrollbar-thumb { background: #666; border-radius: 3px; }
+
+  .dp-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; margin-top: 2px; }
+  .dp-table th { color: var(--text-dim); font-weight: 600; padding: 3px 4px; border-bottom: 1px solid #2a2a3e; text-align: left; white-space: nowrap; }
+  .dp-table td { padding: 3px 4px; border-bottom: 1px solid #1a1a2e; }
+  .dp-loading { color: var(--text-dim); font-size: 0.82rem; padding: 10px 0; }
+  .dp-unavail { color: var(--text-dim); font-size: 0.82rem; padding: 10px 0; font-style: italic; }
+  .dp-climate-city { font-size: 0.78rem; color: var(--accent); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<div class="title-row">
+  <div class="title-center">
+    <h1 id="pageTitle">Japan Prefecture Map</h1>
+    <button class="lang-btn" id="langBtn" onclick="toggleLang()">日本語</button>
+  </div>
+  <div class="right-controls">
+    <div class="zoom-slider-wrap">
+      <div class="zoom-slider-row">
+        <label for="zoomSlider">🔍</label>
+        <input type="range" id="zoomSlider" min="50" max="400" value="150" oninput="applyZoom(this.value)">
+      </div>
+      <span id="zoomPct">150%</span>
+    </div>
+    <a class="back-btn" id="backBtn" href="/map/">◀ World Map</a>
+  </div>
+</div>
+
+<div class="content-row">
+  <div class="map-wrapper" id="mapWrapper" style="height:93vh;">
+    <svg id="map-svg" viewBox="0 0 500 680" style="display:block; width:100%; height:100%;"></svg>
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search prefecture..." oninput="filterPrefectures()">
+      <button onclick="clearSearch()" id="clearBtn">Clear</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="dp-placeholder" id="dpPlaceholder">Click a prefecture to see details</div>
+    <div class="dp-content">
+      <div class="dp-header">
+        <div class="dp-color-box" id="dpColorBox"></div>
+        <div class="dp-header-text">
+          <h2 id="dpName"></h2>
+          <p id="dpRegion"></p>
+        </div>
+      </div>
+      <div class="dp-tabs">
+        <button class="dp-tab active" data-tab="info"     onclick="setDetailTab('info')">Info</button>
+        <button class="dp-tab"        data-tab="holidays" onclick="setDetailTab('holidays')">Holidays</button>
+        <button class="dp-tab"        data-tab="climate"  onclick="setDetailTab('climate')">Climate</button>
+      </div>
+      <div id="dtInfo">
+        <div class="dp-grid">
+          <div class="dp-field"><label id="lblCapital">Capital</label><span id="dpCapital"></span></div>
+          <div class="dp-field"><label id="lblPop">Population</label><span id="dpPop"></span></div>
+          <div class="dp-field"><label id="lblArea">Area (km²)</label><span id="dpArea"></span></div>
+          <div class="dp-field"><label id="lblType">Type</label><span id="dpType"></span></div>
+        </div>
+        <div class="dp-desc" id="dpDesc"></div>
+      </div>
+      <div id="dtHolidays" style="display:none"></div>
+      <div id="dtClimate"  style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+// ── Language ───────────────────────────────────────────────────────────────
+let lang = 'en';
+
+const UI = {
+  en: {
+    title:      'Japan Prefecture Map',
+    langBtn:    '日本語',
+    back:       '◀ World Map',
+    placeholder:'Search prefecture...',
+    clear:      'Clear',
+    capital:    'Capital',
+    pop:        'Population',
+    area:       'Area (km²)',
+    type:       'Type',
+    unknown:    'Unknown',
+    nodata:     'No detailed data available.',
+    hint:       'Click a prefecture to see details',
+    regions: {
+      0:'Hokkaido', 1:'Tohoku', 2:'Kanto', 3:'Chubu',
+      4:'Kansai', 5:'Chugoku', 6:'Shikoku', 7:'Kyushu', 8:'Okinawa'
+    },
+  },
+  ja: {
+    title:      '日本都道府県地図',
+    langBtn:    'English',
+    back:       '◀ 世界地図',
+    placeholder:'都道府県名を検索...',
+    clear:      'クリア',
+    capital:    '県庁所在地',
+    pop:        '人口',
+    area:       '面積（km²）',
+    type:       '種別',
+    unknown:    '不明',
+    nodata:     '詳細データはありません。',
+    hint:       '都道府県をクリックして詳細を表示',
+    regions: {
+      0:'北海道', 1:'東北', 2:'関東', 3:'中部',
+      4:'近畿', 5:'中国', 6:'四国', 7:'九州', 8:'沖縄'
+    },
+  },
+};
+
+// ── Region color ──────────────────────────────────────────────────────────
+const REGION_COLOR = {
+  0:'#74b9ff', 1:'#a29bfe', 2:'#fd79a8', 3:'#fdcb6e',
+  4:'#ff7675', 5:'#55efc4', 6:'#e17055', 7:'#00b894', 8:'#6c5ce7'
+};
+
+// ── Prefecture data ───────────────────────────────────────────────────────
+// [nameEN, nameJA, capital_en, capital_ja, region(0-8), pop_M, area_km2, type_en, type_ja, descEN, descJA, lat, lon]
+const PREFECTURES = {
+  1:  ['Hokkaido','北海道','Sapporo','札幌市',0,5.2,83424,'Dō','道',
+       "Japan's northernmost island and largest prefecture, known for its vast wilderness, world-class ski resorts, dairy farming, fresh seafood, and the iconic Sapporo Snow Festival.",
+       '日本最北端・最大の都道府県。広大な自然、スキーリゾート、酪農、新鮮な海産物、そして札幌雪まつりで知られる。',43.06,141.35],
+  2:  ['Aomori','青森県','Aomori','青森市',1,1.24,9646,'Ken','県',
+       "Japan's top apple-producing prefecture, famous for the spectacular Nebuta Matsuri fire festival, Towada-Hachimantai National Park, and the traditional Tsugaru Shamisen music.",
+       '日本一のリンゴ産地。勇壮なねぶた祭、十和田八幡平国立公園、津軽三味線の伝統で有名。',40.82,140.74],
+  3:  ['Iwate','岩手県','Morioka','盛岡市',1,1.21,15275,'Ken','県',
+       "Japan's second-largest prefecture by land area, home to the historic castle town of Morioka, UNESCO-listed Hiraizumi temples, and rugged Sanriku coastal scenery.",
+       '面積が北海道に次ぐ広さ。盛岡の歴史的城下町、世界遺産・平泉の寺院群、三陸の雄大な海岸が魅力。',39.70,141.15],
+  4:  ['Miyagi','宮城県','Sendai','仙台市',1,2.31,7282,'Ken','県',
+       "Home to Sendai, Tohoku's largest city, renowned for the Tanabata Festival, fresh seafood from Matsushima Bay — one of Japan's three scenic views — and the Zuiganji Temple.",
+       '東北最大の都市・仙台を擁する県。七夕まつり、松島湾の新鮮な海産物、瑞巌寺で知られる。',38.27,140.87],
+  5:  ['Akita','秋田県','Akita','秋田市',1,0.96,11638,'Ken','県',
+       "Known for the Kanto Festival's towering bamboo poles, the Namahage folklore tradition, Japan's deepest lake Tazawa-ko, and rich sake brewing culture.",
+       '竿灯まつり、なまはげ伝説、日本最深の田沢湖、豊かな酒造文化で知られる。',39.72,140.10],
+  6:  ['Yamagata','山形県','Yamagata','山形市',1,1.07,9323,'Ken','県',
+       "Famous for the Hanagasa Matsuri Festival, the mountain temple of Yamadera, high-quality Yamagata beef, and some of Japan's finest cherries and La France pears.",
+       '花笠まつり、山寺（立石寺）、山形牛、さくらんぼやラ・フランスの一大産地として知られる。',38.24,140.36],
+  7:  ['Fukushima','福島県','Fukushima','福島市',1,1.83,13784,'Ken','県',
+       "A resilient prefecture combining scenic mountains and hot spring resorts with the samurai heritage of Aizu-Wakamatsu, renowned for its uniquely sweet peaches.",
+       '会津若松の武士の歴史と温泉リゾート、磐梯山の雄大な自然、甘くて美味しい桃の産地として知られる復興の地。',37.75,140.47],
+  8:  ['Ibaraki','茨城県','Mito','水戸市',2,2.87,6097,'Ken','県',
+       "Home to Kairaku-en, one of Japan's three great gardens famous for its plum blossoms, Tsukuba Science City, and the colorful Hitachi Seaside Park with nemophila flowers.",
+       '日本三名園の偕楽園（梅の名所）、筑波科学都市、春のネモフィラで彩られるひたちなか海浜公園がある。',36.34,140.45],
+  9:  ['Tochigi','栃木県','Utsunomiya','宇都宮市',2,1.93,6408,'Ken','県',
+       "Famous for the magnificent Nikko Tosho-gu and Rinno-ji temples (UNESCO World Heritage), the Nasu Highland resort, and the delicious Utsunomiya gyoza dumplings.",
+       '世界遺産・日光東照宮と輪王寺、那須高原リゾート、餃子の街・宇都宮で知られる。',36.55,139.88],
+  10: ['Gunma','群馬県','Maebashi','前橋市',2,1.94,6362,'Ken','県',
+       "A landlocked prefecture celebrated for top-quality hot spring towns — Kusatsu and Ikaho — the volcanic Akagi and Haruna mountains, and the UNESCO-listed Tomioka Silk Mill.",
+       '日本有数の温泉地・草津と伊香保、赤城・榛名山の火山景観、世界遺産・富岡製糸場で知られる内陸県。',36.39,139.06],
+  11: ['Saitama','埼玉県','Saitama','さいたま市',2,7.34,3798,'Ken','県',
+       "Directly north of Tokyo, Saitama is known for the historic Little Edo town of Kawagoe, Chichibu Shrine's pilgrimage route, and a world-class cycling velodrome.",
+       '東京北側に隣接。「小江戸」川越の歴史的街並み、秩父神社の巡礼路、世界水準の自転車競技場がある。',35.86,139.65],
+  12: ['Chiba','千葉県','Chiba','千葉市',2,6.28,5158,'Ken','県',
+       "Gateway to greater Tokyo via Narita Airport, home to Tokyo Disneyland and DisneySea, Makuhari Messe convention center, and the scenic Boso Peninsula coastline.",
+       '成田国際空港の玄関口。東京ディズニーランド・ディズニーシー、幕張メッセ、房総半島の海岸が人気。',35.61,140.12],
+  13: ['Tokyo','東京都','Shinjuku','新宿区',2,13.96,2194,'To','都',
+       "Japan's capital and the world's most populous metropolitan area — a dazzling fusion of ultramodern skyscrapers, ancient temples, world-class cuisine, and vibrant pop culture.",
+       '日本の首都、世界最大の都市圏。最先端の高層ビルと古代寺院、世界屈指のグルメ、活気あるポップカルチャーが融合。',35.69,139.69],
+  14: ['Kanagawa','神奈川県','Yokohama','横浜市',2,9.24,2416,'Ken','県',
+       "Home to Yokohama's vibrant Chinatown and cosmopolitan port culture, the ancient capital of Kamakura with its Great Buddha, and Shonan's iconic beach resorts.",
+       '横浜中華街と港町文化、鎌倉の大仏と古刹群、湘南のビーチリゾートで知られる。',35.44,139.64],
+  15: ['Niigata','新潟県','Niigata','新潟市',3,2.22,12584,'Ken','県',
+       "Japan's rice and sake capital, stretching along the Sea of Japan coast, home to the art island of Sado, Echigo-Tsumari Art Triennale, and some of Japan's best powder snow.",
+       '日本有数のコメ・酒どころ。日本海に沿って延び、佐渡島のアートと金山遺産、越後妻有アートトリエンナーレが魅力。',37.91,139.04],
+  16: ['Toyama','富山県','Toyama','富山市',3,1.04,4248,'Ken','県',
+       "Nestled between the Japan Alps and the Sea of Japan, offering the stunning Tateyama Kurobe Alpine Route, UNESCO-listed Gokayama thatched-roof village, and exceptional seafood.",
+       '日本アルプスと日本海に挟まれ、立山黒部アルペンルート、世界遺産・五箇山合掌造り集落、豊富な海の幸が魅力。',36.70,137.21],
+  17: ['Ishikawa','石川県','Kanazawa','金沢市',3,1.13,4186,'Ken','県',
+       "Home to Kanazawa, often called the 'Little Kyoto of Hokuriku,' renowned for Kenroku-en garden, the Higashi Chaya geisha district, and exquisite Kaga traditional crafts.",
+       '「北陸の小京都」金沢を有する県。兼六園、東茶屋街、加賀百万石の伝統工芸で知られる。',36.59,136.63],
+  18: ['Fukui','福井県','Fukui','福井市',3,0.77,4190,'Ken','県',
+       "Japan's dinosaur fossil hotspot with a world-renowned dinosaur museum, the venerable Eiheiji Zen temple, dramatic Tojinbo cliffs, and traditional Echizen washi paper craft.",
+       '日本一の恐竜化石産地と世界屈指の恐竜博物館、曹洞宗大本山・永平寺、東尋坊の断崖、越前和紙の伝統がある。',36.07,136.22],
+  19: ['Yamanashi','山梨県','Kofu','甲府市',3,0.81,4465,'Ken','県',
+       "Dominated by the iconic Mt. Fuji offering stunning Fuji Five Lakes views, Japan's premier wine region, Shosenkyo Gorge, and the delicious Shine Muscat grapes.",
+       '富士山と富士五湖の絶景、日本有数のワイン産地、昇仙峡の景勝地、シャインマスカットの産地として知られる。',35.66,138.57],
+  20: ['Nagano','長野県','Nagano','長野市',3,2.05,13562,'Ken','県',
+       "Host of the 1998 Winter Olympics, celebrated for Jigokudani snow monkeys, Zenko-ji Temple, the Karuizawa resort, and the majestic peaks of the Japan Alps.",
+       '1998年冬季五輪開催地。地獄谷の野猿公苑、善光寺、軽井沢リゾート、北アルプスの峰々で知られる。',36.65,138.18],
+  21: ['Gifu','岐阜県','Gifu','岐阜市',3,1.99,10621,'Ken','県',
+       "Features the UNESCO-listed Shirakawa-go gassho-zukuri village, the historic Gifu Castle, Hida Folk Village's open-air museum, and Nagaragawa ukai cormorant fishing.",
+       '世界遺産・白川郷合掌造り集落、岐阜城の歴史、飛騨民俗村、長良川の鵜飼で知られる。',35.42,136.76],
+  22: ['Shizuoka','静岡県','Shizuoka','静岡市',3,3.63,7777,'Ken','県',
+       "Stretching between Mt. Fuji and Suruga Bay, Japan's top tea-producing region, a World Heritage Site for Fujisan, the Atami coast resort, and the ancient Toro Yayoi site.",
+       '富士山と駿河湾の間に広がる日本最大の茶産地。富士山世界遺産、熱海リゾート、弥生時代の登呂遺跡がある。',34.98,138.38],
+  23: ['Aichi','愛知県','Nagoya','名古屋市',3,7.54,5173,'Ken','県',
+       "Japan's industrial powerhouse centered on Nagoya, the birthplace of Toyota and global manufacturing, home to Nagoya Castle, Atsuta Shrine, and the EXPO 2005 legacy site.",
+       'トヨタ発祥地・名古屋を擁する日本の産業の中枢。名古屋城、熱田神宮、2005年愛・地球博跡地がある。',35.18,136.91],
+  24: ['Mie','三重県','Tsu','津市',4,1.77,5774,'Ken','県',
+       "Site of the sacred Grand Shrines of Ise — Japan's most venerated Shinto shrine — the rugged Kii Peninsula coast, celebrated Matsusaka beef, and Mikimoto pearl cultivation.",
+       '日本最高の聖地・伊勢神宮の所在地。紀伊半島の海岸、松阪牛、ミキモト真珠養殖の発祥地がある。',34.73,136.51],
+  25: ['Shiga','滋賀県','Otsu','大津市',4,1.41,4017,'Ken','県',
+       "Centered on Lake Biwa, Japan's largest lake, Shiga has a chain of historic castles, the Enryaku-ji Temple complex on Mt. Hiei, and scenic Biwako lakeside landscapes.",
+       '日本最大の湖・琵琶湖を中心に歴史的な城が点在。比叡山延暦寺、彦根城、琵琶湖沿岸の景観が魅力。',35.00,135.86],
+  26: ['Kyoto','京都府','Kyoto','京都市',4,2.58,4612,'Fu','府',
+       "Japan's ancient imperial capital for over a millennium, home to 17 UNESCO World Heritage Sites: Kinkaku-ji, Fushimi Inari, Arashiyama bamboo grove, and Nishiki Market.",
+       '千年以上の日本の古都。金閣寺・伏見稲荷・嵐山竹林など17か所の世界遺産を有する日本文化の中心地。',35.01,135.76],
+  27: ['Osaka','大阪府','Osaka','大阪市',4,8.81,1905,'Fu','府',
+       "Japan's kitchen and comedy capital — a vibrant city known for Dotonbori's neon lights, street food culture, Osaka Castle, Universal Studios Japan, and warm merchant spirit.",
+       '「食い倒れの街」大阪。道頓堀のネオン、たこ焼き文化、大阪城、ユニバーサルスタジオジャパン、商人気質で活気あふれる都市。',34.69,135.50],
+  28: ['Hyogo','兵庫県','Kobe','神戸市',4,5.47,8401,'Ken','県',
+       "Home to Kobe, Japan's cosmopolitan port city, and the spectacular Himeji Castle (UNESCO), offering a unique blend of Japanese tradition and Western influences.",
+       '国際的な港町・神戸と世界遺産・姫路城を有し、日本の伝統と西洋文化が融合する瀬戸内海沿岸の県。',34.69,135.20],
+  29: ['Nara','奈良県','Nara','奈良市',4,1.32,3691,'Ken','県',
+       "Japan's first permanent capital, famous for freely roaming sacred deer, the colossal Todai-ji Great Buddha, and Horyu-ji — Asia's oldest surviving wooden structures (UNESCO).",
+       '日本初の恒久首都。自由に歩く神聖な鹿、東大寺の大仏、アジア最古の木造建築群・法隆寺（世界遺産）で有名。',34.69,135.83],
+  30: ['Wakayama','和歌山県','Wakayama','和歌山市',4,0.93,4725,'Ken','県',
+       "Gateway to the sacred Kumano Kodo pilgrimage routes (UNESCO), home to the monastic mountain of Koyasan, Arida mandarin oranges, and Shirahama beach resort.",
+       '世界遺産・熊野古道の玄関口、高野山の寺院群、有田みかん、白浜ビーチリゾートがある。',34.23,135.17],
+  31: ['Tottori','鳥取県','Tottori','鳥取市',5,0.55,3507,'Ken','県',
+       "Famous for Japan's only large sand dunes — the dramatic Tottori Sand Dunes — alongside the Conan manga hometown of Hokuei, Misasa hot springs, and Mt. Daisen.",
+       '日本唯一の大規模砂丘「鳥取砂丘」、コナン漫画の故郷・北栄町、三朝温泉、大山の雄大な峰で知られる。',35.50,134.24],
+  32: ['Shimane','島根県','Matsue','松江市',5,0.67,6708,'Ken','県',
+       "Home to Izumo Taisha, one of Japan's most revered Shinto shrines dedicated to the deity of marriage, the Adachi Museum's world-famous garden, and Matsue Castle.",
+       '縁結びの神様・出雲大社、日本一とも称される足立美術館の庭園、松江城など古代神話息づく地。',35.47,133.05],
+  33: ['Okayama','岡山県','Okayama','岡山市',5,1.9,7115,'Ken','県',
+       "Features Korakuen, one of Japan's three great gardens, Okayama's 'Crow Castle,' scenic Kibiji cycling paths, and proximity to the Setouchi Island art scene.",
+       '日本三名園の後楽園、「烏城」岡山城、吉備路サイクリングコース、瀬戸内海のアート観光地が魅力。',34.66,133.93],
+  34: ['Hiroshima','広島県','Hiroshima','広島市',5,2.8,8479,'Ken','県',
+       "A city reborn as a global symbol of peace after 1945, home to the Peace Memorial Park (UNESCO), the floating torii of Itsukushima Shrine on Miyajima Island, and rich oysters.",
+       '1945年から平和のシンボルとして復興した都市。世界遺産・平和記念公園と宮島厳島神社、広島牡蠣が有名。',34.39,132.45],
+  35: ['Yamaguchi','山口県','Yamaguchi','山口市',5,1.34,6112,'Ken','県',
+       "The western gateway to Honshu, known for the elegant Kintaikyo Bridge, Akiyoshidai karst plateau, historic Hagi castle town, and the five-story Rurikoji Pagoda.",
+       '本州最西端。錦帯橋、秋吉台カルスト台地、歴史薫る萩城下町、瑠璃光寺五重塔で知られる。',34.19,131.47],
+  36: ['Tokushima','徳島県','Tokushima','徳島市',6,0.72,4147,'Ken','県',
+       "Famous for the Awa Odori, Japan's largest Obon dance festival, the Naruto whirlpools, the start of the 88-temple Shikoku Pilgrimage, and the dramatic Iya Valley gorges.",
+       '日本最大の盆踊り・阿波おどり、鳴門の渦潮、四国八十八か所巡礼の起点、大歩危・祖谷の渓谷美が魅力。',34.07,134.55],
+  37: ['Kagawa','香川県','Takamatsu','高松市',6,0.95,1877,'Ken','県',
+       "Japan's smallest prefecture, celebrated for Sanuki udon noodles, the strolling garden of Ritsurin-koen, the contemporary art islands of Setouchi (Naoshima), and Marugame Castle.",
+       '日本最小の県。讃岐うどんの本場、栗林公園の回遊式庭園、瀬戸内国際芸術祭の直島、丸亀城で知られる。',34.34,134.05],
+  38: ['Ehime','愛媛県','Matsuyama','松山市',6,1.34,5676,'Ken','県',
+       "Home to Matsuyama Castle, the ancient Dogo Onsen hot spring bath, the Shimanami Kaido cycling bridge route across the Seto Inland Sea, and Uwajima bullfighting tradition.",
+       '松山城、日本最古の温泉の一つ・道後温泉、瀬戸内しまなみ海道サイクリング、宇和島闘牛で知られる。',33.84,132.77],
+  39: ['Kochi','高知県','Kochi','高知市',6,0.70,7104,'Ken','県',
+       "Known for the fierce Tosa fighting dogs, the vibrant Yosakoi dance festival, Kochi Castle, Japan's last pristine river the Shimanto, and as the birthplace of Sakamoto Ryoma.",
+       '土佐犬、よさこい祭り、高知城、清流・四万十川（日本最後の清流）、坂本龍馬の故郷として知られる。',33.56,133.53],
+  40: ['Fukuoka','福岡県','Fukuoka','福岡市',7,5.1,4986,'Ken','県',
+       "Kyushu's largest city and Japan's gateway to Asia, celebrated for Hakata ramen, Nakasu nightlife, Dazaifu Tenmangu shrine, and ancient kofun burial mound clusters.",
+       '九州最大の都市・福岡を擁しアジアへの玄関口。博多ラーメン、中洲、太宰府天満宮、古代の古墳群で知られる。',33.59,130.40],
+  41: ['Saga','佐賀県','Saga','佐賀市',7,0.81,2441,'Ken','県',
+       "Japan's ceramics heartland, home to world-famous Arita, Imari, and Karatsu porcelain traditions, the Yoshinogari archaeological park, and Karatsu Castle by the sea.",
+       '日本陶磁器の聖地。有田・伊万里・唐津焼の伝統、吉野ヶ里遺跡歴史公園、海に臨む唐津城がある。',33.25,130.30],
+  42: ['Nagasaki','長崎県','Nagasaki','長崎市',7,1.33,4131,'Ken','県',
+       "A city of profound international history and atomic-bomb tragedy, famous for its Lantern Festival, the Hashima (Gunkanjima) industrial island (UNESCO), Glover Garden, and Champon noodles.",
+       '国際交流と原爆の歴史を持つ港町。長崎ランタンフェスティバル、世界遺産・軍艦島、グラバー園、ちゃんぽんが有名。',32.74,129.87],
+  43: ['Kumamoto','熊本県','Kumamoto','熊本市',7,1.75,7409,'Ken','県',
+       "Dominated by the magnificent Kumamoto Castle, one of Japan's three premier castles, the active Mt. Aso caldera, the Suizenji strolling garden, and the scenic Amakusa islands.",
+       '日本三名城・熊本城、活火山・阿蘇山の広大なカルデラ、水前寺成趣園、天草諸島の絶景が魅力。',32.80,130.74],
+  44: ['Oita','大分県','Oita','大分市',7,1.12,6341,'Ken','県',
+       "Japan's top hot spring destination by volume, famed for Beppu's Eight Hells geothermal spectacle, the charming Yufuin resort town, Usa Shrine, and Takachiho Gorge.",
+       '日本一の温泉湧出量を誇る「おんせん県」。別府の地獄めぐり、由布院の温泉リゾート、宇佐神宮、高千穂峡が人気。',33.24,131.61],
+  45: ['Miyazaki','宮崎県','Miyazaki','宮崎市',7,1.07,7735,'Ken','県',
+       "A sun-drenched Pacific coast prefecture known for subtropical Aoshima Island, the mythological Takachiho Gorge, fertile agricultural plains, and a laid-back beach resort culture.",
+       '温暖な太平洋岸の県。亜熱帯植物の青島、神話の高千穂峡、豊かな農業地帯、のどかなビーチリゾートが魅力。',31.91,131.42],
+  46: ['Kagoshima','鹿児島県','Kagoshima','鹿児島市',7,1.60,9187,'Ken','県',
+       "Dominated by the ever-active Sakurajima volcano, gateway to UNESCO-listed Yakushima Island's ancient cedar forests, Ibusuki sand baths, and the Satsuma clan's rich legacy.",
+       '活火山・桜島がシンボル。世界遺産・屋久島の縄文杉、指宿の砂蒸し温泉、薩摩藩の歴史遺産が豊富。',31.56,130.56],
+  47: ['Okinawa','沖縄県','Naha','那覇市',8,1.47,2281,'Ken','県',
+       "Japan's subtropical paradise of coral reefs, turquoise seas, UNESCO-listed Ryukyu castle ruins, a vibrant distinct culture blending Japanese and Southeast Asian heritage, and Churaumi Aquarium.",
+       'サンゴ礁と碧い海、世界遺産・琉球城跡群、独自の琉球文化、美ら海水族館で知られる日本の南国楽園。',26.21,127.68],
+};
+
+// ── Active filter ───────────────────────────────────────────────────────────
+let activeRegion = null;
+let selectedId   = null;
+let svgSel, gSel;
+let _projection, _path, _baseScale, _baseTranslate;
+let _dragging = false, _dragStartX, _dragStartY, _dragStartTranslate;
+
+// ── Language ────────────────────────────────────────────────────────────────
+function toggleLang() {
+  lang = lang === 'en' ? 'ja' : 'en';
+  applyLang();
+}
+
+function applyLang() {
+  const u = UI[lang];
+  document.getElementById('pageTitle').textContent       = u.title;
+  document.getElementById('langBtn').textContent         = u.langBtn;
+  document.getElementById('backBtn').textContent         = u.back;
+  document.getElementById('searchInput').placeholder     = u.placeholder;
+  document.getElementById('clearBtn').textContent        = u.clear;
+  document.getElementById('lblCapital').textContent      = u.capital;
+  document.getElementById('lblPop').textContent          = u.pop;
+  document.getElementById('lblArea').textContent         = u.area;
+  document.getElementById('lblType').textContent         = u.type;
+  document.getElementById('dpPlaceholder').textContent   = u.hint;
+  renderLegend();
+  filterPrefectures();
+  if (selectedId) showDetail(selectedId);
+}
+
+// ── Legend ──────────────────────────────────────────────────────────────────
+function renderLegend() {
+  const u = UI[lang];
+  const leg = document.getElementById('legend');
+  leg.innerHTML = Object.entries(u.regions).map(([code, name]) =>
+    `<div class="legend-item${activeRegion === +code ? ' active' : ''}" onclick="toggleRegion(${code})">
+       <div class="legend-dot" style="background:${REGION_COLOR[code]}"></div>${name}
+     </div>`
+  ).join('');
+}
+
+function toggleRegion(code) {
+  activeRegion = (activeRegion === code) ? null : code;
+  renderLegend();
+  applyFilter();
+}
+
+// ── Filter + search ─────────────────────────────────────────────────────────
+function filterPrefectures() { applyFilter(); }
+
+function applyFilter() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!gSel) return;
+  gSel.selectAll('.pref-path').each(function(d) {
+    const id = getPrefId(d);
+    const data = PREFECTURES[id];
+    if (!data) return;
+    const region = data[4];
+    const nameEN = data[0].toLowerCase();
+    const nameJA = data[1].toLowerCase();
+    const matchRegion = activeRegion === null || region === activeRegion;
+    const matchSearch = !q || nameEN.includes(q) || nameJA.includes(q);
+    d3.select(this).classed('dimmed', !(matchRegion && matchSearch));
+  });
+  if (q) {
+    let exactId = null;
+    gSel.selectAll('.pref-path').each(function(d) {
+      const id = getPrefId(d);
+      const data = PREFECTURES[id];
+      if (!data) return;
+      if (data[0].toLowerCase() === q || data[1] === q) exactId = id;
+    });
+    if (exactId) showDetail(exactId);
+  }
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  applyFilter();
+}
+
+// ── Detail panel ────────────────────────────────────────────────────────────
+function showDetail(id) {
+  selectedId = id;
+  const panel = document.getElementById('detailPanel');
+  const u = UI[lang];
+  const data = PREFECTURES[id];
+  if (!data) return;
+
+  const region = data[4];
+  const color = REGION_COLOR[region];
+
+  document.getElementById('dpColorBox').style.background = color;
+  document.getElementById('dpColorBox').textContent = '';
+  document.getElementById('dpName').textContent    = lang === 'en' ? data[0] : data[1];
+  document.getElementById('dpRegion').textContent  = u.regions[region] || '';
+  document.getElementById('dpCapital').textContent = lang === 'en' ? data[2] : data[3];
+  document.getElementById('dpPop').textContent     = data[5] >= 1
+    ? (lang === 'en' ? data[5] + 'M' : data[5] + '百万人')
+    : (lang === 'en' ? (data[5]*1000|0) + 'K' : (data[5]*1000|0) + '千人');
+  document.getElementById('dpArea').textContent    = Number(data[6]).toLocaleString() + ' km²';
+  document.getElementById('dpType').textContent    = lang === 'en' ? data[7] : data[8];
+  document.getElementById('dpDesc').textContent    = lang === 'en' ? data[9] : data[10];
+
+  _currentDetailTab = 'info';
+  document.querySelectorAll('.dp-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === 'info');
+  });
+  document.getElementById('dtInfo').style.display     = '';
+  document.getElementById('dtHolidays').style.display = 'none';
+  document.getElementById('dtClimate').style.display  = 'none';
+
+  panel.classList.add('visible');
+}
+
+// ── Detail tabs ──────────────────────────────────────────────────────────────
+const _holidayCache = {};
+const _climateCache = {};
+let _currentDetailTab = 'info';
+
+function setDetailTab(tab) {
+  _currentDetailTab = tab;
+  document.querySelectorAll('.dp-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.getElementById('dtInfo').style.display     = tab === 'info'     ? '' : 'none';
+  document.getElementById('dtHolidays').style.display = tab === 'holidays' ? '' : 'none';
+  document.getElementById('dtClimate').style.display  = tab === 'climate'  ? '' : 'none';
+  if (tab === 'holidays' && selectedId != null) loadHolidays(selectedId);
+  if (tab === 'climate'  && selectedId != null) loadClimate(selectedId);
+}
+
+async function loadHolidays(id) {
+  const el = document.getElementById('dtHolidays');
+  const year = new Date().getFullYear();
+  const key = 'JP' + year;
+  if (_holidayCache[key]) { renderHolidays(_holidayCache[key]); return; }
+  el.innerHTML = '<div class="dp-loading">Loading...</div>';
+  try {
+    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/JP`);
+    if (!res.ok) throw new Error();
+    const list = await res.json();
+    _holidayCache[key] = list;
+    renderHolidays(list);
+  } catch {
+    el.innerHTML = '<div class="dp-unavail">Failed to load holiday data.</div>';
+  }
+}
+
+function renderHolidays(list) {
+  const el = document.getElementById('dtHolidays');
+  if (!list || !list.length) { el.innerHTML = '<div class="dp-unavail">No data available.</div>'; return; }
+  const rows = list.map(h =>
+    `<tr><td>${h.date}</td><td>${h.localName}</td><td>${h.name}</td></tr>`
+  ).join('');
+  el.innerHTML = `<table class="dp-table"><thead><tr><th>Date</th><th>Local</th><th>English</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function loadClimate(id) {
+  const data = PREFECTURES[id];
+  const el = document.getElementById('dtClimate');
+  if (!data) { el.innerHTML = '<div class="dp-unavail">Not available.</div>'; return; }
+  const [lat, lon] = [data[11], data[12]];
+  const key = `${lat},${lon}`;
+  if (_climateCache[key]) { renderClimate(_climateCache[key], id); return; }
+  el.innerHTML = '<div class="dp-loading">Loading...</div>';
+  try {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=2023-01-01&end_date=2023-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum&timezone=Asia%2FTokyo`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const json = await res.json();
+    const monthly = aggregateMonthly(json.daily);
+    _climateCache[key] = monthly;
+    renderClimate(monthly, id);
+  } catch {
+    el.innerHTML = '<div class="dp-unavail">Failed to load climate data.</div>';
+  }
+}
+
+function aggregateMonthly(daily) {
+  const buckets = Array.from({length: 12}, () => ({max:[],min:[],mean:[],rain:[]}));
+  daily.time.forEach((t, i) => {
+    const m = parseInt(t.split('-')[1]) - 1;
+    if (daily.temperature_2m_max[i]  != null) buckets[m].max.push(daily.temperature_2m_max[i]);
+    if (daily.temperature_2m_min[i]  != null) buckets[m].min.push(daily.temperature_2m_min[i]);
+    if (daily.temperature_2m_mean[i] != null) buckets[m].mean.push(daily.temperature_2m_mean[i]);
+    if (daily.precipitation_sum[i]   != null) buckets[m].rain.push(daily.precipitation_sum[i]);
+  });
+  const avg = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : null;
+  const sum = a => a.length ? a.reduce((s,v)=>s+v,0) : null;
+  return {
+    temperature_2m_max:  buckets.map(b => avg(b.max)),
+    temperature_2m_min:  buckets.map(b => avg(b.min)),
+    temperature_2m_mean: buckets.map(b => avg(b.mean)),
+    precipitation_sum:   buckets.map(b => sum(b.rain)),
+  };
+}
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderClimate(m, id) {
+  const el = document.getElementById('dtClimate');
+  const data = PREFECTURES[id];
+  const cityName = data ? (lang === 'en' ? data[2] : data[3]) : '';
+  const cityLabel = cityName
+    ? `<div class="dp-climate-city">${lang === 'en' ? 'City' : '都市'}: ${cityName}</div>` : '';
+  const rows = MONTHS_SHORT.map((mo, i) =>
+    `<tr><td>${mo}</td><td>${m.temperature_2m_max[i]?.toFixed(1)??'—'}</td><td>${m.temperature_2m_min[i]?.toFixed(1)??'—'}</td><td>${m.temperature_2m_mean[i]?.toFixed(1)??'—'}</td><td>${m.precipitation_sum[i]?.toFixed(0)??'—'}</td></tr>`
+  ).join('');
+  el.innerHTML = `${cityLabel}<table class="dp-table"><thead><tr><th>Month</th><th>Max°C</th><th>Min°C</th><th>Avg°C</th><th>Rain mm</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── Zoom ────────────────────────────────────────────────────────────────────
+function applyZoom(value) {
+  if (!_projection || !_baseScale) return;
+  const W = 500, H = 680;
+  const geoCenter = _projection.invert([W / 2, H / 2]);
+  _projection.scale(_baseScale * value / 100);
+  const newPos = _projection(geoCenter);
+  const [tx, ty] = _projection.translate();
+  _projection.translate([tx + (W / 2 - newPos[0]), ty + (H / 2 - newPos[1])]);
+  document.getElementById('zoomPct').textContent = value + '%';
+  redrawPaths();
+}
+
+function resetView() {
+  if (!_projection || !_baseScale || !_baseTranslate) return;
+  _projection.scale(_baseScale).translate([..._baseTranslate]);
+  document.getElementById('zoomSlider').value = 150;
+  applyZoom(150);
+  redrawPaths();
+}
+
+// ── Redraw ──────────────────────────────────────────────────────────────────
+function redrawPaths() {
+  if (!gSel || !_path) return;
+  gSel.selectAll('path').attr('d', _path);
+}
+
+// ── Helper: get prefecture ID from D3 datum ─────────────────────────────────
+function getPrefId(d) {
+  // Try feature.id first (numeric), then properties.id, then properties['id']
+  let id = d.id;
+  if (id == null || id === '') id = d.properties?.id;
+  return +(id);
+}
+
+// ── Map init ─────────────────────────────────────────────────────────────────
+async function initMap() {
+  let geoData;
+  try {
+    const raw = await d3.json('https://raw.githubusercontent.com/dataofjapan/land/master/japan.topojson');
+    const objKey = Object.keys(raw.objects)[0];
+    geoData = topojson.feature(raw, raw.objects[objKey]);
+  } catch (e) {
+    document.getElementById('mapWrapper').innerHTML =
+      '<div style="color:#ff7675;padding:20px;font-size:0.9rem;">Failed to load map data. Please check your internet connection.</div>';
+    return;
+  }
+
+  const W = 500, H = 680;
+  svgSel = d3.select('#map-svg').attr('viewBox', `0 0 ${W} ${H}`);
+  gSel   = svgSel.append('g');
+
+  _projection = d3.geoMercator().fitExtent([[10, 10], [W - 10, H - 10]], geoData);
+
+  // Shift horizontally so Nagano (lon 138.18, lat 36.65) is at the horizontal center
+  const naganoProjected = _projection([138.18, 36.65]);
+  const [tx, ty] = _projection.translate();
+  _projection.translate([tx + (W / 2 - naganoProjected[0]), ty]);
+
+  _baseScale     = _projection.scale();
+  _baseTranslate = _projection.translate().slice();
+  _path = d3.geoPath().projection(_projection);
+
+  const tooltip = document.getElementById('tooltip');
+
+  gSel.selectAll('.pref-path')
+    .data(geoData.features)
+    .join('path')
+    .attr('class', 'pref-path')
+    .attr('d', _path)
+    .attr('fill', d => {
+      const id = getPrefId(d);
+      const data = PREFECTURES[id];
+      return data ? REGION_COLOR[data[4]] : '#636e72';
+    })
+    .on('mousemove', function(event, d) {
+      const id = getPrefId(d);
+      const data = PREFECTURES[id];
+      const name = data ? (lang === 'en' ? data[0] : data[1]) : ('ID ' + id);
+      tooltip.textContent = name;
+      tooltip.classList.add('visible');
+      tooltip.style.left = (event.clientX + 14) + 'px';
+      tooltip.style.top  = (event.clientY - 28) + 'px';
+      if (!d3.select(this).classed('selected')) {
+        d3.select(this).classed('highlighted', true);
+      }
+    })
+    .on('mouseleave', function() {
+      tooltip.classList.remove('visible');
+      d3.select(this).classed('highlighted', false);
+    })
+    .on('click', function(event, d) {
+      const id = getPrefId(d);
+      gSel.selectAll('.pref-path').classed('selected', false);
+      d3.select(this).classed('selected', true).classed('highlighted', false);
+      showDetail(id);
+    });
+
+  // ── Drag to pan ────────────────────────────────────────────────────────────
+  const svgEl = svgSel.node();
+
+  svgEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    _dragging          = true;
+    _dragStartX        = e.clientX;
+    _dragStartY        = e.clientY;
+    _dragStartTranslate = _projection.translate().slice();
+    svgEl.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!_dragging) return;
+    const dx = e.clientX - _dragStartX;
+    const dy = e.clientY - _dragStartY;
+    _projection.translate([
+      _dragStartTranslate[0] + dx,
+      _dragStartTranslate[1] + dy
+    ]);
+    redrawPaths();
+  });
+  document.addEventListener('mouseup', () => {
+    if (!_dragging) return;
+    _dragging = false;
+    svgEl.style.cursor = 'grab';
+  });
+
+  // ── Wheel to zoom ──────────────────────────────────────────────────────────
+  svgEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor   = e.deltaY < 0 ? 1.12 : 0.89;
+    const curScale = _projection.scale();
+    const newScale = Math.max(_baseScale * 0.5, Math.min(_baseScale * 8, curScale * factor));
+    // Keep SVG center fixed while zooming
+    const geoCenter = _projection.invert([W / 2, H / 2]);
+    _projection.scale(newScale);
+    const newPos = _projection(geoCenter);
+    const [tx, ty] = _projection.translate();
+    _projection.translate([tx + (W / 2 - newPos[0]), ty + (H / 2 - newPos[1])]);
+    const sliderVal = Math.round(newScale / _baseScale * 100);
+    const clampedVal = Math.min(400, Math.max(50, sliderVal));
+    document.getElementById('zoomSlider').value = clampedVal;
+    document.getElementById('zoomPct').textContent = clampedVal + '%';
+    redrawPaths();
+  }, { passive: false });
+
+  renderLegend();
+  applyZoom(150);
+}
+
+initMap();
+</script>
+</body>
+</html>

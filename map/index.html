@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Interactive World Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
     --africa:    #ff6b6b;
@@ -312,6 +313,35 @@
   .dp-table td { padding: 3px 4px; border-bottom: 1px solid #1a1a2e; }
   .dp-loading { color: var(--text-dim); font-size: 0.82rem; padding: 10px 0; }
   .dp-unavail { color: var(--text-dim); font-size: 0.82rem; padding: 10px 0; font-style: italic; }
+  .dp-climate-city { font-size: 0.78rem; color: var(--accent); margin-bottom: 4px; }
+
+  /* Country map overlay */
+  #countryMapOverlay {
+    position: absolute;
+    top: 20px; left: 20px; right: 20px; bottom: 20px;
+    z-index: 10;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+    display: none;
+  }
+  #countryMapLeaflet { width: 100%; height: 100%; }
+  #countryMapClose {
+    position: absolute;
+    top: 8px; right: 8px;
+    z-index: 1000;
+    background: rgba(0,0,0,0.65);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 28px; height: 28px;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  #countryMapClose:hover { background: rgba(200,0,0,0.8); }
+  #dpName.map-available { cursor: pointer; text-decoration: underline dotted; }
 
   .proj-toggle {
     display: flex;
@@ -384,6 +414,10 @@
 <div class="content-row">
   <div class="map-wrapper" id="mapWrapper">
     <svg id="map-svg" viewBox="0 0 500 500"></svg>
+    <div id="countryMapOverlay">
+      <button id="countryMapClose" onclick="closeCountryMap()">✕</button>
+      <div id="countryMapLeaflet"></div>
+    </div>
   </div>
 
   <div class="detail-panel" id="detailPanel">
@@ -410,6 +444,7 @@
         <button class="dp-tab active" data-tab="info"     onclick="setDetailTab('info')">Info</button>
         <button class="dp-tab"        data-tab="holidays" onclick="setDetailTab('holidays')">Holidays</button>
         <button class="dp-tab"        data-tab="climate"  onclick="setDetailTab('climate')">Climate</button>
+        <button class="dp-tab"        data-tab="economy"  onclick="setDetailTab('economy')">Economy</button>
       </div>
       <div id="dtInfo">
         <div class="dp-grid">
@@ -420,18 +455,37 @@
           <div class="dp-field"><label id="lblLang">Languages</label><span id="dpLang"></span></div>
           <div class="dp-field"><label id="lblTel">Tel Code</label><span id="dpTel"></span></div>
           <div class="dp-field"><label id="lblTimezone">Time Zone</label><span id="dpTimezone"></span></div>
+          <div class="dp-field" style="grid-column: 1 / -1"><label id="lblExRate">Exchange Rate</label><span id="dpExRate">—</span></div>
+          <div id="dpExRateTime" style="grid-column: 1 / -1; font-size: 0.7rem; color: var(--text-dim); margin-top: -4px; display: none;"></div>
         </div>
         <div class="dp-desc" id="dpDesc"></div>
       </div>
       <div id="dtHolidays" style="display:none"></div>
-      <div id="dtClimate"  style="display:none"></div>
+      <div id="dtClimate"  style="display:none">
+        <div id="dtClimateControls" style="display:flex;gap:4px;margin:4px 0 6px;flex-wrap:wrap;"></div>
+        <div id="dtClimateTable"></div>
+      </div>
+      <div id="dtEconomy"  style="display:none">
+        <div id="dtEconomyControls" style="display:flex;gap:4px;margin:4px 0 6px;flex-wrap:wrap;"></div>
+        <div id="dtEconomyTable"></div>
+      </div>
     </div>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// ── App time zone (passed from parent via ?tz=) ────────────────────────────
+const _appTz = (() => {
+  try {
+    const tz = new URLSearchParams(window.location.search).get('tz') || 'UTC';
+    Intl.DateTimeFormat(undefined, { timeZone: tz }); // validate
+    return tz;
+  } catch (_) { return 'UTC'; }
+})();
+
 // ── Language ───────────────────────────────────────────────────────────────
 let lang = 'en';
 
@@ -448,6 +502,7 @@ const UI = {
     langLabel:  'Languages',
     tel:        'Tel Code',
     timezone:   'Time Zone',
+    exrate:     'Exchange Rate (vs USD)',
     unknown:    'Unknown',
     nodata:     'No detailed data available.',
     hint:       'Click a country to see details',
@@ -469,6 +524,7 @@ const UI = {
     langLabel:  '言語',
     tel:        '国際電話番号',
     timezone:   'タイムゾーン',
+    exrate:     '為替レート（対USD）',
     unknown:    '不明',
     nodata:     '詳細データはありません。',
     hint:       '国をクリックして詳細を表示',
@@ -675,7 +731,7 @@ const COUNTRIES = {
        '世界第4位の島。野生動物の90%が地球上の他の場所では見られない進化の驚異。','+261','UTC+3'],
   458:['Malaysia','マレーシア','Kuala Lumpur','クアラルンプール','AS',33,329847,'MYR','Malay',
        'A Southeast Asian country spanning the Malay Peninsula and Borneo, known for its diverse culture, Petronas Towers, and rainforest biodiversity.',
-       'マレー半島とボルネオにまたがる東南アジアの国。多様な文化、ペトロナスタワー、熱帯雨林の生物多様性で知られる。','+60','UTC+8'],
+       'マレー半島とボルネオにまたがる東南アジアの国。多様な文化、ペトロナスタワー、熱帯雨林の生物多様性で知られる。','+60','UTC+8','MY',[3.14,101.69]],
   466:['Mali','マリ','Bamako','バマコ','AF',23,1240192,'XOF','French',
        'A landlocked West African nation home to Timbuktu, once a great center of Islamic learning, and the ancient Dogon cliff dwellings.',
        '内陸の西アフリカの国。かつてイスラム学問の大中心地であったティンブクトゥと古代ドゴン族の断崖住居がある。','+223','UTC+0'],
@@ -726,7 +782,7 @@ const COUNTRIES = {
        'マチュピチュとインカ帝国最大の成果の地。海岸砂漠からアンデスの高地、熱帯ジャングルまで広がる。','+51','UTC-5'],
   608:['Philippines','フィリピン','Manila','マニラ','AS',115,300000,'PHP','Filipino, English',
        'An archipelago of over 7,600 islands in Southeast Asia, known for its stunning beaches, rich biodiversity, and warm, hospitable culture.',
-       '東南アジアの7,600以上の島からなる群島国家。美しいビーチ、豊かな生物多様性、温かいおもてなし文化。','+63','UTC+8'],
+       '東南アジアの7,600以上の島からなる群島国家。美しいビーチ、豊かな生物多様性、温かいおもてなし文化。','+63','UTC+8','PH',[14.59,120.98]],
   616:['Poland','ポーランド','Warsaw','ワルシャワ','EU',38,312685,'PLN','Polish',
        'A resilient Central European nation with a turbulent 20th-century history, beautiful medieval cities like Kraków, and a rapidly growing economy.',
        '20世紀の激動の歴史を持つ中欧の国。クラクフのような美しい中世都市と急成長する経済。','+48','UTC+1/+2'],
@@ -871,6 +927,7 @@ function applyLang() {
   document.getElementById('lblLang').textContent     = u.langLabel;
   document.getElementById('lblTel').textContent      = u.tel;
   document.getElementById('lblTimezone').textContent = u.timezone;
+  document.getElementById('lblExRate').textContent    = u.exrate;
   document.getElementById('dpPlaceholder').textContent = u.hint;
   renderLegend();
   filterCountries();
@@ -962,7 +1019,18 @@ function showDetail(id) {
   box.textContent = '';
 
   if (data) {
-    document.getElementById('dpName').textContent      = lang === 'en' ? data[0] : data[1];
+    const dpNameEl = document.getElementById('dpName');
+    dpNameEl.textContent = lang === 'en' ? data[0] : data[1];
+    if (COUNTRY_MAP_LINKS[id]) {
+      dpNameEl.classList.add('map-available');
+      dpNameEl.onclick = () => window.location.href = COUNTRY_MAP_LINKS[id];
+    } else if (COUNTRY_MAP_BOUNDS[id]) {
+      dpNameEl.classList.add('map-available');
+      dpNameEl.onclick = () => openCountryMap(id);
+    } else {
+      dpNameEl.classList.remove('map-available');
+      dpNameEl.onclick = null;
+    }
     document.getElementById('dpContinent').textContent = u.continents[continent] || continent;
     document.getElementById('dpCapital').textContent   = lang === 'en' ? data[2] : data[3];
     document.getElementById('dpPop').textContent       = data[5] >= 1
@@ -974,6 +1042,8 @@ function showDetail(id) {
     document.getElementById('dpDesc').textContent      = lang === 'en' ? data[9] : data[10];
     document.getElementById('dpTel').textContent       = data[11] || u.unknown;
     document.getElementById('dpTimezone').textContent  = data[12] || u.unknown;
+    document.getElementById('dpExRate').textContent    = '…';
+    loadExRate(data[7]);
   } else {
     const name = (ISO_CONTINENT[id] ? '' : 'ISO ' + id);
     document.getElementById('dpName').textContent      = name || u.unknown;
@@ -985,6 +1055,7 @@ function showDetail(id) {
     document.getElementById('dpLang').textContent      = u.unknown;
     document.getElementById('dpTel').textContent       = u.unknown;
     document.getElementById('dpTimezone').textContent  = u.unknown;
+    document.getElementById('dpExRate').textContent    = u.unknown;
     document.getElementById('dpDesc').textContent      = u.nodata;
   }
 
@@ -996,8 +1067,67 @@ function showDetail(id) {
   document.getElementById('dtInfo').style.display     = '';
   document.getElementById('dtHolidays').style.display = 'none';
   document.getElementById('dtClimate').style.display  = 'none';
+  document.getElementById('dtEconomy').style.display  = 'none';
 
   panel.classList.add('visible');
+}
+
+// ── Exchange Rate ───────────────────────────────────────────────────────────
+let _exRateData = null;
+let _exRateFetchTime = 0;
+
+function formatRate(rate) {
+  if (rate >= 10000) return rate.toLocaleString(undefined, {maximumFractionDigits: 0});
+  if (rate >= 100)   return rate.toFixed(1);
+  if (rate >= 10)    return rate.toFixed(2);
+  if (rate >= 1)     return rate.toFixed(3);
+  return rate.toFixed(4);
+}
+
+function updateExRateTime() {
+  const el = document.getElementById('dpExRateTime');
+  if (!_exRateFetchTime) { el.style.display = 'none'; return; }
+  try {
+    const fmt = new Intl.DateTimeFormat(undefined, {
+      timeZone: _appTz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false
+    });
+    el.textContent = `as of ${fmt.format(new Date(_exRateFetchTime))}  (${_appTz})`;
+    el.style.display = '';
+  } catch (_) {
+    el.textContent = `as of ${new Date(_exRateFetchTime).toLocaleString()}`;
+    el.style.display = '';
+  }
+}
+
+async function loadExRate(currencyCode) {
+  const el = document.getElementById('dpExRate');
+  if (!currencyCode) { el.textContent = '—'; return; }
+  const now = Date.now();
+  if (_exRateData && (now - _exRateFetchTime) < 3600000) {
+    displayExRate(currencyCode, el);
+    return;
+  }
+  try {
+    const resp = await fetch('https://open.er-api.com/v6/latest/USD');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+    _exRateData = json.rates;
+    _exRateFetchTime = now;
+    displayExRate(currencyCode, el);
+  } catch (_) {
+    el.textContent = 'N/A';
+  }
+}
+
+function displayExRate(code, el) {
+  if (!_exRateData || !code) { el.textContent = 'N/A'; return; }
+  const rate = _exRateData[code];
+  if (rate == null) { el.textContent = 'N/A'; return; }
+  el.textContent = `1 USD = ${formatRate(rate)} ${code}`;
+  updateExRateTime();
 }
 
 // ── Singapore marker (too small for TopoJSON) ───────────────────────────────
@@ -1045,10 +1175,44 @@ function drawSgMarker() {
   m.classed('dimmed', dimmed);
 }
 
+// ── Country detail map (Leaflet) ─────────────────────────────────────────────
+const COUNTRY_MAP_BOUNDS = {
+  392: [[24, 122], [46, 146]]   // Japan
+};
+
+// Countries that have a dedicated interactive map page
+const COUNTRY_MAP_LINKS = {
+  392: '/map/japan.html'   // Japan
+};
+
+let _leafletMap = null;
+
+function openCountryMap(id) {
+  const bounds = COUNTRY_MAP_BOUNDS[id];
+  if (!bounds) return;
+  document.getElementById('countryMapOverlay').style.display = 'block';
+  if (!_leafletMap) {
+    _leafletMap = L.map('countryMapLeaflet', { zoomControl: true });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 19
+    }).addTo(_leafletMap);
+  }
+  setTimeout(() => {
+    _leafletMap.invalidateSize();
+    _leafletMap.fitBounds(bounds);
+  }, 50);
+}
+
+function closeCountryMap() {
+  document.getElementById('countryMapOverlay').style.display = 'none';
+}
+
 // ── Detail tabs ──────────────────────────────────────────────────────────────
 const _holidayCache = {};
 const _climateCache = {};
 let _currentDetailTab = 'info';
+let _climateYears = 10;
 
 function setDetailTab(tab) {
   _currentDetailTab = tab;
@@ -1058,9 +1222,16 @@ function setDetailTab(tab) {
   document.getElementById('dtInfo').style.display     = tab === 'info'     ? '' : 'none';
   document.getElementById('dtHolidays').style.display = tab === 'holidays' ? '' : 'none';
   document.getElementById('dtClimate').style.display  = tab === 'climate'  ? '' : 'none';
+  document.getElementById('dtEconomy').style.display  = tab === 'economy'  ? '' : 'none';
   if (tab === 'holidays' && selectedId != null) loadHolidays(selectedId);
   if (tab === 'climate'  && selectedId != null) loadClimate(selectedId);
+  if (tab === 'economy'  && selectedId != null) loadEconomy(selectedId);
 }
+
+// Countries not supported by nager.at — use alternative API (tallyfy.com)
+const HOLIDAY_ALT_API = {
+  MY: year => `https://tallyfy.com/national-holidays/api/MY/${year}.json`,
+};
 
 async function loadHolidays(id) {
   const data = COUNTRIES[id];
@@ -1071,6 +1242,25 @@ async function loadHolidays(id) {
   const key = alpha2 + year;
   if (_holidayCache[key]) { renderHolidays(_holidayCache[key]); return; }
   el.innerHTML = '<div class="dp-loading">Loading...</div>';
+
+  if (HOLIDAY_ALT_API[alpha2]) {
+    try {
+      const res = await fetch(HOLIDAY_ALT_API[alpha2](year));
+      if (!res.ok) throw new Error();
+      const json = await res.json();
+      const list = json.holidays.map(h => ({
+        date:      h.observed_date || h.date,
+        localName: h.local_name,
+        name:      h.name,
+      }));
+      _holidayCache[key] = list;
+      renderHolidays(list);
+    } catch {
+      el.innerHTML = '<div class="dp-unavail">Failed to load holiday data.</div>';
+    }
+    return;
+  }
+
   try {
     const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/${alpha2}`);
     if (!res.ok) throw new Error();
@@ -1091,56 +1281,194 @@ function renderHolidays(list) {
   el.innerHTML = `<table class="dp-table"><thead><tr><th>Date</th><th>Local</th><th>English</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+function renderClimateControls() {
+  const ctrl = document.getElementById('dtClimateControls');
+  const latestYear = new Date().getFullYear() - 1;
+  const options = [
+    { years: 1,  label: String(latestYear) },
+    { years: 5,  label: 'Latest 5yr' },
+    { years: 10, label: 'Latest 10yr' },
+    { years: 30, label: 'Latest 30yr' },
+  ];
+  ctrl.innerHTML = options.map(o =>
+    `<button class="dp-tab${_climateYears === o.years ? ' active' : ''}" onclick="selectClimateYears(${o.years})">${o.label}</button>`
+  ).join('');
+}
+
+function selectClimateYears(years) {
+  _climateYears = years;
+  if (selectedId != null) loadClimate(selectedId);
+}
+
 async function loadClimate(id) {
   const data = COUNTRIES[id];
   const coords = data && data[14];
-  const el = document.getElementById('dtClimate');
-  if (!coords) { el.innerHTML = '<div class="dp-unavail">Not available for this country.</div>'; return; }
+  const tbl = document.getElementById('dtClimateTable');
+  renderClimateControls();
+  if (!coords) { tbl.innerHTML = '<div class="dp-unavail">Not available for this country.</div>'; return; }
   const [lat, lon] = coords;
-  const key = `${lat},${lon}`;
-  if (_climateCache[key]) { renderClimate(_climateCache[key]); return; }
-  el.innerHTML = '<div class="dp-loading">Loading...</div>';
+  const latestYear = new Date().getFullYear() - 1;
+  const startYear  = latestYear - _climateYears + 1;
+  const key = `${lat},${lon},${_climateYears}`;
+  if (_climateCache[key]) { renderClimate(_climateCache[key], startYear, latestYear); return; }
+  tbl.innerHTML = '<div class="dp-loading">Loading...</div>';
   try {
-    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=2023-01-01&end_date=2023-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum&timezone=GMT`;
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${startYear}-01-01&end_date=${latestYear}-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum&timezone=GMT`;
     const res = await fetch(url);
     if (!res.ok) throw new Error();
     const json = await res.json();
     const monthly = aggregateMonthly(json.daily);
     _climateCache[key] = monthly;
-    renderClimate(monthly);
+    renderClimate(monthly, startYear, latestYear);
   } catch {
-    el.innerHTML = '<div class="dp-unavail">Failed to load climate data.</div>';
+    tbl.innerHTML = '<div class="dp-unavail">Failed to load climate data.</div>';
   }
 }
 
 function aggregateMonthly(daily) {
-  const buckets = Array.from({length: 12}, () => ({max:[], min:[], mean:[], rain:[]}));
+  // Group daily data into year-month buckets first
+  const byYearMonth = {};
   daily.time.forEach((t, i) => {
-    const m = parseInt(t.split('-')[1]) - 1;
-    if (daily.temperature_2m_max[i]  != null) buckets[m].max.push(daily.temperature_2m_max[i]);
-    if (daily.temperature_2m_min[i]  != null) buckets[m].min.push(daily.temperature_2m_min[i]);
-    if (daily.temperature_2m_mean[i] != null) buckets[m].mean.push(daily.temperature_2m_mean[i]);
-    if (daily.precipitation_sum[i]   != null) buckets[m].rain.push(daily.precipitation_sum[i]);
+    const [yr, mo] = t.split('-');
+    const key = `${yr}-${mo}`;
+    if (!byYearMonth[key]) byYearMonth[key] = { max:[], min:[], mean:[], rain:[] };
+    const b = byYearMonth[key];
+    if (daily.temperature_2m_max[i]  != null) b.max.push(daily.temperature_2m_max[i]);
+    if (daily.temperature_2m_min[i]  != null) b.min.push(daily.temperature_2m_min[i]);
+    if (daily.temperature_2m_mean[i] != null) b.mean.push(daily.temperature_2m_mean[i]);
+    if (daily.precipitation_sum[i]   != null) b.rain.push(daily.precipitation_sum[i]);
   });
+  // Per year-month: average daily temps, sum daily rain → then average across years per month
+  const buckets = Array.from({length: 12}, () => ({max:[], min:[], mean:[], rain:[]}));
   const avg = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : null;
   const sum = a => a.length ? a.reduce((s,v)=>s+v,0) : null;
+  Object.entries(byYearMonth).forEach(([key, b]) => {
+    const m = parseInt(key.split('-')[1]) - 1;
+    if (b.max.length)  buckets[m].max.push(avg(b.max));
+    if (b.min.length)  buckets[m].min.push(avg(b.min));
+    if (b.mean.length) buckets[m].mean.push(avg(b.mean));
+    if (b.rain.length) buckets[m].rain.push(sum(b.rain));
+  });
   return {
     temperature_2m_max:  buckets.map(b => avg(b.max)),
     temperature_2m_min:  buckets.map(b => avg(b.min)),
     temperature_2m_mean: buckets.map(b => avg(b.mean)),
-    precipitation_sum:   buckets.map(b => sum(b.rain)),
+    precipitation_sum:   buckets.map(b => avg(b.rain)),
   };
 }
 
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function renderClimate(m) {
-  const el = document.getElementById('dtClimate');
-  if (!m) { el.innerHTML = '<div class="dp-unavail">No data available.</div>'; return; }
+function renderClimate(m, startYear, endYear) {
+  const tbl = document.getElementById('dtClimateTable');
+  if (!m) { tbl.innerHTML = '<div class="dp-unavail">No data available.</div>'; return; }
+  const data = COUNTRIES[selectedId];
+  const capitalName = data ? (lang === 'en' ? data[2] : data[3]) : '';
+  const rangeLabel = startYear === endYear ? `${endYear}` : `${startYear}–${endYear}`;
+  const cityLine = capitalName
+    ? `<div class="dp-climate-city">${lang === 'en' ? 'City' : '都市'}: ${capitalName} | ${rangeLabel}</div>`
+    : `<div class="dp-climate-city">${rangeLabel}</div>`;
   const rows = MONTHS_SHORT.map((mo, i) =>
     `<tr><td>${mo}</td><td>${m.temperature_2m_max[i]?.toFixed(1)??'—'}</td><td>${m.temperature_2m_min[i]?.toFixed(1)??'—'}</td><td>${m.temperature_2m_mean[i]?.toFixed(1)??'—'}</td><td>${m.precipitation_sum[i]?.toFixed(0)??'—'}</td></tr>`
   ).join('');
-  el.innerHTML = `<table class="dp-table"><thead><tr><th>Month</th><th>Max°C</th><th>Min°C</th><th>Avg°C</th><th>Rain mm</th></tr></thead><tbody>${rows}</tbody></table>`;
+  tbl.innerHTML = `${cityLine}<table class="dp-table"><thead><tr><th>Month</th><th>Max°C</th><th>Min°C</th><th>Avg°C</th><th>Rain mm</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── Economy ──────────────────────────────────────────────────────────────────
+const _economyCache = {};
+let _economyYears = 1;
+
+const ECONOMY_INDICATORS = [
+  { code: 'NY.GDP.MKTP.CD',   labelEN: 'GDP',             labelJA: 'GDP',            fmt: 'usd_large' },
+  { code: 'NY.GDP.PCAP.CD',   labelEN: 'GDP per Capita',  labelJA: '一人当たりGDP',   fmt: 'usd'       },
+  { code: 'NY.GDP.MKTP.KD.ZG',labelEN: 'GDP Growth',      labelJA: 'GDP成長率',       fmt: 'pct'       },
+  { code: 'FP.CPI.TOTL.ZG',   labelEN: 'Inflation',       labelJA: 'インフレ率',      fmt: 'pct'       },
+  { code: 'SL.UEM.TOTL.ZS',   labelEN: 'Unemployment',    labelJA: '失業率',          fmt: 'pct'       },
+  { code: 'NE.EXP.GNFS.ZS',   labelEN: 'Exports (% GDP)', labelJA: '輸出（GDP比）',   fmt: 'pct'       },
+  { code: 'NE.IMP.GNFS.ZS',   labelEN: 'Imports (% GDP)', labelJA: '輸入（GDP比）',   fmt: 'pct'       },
+  { code: 'NY.GNP.PCAP.CD',   labelEN: 'GNI per Capita',  labelJA: '一人当たりGNI',   fmt: 'usd'       },
+];
+
+function fmtEconValue(value, fmt) {
+  if (value == null) return '—';
+  switch (fmt) {
+    case 'usd_large':
+      if (value >= 1e12) return '$' + (value / 1e12).toFixed(2) + 'T';
+      if (value >= 1e9)  return '$' + (value / 1e9).toFixed(1)  + 'B';
+      if (value >= 1e6)  return '$' + (value / 1e6).toFixed(1)  + 'M';
+      return '$' + value.toLocaleString();
+    case 'usd':
+      return '$' + Math.round(value).toLocaleString();
+    case 'pct':
+      return value.toFixed(1) + '%';
+    default:
+      return value.toFixed(2);
+  }
+}
+
+function renderEconomyControls() {
+  const ctrl = document.getElementById('dtEconomyControls');
+  const options = [
+    { years: 1,  label: 'Latest'  },
+    { years: 5,  label: '5yr avg' },
+    { years: 10, label: '10yr avg'},
+    { years: 30, label: '30yr avg'},
+  ];
+  ctrl.innerHTML = options.map(o =>
+    `<button class="dp-tab${_economyYears === o.years ? ' active' : ''}" onclick="selectEconomyYears(${o.years})">${o.label}</button>`
+  ).join('');
+}
+
+function selectEconomyYears(years) {
+  _economyYears = years;
+  if (selectedId != null) loadEconomy(selectedId);
+}
+
+async function loadEconomy(id) {
+  const data = COUNTRIES[id];
+  const alpha2 = data && data[13];
+  const tbl = document.getElementById('dtEconomyTable');
+  renderEconomyControls();
+  if (!alpha2) { tbl.innerHTML = '<div class="dp-unavail">Not available for this country.</div>'; return; }
+  const mrv = _economyYears;
+  const key = `${alpha2},${mrv}`;
+  if (_economyCache[key]) { renderEconomy(_economyCache[key]); return; }
+  tbl.innerHTML = '<div class="dp-loading">Loading...</div>';
+  try {
+    const results = await Promise.all(
+      ECONOMY_INDICATORS.map(ind =>
+        fetch(`https://api.worldbank.org/v2/country/${alpha2}/indicator/${ind.code}?format=json&mrv=${mrv}&per_page=${mrv}`)
+          .then(r => r.ok ? r.json() : null)
+          .catch(() => null)
+      )
+    );
+    const processed = ECONOMY_INDICATORS.map((ind, i) => {
+      const raw = results[i];
+      const points = (raw && raw[1]) ? raw[1].filter(p => p.value != null) : [];
+      if (!points.length) return { ...ind, value: null, yearLabel: '—' };
+      const avg = points.reduce((s, p) => s + p.value, 0) / points.length;
+      const years = points.map(p => parseInt(p.date)).filter(Boolean).sort();
+      const yearLabel = mrv === 1 ? String(years[years.length - 1]) : `${years[0]}–${years[years.length - 1]}`;
+      return { ...ind, value: avg, yearLabel };
+    });
+    _economyCache[key] = processed;
+    renderEconomy(processed);
+  } catch {
+    tbl.innerHTML = '<div class="dp-unavail">Failed to load economy data.</div>';
+  }
+}
+
+function renderEconomy(processed) {
+  const tbl = document.getElementById('dtEconomyTable');
+  const th1 = lang === 'en' ? 'Indicator' : '指標';
+  const th2 = lang === 'en' ? 'Value'     : '値';
+  const th3 = lang === 'en' ? 'Year'      : '年';
+  const rows = processed.map(ind => {
+    const label = lang === 'en' ? ind.labelEN : ind.labelJA;
+    const val   = fmtEconValue(ind.value, ind.fmt);
+    return `<tr><td>${label}</td><td style="text-align:right;font-weight:600">${val}</td><td style="color:var(--text-dim);white-space:nowrap">${ind.yearLabel}</td></tr>`;
+  }).join('');
+  tbl.innerHTML = `<table class="dp-table"><thead><tr><th>${th1}</th><th style="text-align:right">${th2}</th><th>${th3}</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
 // ── Projection switch ────────────────────────────────────────────────────────
