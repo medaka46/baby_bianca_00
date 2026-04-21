@@ -1595,6 +1595,7 @@ async def sqlite_page(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "sqlite",
         "today": datetime.today().strftime('%Y-%m-%d'),
+        "condition": condition,
     })
 
 @app.get("/game/")

@@ -34,6 +34,16 @@
         <div class="title_00" style="margin: 0;">Data</div>
         <div class="title_00" style="margin: 0;">{{ today }}</div>
         <div id="clock_sqlite" class="title_00" style="margin: 0;"></div>
+
+        {% if condition == "Production" %}
+        <form action="/download_db/" method="get" style="margin-left: 10px;">
+            <button type="submit" style="background-color: #444; color: #0f0;">Download</button>
+        </form>
+        <form id="uploadForm" action="/upload_db/" method="post" enctype="multipart/form-data" style="margin-left: 10px;">
+            <input type="file" id="dbFile" name="database_file" accept=".db,.sqlite,.sqlite3" style="display: none;" onchange="handleFileSelect(this)">
+            <button type="button" onclick="document.getElementById('dbFile').click()" style="background-color: #444; color: #0f0;">Upload</button>
+        </form>
+        {% endif %}
     </div>
 </header>
 
@@ -47,6 +57,44 @@
     }
     updateClockSqlite();
     setInterval(updateClockSqlite, 1000);
+
+    // Database upload functionality
+    function handleFileSelect(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const fileName = file.name;
+            const fileSize = (file.size / 1024 / 1024).toFixed(2); // Size in MB
+
+            const validExtensions = ['.db', '.sqlite', '.sqlite3'];
+            const fileExtension = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+
+            if (!validExtensions.includes(fileExtension)) {
+                alert('Please select a valid SQLite database file (.db, .sqlite, .sqlite3)');
+                input.value = '';
+                return;
+            }
+
+            const confirmMessage = `⚠️ DATABASE REPLACEMENT WARNING ⚠️\n\n` +
+                `You are about to replace the current production database with:\n` +
+                `File: ${fileName}\n` +
+                `Size: ${fileSize} MB\n\n` +
+                `This action will:\n` +
+                `1. Download and backup the current database\n` +
+                `2. Replace it with your uploaded file\n` +
+                `3. Restart database connections\n\n` +
+                `⚠️ This cannot be undone! ⚠️\n\n` +
+                `Are you absolutely sure you want to proceed?`;
+
+            if (confirm(confirmMessage)) {
+                const uploadButton = document.querySelector('button[onclick*="dbFile"]');
+                uploadButton.textContent = 'Uploading...';
+                uploadButton.disabled = true;
+                document.getElementById('uploadForm').submit();
+            } else {
+                input.value = '';
+            }
+        }
+    }
 </script>
 
 <main class="tab_00">
