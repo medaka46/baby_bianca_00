@@ -457,6 +457,7 @@
           <div class="dp-field"><label id="lblTimezone">Time Zone</label><span id="dpTimezone"></span></div>
           <div class="dp-field" style="grid-column: 1 / -1"><label id="lblExRate">Exchange Rate</label><span id="dpExRate">—</span></div>
           <div id="dpExRateTime" style="grid-column: 1 / -1; font-size: 0.7rem; color: var(--text-dim); margin-top: -4px; display: none;"></div>
+          <div class="dp-field" style="grid-column: 1 / -1"><label id="lblMinWage">Min. Wage (USD/month)</label><span id="dpMinWage">—</span></div>
         </div>
         <div class="dp-desc" id="dpDesc"></div>
       </div>
@@ -502,7 +503,9 @@ const UI = {
     langLabel:  'Languages',
     tel:        'Tel Code',
     timezone:   'Time Zone',
-    exrate:     'Exchange Rate (vs USD)',
+    exrate:     'Exchange Rate',
+    minwage:    'Min. Wage (USD/month)',
+    nostat:     'No statutory minimum',
     unknown:    'Unknown',
     nodata:     'No detailed data available.',
     hint:       'Click a country to see details',
@@ -524,7 +527,9 @@ const UI = {
     langLabel:  '言語',
     tel:        '国際電話番号',
     timezone:   'タイムゾーン',
-    exrate:     '為替レート（対USD）',
+    exrate:     '為替レート',
+    minwage:    '最低賃金（USD/月）',
+    nostat:     '法定最低賃金なし',
     unknown:    '不明',
     nodata:     '詳細データはありません。',
     hint:       '国をクリックして詳細を表示',
@@ -593,7 +598,7 @@ const COUNTRIES = {
        '内陸の東欧の国。ソビエト時代の建築、広大な森林、ビャウォヴィエジャ原始林で知られる。','+375','UTC+3'],
   116:['Cambodia','カンボジア','Phnom Penh','プノンペン','AS',17,181035,'KHR','Khmer',
        'Home to the magnificent Angkor Wat temple complex, Cambodia is a Southeast Asian nation rebuilding from its turbulent 20th-century history.',
-       'アンコールワット寺院群で有名なカンボジアは、20世紀の激動の歴史から立ち直りつつある東南アジアの国。','+855','UTC+7'],
+       'アンコールワット寺院群で有名なカンボジアは、20世紀の激動の歴史から立ち直りつつある東南アジアの国。','+855','UTC+7','KH',[11.56,104.92]],
   120:['Cameroon','カメルーン','Yaoundé','ヤウンデ','AF',27,475442,'XAF','French, English',
        'Known as "Africa in miniature" for its diversity of landscapes and cultures, spanning rainforests, savanna, and the Cameroon Highlands.',
        '多様な景観と文化から「アフリカの縮図」と呼ばれる。熱帯雨林、サバンナ、カメルーン高地にわたる。','+237','UTC+1'],
@@ -716,7 +721,7 @@ const COUNTRIES = {
        'テクノロジーの強国でK-ポップ、韓国ドラマ、韓国料理の文化輸出国。1960年代以降の目覚ましい経済発展。','+82','UTC+9','KR',[37.57,126.98]],
   418:['Laos','ラオス','Vientiane','ヴィエンチャン','AS',7,236800,'LAK','Lao',
        'A landlocked Southeast Asian country known for its Buddhist temples, the Mekong River, and its laid-back pace of life.',
-       '内陸の東南アジアの国。仏教寺院、メコン川、のんびりとした生活様式で知られる。','+856','UTC+7'],
+       '内陸の東南アジアの国。仏教寺院、メコン川、のんびりとした生活様式で知られる。','+856','UTC+7','LA',[17.97,102.60]],
   422:['Lebanon','レバノン','Beirut','ベイルート','AS',7,10452,'LBP','Arabic',
        'A small Mediterranean nation with Phoenician roots, known for Beirut\'s vibrant culture, ancient ruins, and spectacular cedar forests.',
        'フェニキアのルーツを持つ小さな地中海の国。ベイルートの活気ある文化、古代遺跡、壮大なスギの森。','+961','UTC+2/+3'],
@@ -860,7 +865,7 @@ const COUNTRIES = {
        '対比の激しい南米の国。世界最高の滝エンジェルフォールから石油豊富なマラカイボ湖盆地まで。','+58','UTC-4'],
   704:['Vietnam','ベトナム','Hanoi','ハノイ','AS',98,331212,'VND','Vietnamese',
        'A S-shaped Southeast Asian nation of dramatic landscapes, from terraced rice paddies in the north to the Mekong Delta in the south.',
-       'S字形の東南アジアの国。北部の棚田景観から南部のメコンデルタまで劇的な景観が続く。','+84','UTC+7'],
+       'S字形の東南アジアの国。北部の棚田景観から南部のメコンデルタまで劇的な景観が続く。','+84','UTC+7','VN',[21.03,105.85]],
   887:['Yemen','イエメン','Sanaa','サナア','AS',34,527968,'YER','Arabic',
        'The Arab world\'s poorest nation, home to the ancient walled city of Shibam—the "Manhattan of the Desert"—and rich Sabaean archaeological sites.',
        'アラブ世界最貧国。「砂漠のマンハッタン」と呼ばれる古代城壁都市シバームと豊かなサバ王国遺跡がある。','+967','UTC+3'],
@@ -928,6 +933,7 @@ function applyLang() {
   document.getElementById('lblTel').textContent      = u.tel;
   document.getElementById('lblTimezone').textContent = u.timezone;
   document.getElementById('lblExRate').textContent    = u.exrate;
+  document.getElementById('lblMinWage').textContent   = u.minwage;
   document.getElementById('dpPlaceholder').textContent = u.hint;
   renderLegend();
   filterCountries();
@@ -1044,6 +1050,7 @@ function showDetail(id) {
     document.getElementById('dpTimezone').textContent  = data[12] || u.unknown;
     document.getElementById('dpExRate').textContent    = '…';
     loadExRate(data[7]);
+    setMinWage(id);
   } else {
     const name = (ISO_CONTINENT[id] ? '' : 'ISO ' + id);
     document.getElementById('dpName').textContent      = name || u.unknown;
@@ -1056,6 +1063,7 @@ function showDetail(id) {
     document.getElementById('dpTel').textContent       = u.unknown;
     document.getElementById('dpTimezone').textContent  = u.unknown;
     document.getElementById('dpExRate').textContent    = u.unknown;
+    document.getElementById('dpMinWage').textContent   = u.unknown;
     document.getElementById('dpDesc').textContent      = u.nodata;
   }
 
@@ -1072,9 +1080,101 @@ function showDetail(id) {
   panel.classList.add('visible');
 }
 
+// ── Minimum Wage (monthly, USD) ─────────────────────────────────────────────
+// Approximate 2024–2025 figures; 0 = no statutory minimum (collective bargaining)
+const MINIMUM_WAGE_USD = {
+  // East Asia / ASEAN
+  392: 1250,  // Japan
+  410: 1480,  // South Korea
+  158: 890,   // Taiwan
+  156: 375,   // China (Shanghai benchmark)
+  344: 1530,  // Hong Kong
+  446: 1180,  // Macao
+  608: 285,   // Philippines
+  704: 195,   // Vietnam
+  116: 210,   // Cambodia
+  418: 75,    // Laos
+  764: 275,   // Thailand
+  458: 370,   // Malaysia
+  360: 320,   // Indonesia (Jakarta)
+  702: 0,     // Singapore (no statutory)
+  104: 60,    // Myanmar
+  96: 0,      // Brunei (no statutory)
+  // South Asia
+  356: 100,   // India
+  586: 115,   // Pakistan
+  50:  115,   // Bangladesh
+  144: 60,    // Sri Lanka
+  524: 130,   // Nepal
+  // North America
+  840: 2080,  // USA (population-weighted effective; federal floor is $1,254)
+  124: 2200,  // Canada (federal)
+  484: 650,   // Mexico
+  // Latin America
+  76:  280,   // Brazil
+  32:  220,   // Argentina
+  152: 540,   // Chile
+  170: 340,   // Colombia
+  604: 275,   // Peru
+  862: 5,     // Venezuela
+  218: 460,   // Ecuador
+  858: 560,   // Uruguay
+  // Europe
+  826: 2000,  // UK
+  250: 1900,  // France
+  276: 2200,  // Germany
+  380: 0,     // Italy (no statutory)
+  724: 1400,  // Spain
+  528: 2200,  // Netherlands
+  56:  2250,  // Belgium
+  620: 1000,  // Portugal
+  616: 1080,  // Poland
+  300: 900,   // Greece
+  348: 920,   // Hungary
+  203: 870,   // Czechia
+  703: 840,   // Slovakia
+  642: 720,   // Romania
+  100: 520,   // Bulgaria
+  191: 830,   // Croatia
+  372: 2370,  // Ireland
+  40:  2380,  // Austria (no statutory, CBA-heavy)
+  752: 0,     // Sweden (no statutory)
+  578: 0,     // Norway (no statutory)
+  208: 0,     // Denmark (no statutory)
+  246: 0,     // Finland (no statutory)
+  352: 0,     // Iceland (no statutory)
+  756: 0,     // Switzerland (no federal)
+  643: 210,   // Russia
+  792: 550,   // Turkey
+  804: 180,   // Ukraine
+  // Africa & Middle East
+  710: 260,   // South Africa
+  566: 45,    // Nigeria
+  404: 115,   // Kenya
+  818: 125,   // Egypt
+  504: 300,   // Morocco
+  288: 35,    // Ghana
+  682: 1070,  // Saudi Arabia
+  784: 0,     // UAE (no federal statutory)
+  376: 1520,  // Israel
+  634: 275,   // Qatar
+  364: 170,   // Iran
+  // Oceania
+  36:  2600,  // Australia
+  554: 3000,  // New Zealand
+};
+
+function setMinWage(id) {
+  const el = document.getElementById('dpMinWage');
+  const u = UI[lang];
+  if (!(id in MINIMUM_WAGE_USD)) { el.textContent = '—'; return; }
+  const v = MINIMUM_WAGE_USD[id];
+  if (v === 0) { el.textContent = u.nostat; return; }
+  el.textContent = '$' + v.toLocaleString();
+}
+
 // ── Exchange Rate ───────────────────────────────────────────────────────────
-let _exRateData = null;
-let _exRateFetchTime = 0;
+const _exRateCache = {};
 
 function formatRate(rate) {
   if (rate >= 10000) return rate.toLocaleString(undefined, {maximumFractionDigits: 0});
@@ -1084,9 +1184,9 @@ function formatRate(rate) {
   return rate.toFixed(4);
 }
 
-function updateExRateTime() {
+function updateExRateTime(fetchTime) {
   const el = document.getElementById('dpExRateTime');
-  if (!_exRateFetchTime) { el.style.display = 'none'; return; }
+  if (!fetchTime) { el.style.display = 'none'; return; }
   try {
     const fmt = new Intl.DateTimeFormat(undefined, {
       timeZone: _appTz,
@@ -1094,10 +1194,10 @@ function updateExRateTime() {
       hour: '2-digit', minute: '2-digit', second: '2-digit',
       hour12: false
     });
-    el.textContent = `as of ${fmt.format(new Date(_exRateFetchTime))}  (${_appTz})`;
+    el.textContent = `as of ${fmt.format(new Date(fetchTime))}  (${_appTz})`;
     el.style.display = '';
   } catch (_) {
-    el.textContent = `as of ${new Date(_exRateFetchTime).toLocaleString()}`;
+    el.textContent = `as of ${new Date(fetchTime).toLocaleString()}`;
     el.style.display = '';
   }
 }
@@ -1106,28 +1206,44 @@ async function loadExRate(currencyCode) {
   const el = document.getElementById('dpExRate');
   if (!currencyCode) { el.textContent = '—'; return; }
   const now = Date.now();
-  if (_exRateData && (now - _exRateFetchTime) < 3600000) {
-    displayExRate(currencyCode, el);
+  const cached = _exRateCache[currencyCode];
+  if (cached && (now - cached.fetchTime) < 3600000) {
+    displayExRate(currencyCode, cached.rates, cached.fetchTime, el);
     return;
   }
   try {
-    const resp = await fetch('https://open.er-api.com/v6/latest/USD');
+    const resp = await fetch(`https://open.er-api.com/v6/latest/${currencyCode}`);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const json = await resp.json();
-    _exRateData = json.rates;
-    _exRateFetchTime = now;
-    displayExRate(currencyCode, el);
+    if (!json.rates) throw new Error('No rates');
+    _exRateCache[currencyCode] = { rates: json.rates, fetchTime: now };
+    displayExRate(currencyCode, json.rates, now, el);
   } catch (_) {
     el.textContent = 'N/A';
   }
 }
 
-function displayExRate(code, el) {
-  if (!_exRateData || !code) { el.textContent = 'N/A'; return; }
-  const rate = _exRateData[code];
-  if (rate == null) { el.textContent = 'N/A'; return; }
-  el.textContent = `1 USD = ${formatRate(rate)} ${code}`;
-  updateExRateTime();
+function displayExRate(code, rates, fetchTime, el) {
+  if (!rates || !code) { el.textContent = 'N/A'; return; }
+  const lines = [];
+  if (code !== 'USD') {
+    const r = rates['USD'];
+    if (r != null && r > 0) lines.push(`1 USD = ${formatRate(1 / r)} ${code}`);
+  }
+  if (code !== 'JPY') {
+    const r = rates['JPY'];
+    if (r != null) lines.push(`1 ${code} = ${r.toFixed(2)} JPY`);
+  }
+  if (code === 'USD') {
+    const r = rates['JPY'];
+    if (r != null) lines.unshift(`1 USD = ${r.toFixed(2)} JPY`);
+  }
+  if (code === 'JPY') {
+    const r = rates['USD'];
+    if (r != null) lines.unshift(`1 JPY = ${formatRate(r)} USD`);
+  }
+  el.innerHTML = lines.length ? lines.join('<br>') : 'N/A';
+  updateExRateTime(fetchTime);
 }
 
 // ── Singapore marker (too small for TopoJSON) ───────────────────────────────
@@ -1177,12 +1293,14 @@ function drawSgMarker() {
 
 // ── Country detail map (Leaflet) ─────────────────────────────────────────────
 const COUNTRY_MAP_BOUNDS = {
-  392: [[24, 122], [46, 146]]   // Japan
+  392: [[24, 122], [46, 146]],  // Japan
+  158: [[21.9, 120.0], [25.3, 122.0]]  // Taiwan
 };
 
 // Countries that have a dedicated interactive map page
 const COUNTRY_MAP_LINKS = {
-  392: '/map/japan.html'   // Japan
+  392: '/map/japan.html',   // Japan
+  158: '/map/taiwan.html',  // Taiwan
 };
 
 let _leafletMap = null;
@@ -1232,6 +1350,8 @@ function setDetailTab(tab) {
 const HOLIDAY_ALT_API = {
   MY: year => `https://tallyfy.com/national-holidays/api/MY/${year}.json`,
   TW: year => `https://tallyfy.com/national-holidays/api/TW/${year}.json`,
+  KH: year => `https://tallyfy.com/national-holidays/api/KH/${year}.json`,
+  LA: year => `https://tallyfy.com/national-holidays/api/LA/${year}.json`,
 };
 
 async function loadHolidays(id) {
@@ -1420,14 +1540,15 @@ function fmtEconValue(value, fmt) {
   }
 }
 
-function renderEconomyControls() {
+function renderEconomyControls(onlyLatest = false) {
   const ctrl = document.getElementById('dtEconomyControls');
-  const options = [
+  const allOptions = [
     { years: 1,  label: 'Latest'  },
     { years: 5,  label: '5yr avg' },
     { years: 10, label: '10yr avg'},
     { years: 30, label: '30yr avg'},
   ];
+  const options = onlyLatest ? allOptions.slice(0, 1) : allOptions;
   ctrl.innerHTML = options.map(o =>
     `<button class="dp-tab${_economyYears === o.years ? ' active' : ''}" onclick="selectEconomyYears(${o.years})">${o.label}</button>`
   ).join('');
@@ -1442,9 +1563,11 @@ async function loadEconomy(id) {
   const data = COUNTRIES[id];
   const alpha2 = data && data[13];
   const tbl = document.getElementById('dtEconomyTable');
-  renderEconomyControls();
+  const isStatic = !!(alpha2 && ECONOMY_STATIC[alpha2]);
+  if (isStatic) _economyYears = 1;
+  renderEconomyControls(isStatic);
   if (!alpha2) { tbl.innerHTML = '<div class="dp-unavail">Not available for this country.</div>'; return; }
-  if (ECONOMY_STATIC[alpha2]) { renderEconomy(ECONOMY_STATIC[alpha2], true); return; }
+  if (isStatic) { renderEconomy(ECONOMY_STATIC[alpha2], true); return; }
   const mrv = _economyYears;
   const key = `${alpha2},${mrv}`;
   if (_economyCache[key]) { renderEconomy(_economyCache[key]); return; }

@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Taiwan County Map</title>
+<style>
+  :root {
+    --north:    #74b9ff;
+    --central:  #fdcb6e;
+    --south:    #00b894;
+    --east:     #a29bfe;
+    --outlying: #e17055;
+    --unknown:  #636e72;
+    --bg:       #0f0f1a;
+    --surface:  #1a1a2e;
+    --surface2: #16213e;
+    --text:     #e0e0e0;
+    --text-dim: #a0a0b0;
+    --accent:   #7c83ff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 3px 12px;
+    overflow-x: hidden;
+  }
+
+  .title-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 5px;
+    position: relative;
+  }
+  .title-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #7c83ff, #a29bfe, #81ecec);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 1px;
+  }
+  .lang-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
+  }
+  .lang-btn:hover { background: var(--accent); color: #fff; }
+  .back-btn {
+    padding: 5px 14px;
+    border-radius: 20px;
+    border: 1.5px solid #555;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .right-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .zoom-slider-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+  }
+  .zoom-slider-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  #zoomPct { font-size: 0.70rem; color: var(--text-dim); }
+  .zoom-slider-wrap label { font-size: 0.75rem; color: var(--text-dim); white-space: nowrap; }
+  #zoomSlider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 4px;
+    border-radius: 2px;
+    background: #444;
+    outline: none;
+    cursor: pointer;
+  }
+  #zoomSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  .content-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .map-wrapper {
+    flex: 1;
+    min-width: 0;
+    height: 93vh;
+    background: var(--surface2);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1.5px solid #2a2a3e;
+    cursor: grab;
+  }
+  .map-wrapper:active { cursor: grabbing; }
+  #map-svg { display: block; width: 100%; height: 93vh; }
+  .county-path {
+    stroke: #1a1a2e;
+    stroke-width: 0.4px;
+    transition: opacity 0.2s;
+  }
+  .county-path.dimmed      { opacity: 0.15; }
+  .county-path.highlighted { stroke: rgba(255,255,255,0.7); stroke-width: 1.2px; }
+  .county-path.selected    { stroke: #fff; stroke-width: 1.5px; filter: brightness(1.25); }
+  #tooltip {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid #3a3a5e;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    color: var(--text);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 100;
+    white-space: nowrap;
+  }
+  #tooltip.visible { opacity: 1; }
+  .detail-panel {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1.5px solid #2a2a3e;
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .search-bar { display: flex; justify-content: flex-start; margin-bottom: 8px; gap: 8px; }
+  .search-bar input {
+    width: 100%;
+    padding: 8px 14px;
+    border-radius: 24px;
+    border: 1.5px solid #444;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-bar input:focus { border-color: var(--accent); }
+  .search-bar button {
+    padding: 8px 14px;
+    border-radius: 24px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: opacity 0.2s;
+  }
+  .search-bar button:hover { opacity: 0.85; }
+  .legend { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.70rem;
+    color: var(--text-dim);
+    cursor: pointer;
+    padding: 3px 7px;
+    border-radius: 12px;
+    background: var(--surface2);
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+    user-select: none;
+  }
+  .legend-item:hover { border-color: #555; }
+  .legend-item.active { border-color: var(--accent); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .dp-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    color: var(--text-dim);
+    font-size: 0.82rem;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .dp-content { display: none; animation: panelIn 0.22s ease; }
+  .detail-panel.visible .dp-content { display: block; }
+  .detail-panel.visible .dp-placeholder { display: none; }
+  @keyframes panelIn {
+    from { opacity: 0; transform: translateX(8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .dp-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .dp-color-box {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+  }
+  .dp-header-text h2 { font-size: 1.05rem; font-weight: 700; color: var(--text); margin: 0; }
+  .dp-header-text p  { font-size: 0.82rem; color: var(--text-dim); margin-top: 3px; }
+  .dp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 12px; margin-bottom: 14px; }
+  .dp-field label {
+    display: block;
+    font-size: 0.67rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    margin-bottom: 3px;
+  }
+  .dp-field span { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+  .dp-desc { font-size: 0.83rem; color: var(--text-dim); line-height: 1.65; border-top: 1px solid #2a2a3e; padding-top: 12px; }
+  .dp-tabs { display: flex; gap: 4px; margin: 8px 0 6px; }
+  .dp-tab {
+    padding: 3px 10px;
+    border-radius: 10px;
+    border: 1.5px solid #444;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .dp-tab.active { border-color: var(--accent); color: var(--accent); background: rgba(124,131,255,0.15); }
+  #dtHolidays, #dtClimate { max-height: 640px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #666 #333; }
+  #dtHolidays::-webkit-scrollbar, #dtClimate::-webkit-scrollbar { width: 6px; }
+  #dtHolidays::-webkit-scrollbar-thumb, #dtClimate::-webkit-scrollbar-thumb { background: #666; border-radius: 3px; }
+  .dp-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; margin-top: 2px; }
+  .dp-table th { color: var(--text-dim); font-weight: 600; padding: 3px 4px; border-bottom: 1px solid #2a2a3e; text-align: left; white-space: nowrap; }
+  .dp-table td { padding: 3px 4px; border-bottom: 1px solid #1a1a2e; }
+  .dp-loading { color: var(--text-dim); font-size: 0.82rem; padding: 10px 0; }
+  .dp-unavail { color: var(--text-dim); font-size: 0.82rem; padding: 10px 0; font-style: italic; }
+  .dp-climate-city { font-size: 0.78rem; color: var(--accent); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<div class="title-row">
+  <div class="title-center">
+    <h1 id="pageTitle">Taiwan County Map</h1>
+    <button class="lang-btn" id="langBtn" onclick="toggleLang()">日本語</button>
+  </div>
+  <div class="right-controls">
+    <div class="zoom-slider-wrap">
+      <div class="zoom-slider-row">
+        <label for="zoomSlider">🔍</label>
+        <input type="range" id="zoomSlider" min="50" max="400" value="100" oninput="applyZoom(this.value)">
+      </div>
+      <span id="zoomPct">100%</span>
+    </div>
+    <a class="back-btn" id="backBtn" href="/map/">◀ World Map</a>
+  </div>
+</div>
+
+<div class="content-row">
+  <div class="map-wrapper" id="mapWrapper" style="height:93vh;">
+    <svg id="map-svg" viewBox="0 0 500 700" style="display:block; width:100%; height:100%;"></svg>
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search county..." oninput="filterCounties()">
+      <button onclick="clearSearch()" id="clearBtn">Clear</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="dp-placeholder" id="dpPlaceholder">Click a county to see details</div>
+    <div class="dp-content">
+      <div class="dp-header">
+        <div class="dp-color-box" id="dpColorBox"></div>
+        <div class="dp-header-text">
+          <h2 id="dpName"></h2>
+          <p id="dpRegion"></p>
+        </div>
+      </div>
+      <div class="dp-tabs">
+        <button class="dp-tab active" data-tab="info"     onclick="setDetailTab('info')">Info</button>
+        <button class="dp-tab"        data-tab="holidays" onclick="setDetailTab('holidays')">Holidays</button>
+        <button class="dp-tab"        data-tab="climate"  onclick="setDetailTab('climate')">Climate</button>
+      </div>
+      <div id="dtInfo">
+        <div class="dp-grid">
+          <div class="dp-field"><label id="lblCapital">Seat</label><span id="dpCapital"></span></div>
+          <div class="dp-field"><label id="lblPop">Population</label><span id="dpPop"></span></div>
+          <div class="dp-field"><label id="lblArea">Area (km²)</label><span id="dpArea"></span></div>
+          <div class="dp-field"><label id="lblType">Type</label><span id="dpType"></span></div>
+        </div>
+        <div class="dp-desc" id="dpDesc"></div>
+      </div>
+      <div id="dtHolidays" style="display:none"></div>
+      <div id="dtClimate"  style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<script>
+// ── Language ──────────────────────────────────────────────────────────────────
+let lang = 'en';
+
+const UI = {
+  en: {
+    title:      'Taiwan County Map',
+    langBtn:    '日本語',
+    back:       '◀ World Map',
+    placeholder:'Search county...',
+    clear:      'Clear',
+    seat:       'Seat',
+    pop:        'Population',
+    area:       'Area (km²)',
+    type:       'Type',
+    hint:       'Click a county to see details',
+    regions: { 0:'North', 1:'Central', 2:'South', 3:'East', 4:'Outlying Islands' },
+  },
+  ja: {
+    title:      '台湾県市地図',
+    langBtn:    'English',
+    back:       '◀ 世界地図',
+    placeholder:'県市名を検索...',
+    clear:      'クリア',
+    seat:       '行政中心',
+    pop:        '人口',
+    area:       '面積（km²）',
+    type:       '種別',
+    hint:       '県市をクリックして詳細を表示',
+    regions: { 0:'北部', 1:'中部', 2:'南部', 3:'東部', 4:'離島' },
+  },
+};
+
+// ── Region colors ─────────────────────────────────────────────────────────────
+const REGION_COLOR = {
+  0:'#74b9ff', 1:'#fdcb6e', 2:'#00b894', 3:'#a29bfe', 4:'#e17055'
+};
+
+// ── County data ───────────────────────────────────────────────────────────────
+// [nameEN, nameJA, seat_en, seat_ja, region(0-4), pop_M, area_km2, type_en, type_ja, descEN, descJA, lat, lon]
+// Key: COUNTYNAME normalized (臺→台)
+const COUNTIES = {
+  '台北市': ['Taipei City','台北市','Zhongzheng','中正區',0,2.60,271.8,'Special Municipality','直轄市',
+    "Taiwan's vibrant capital, home to the iconic Taipei 101 skyscraper, the National Palace Museum housing world-class Chinese art, the bustling Shilin Night Market, and the efficient MRT rapid transit network.",
+    "台湾の活気ある首都。象徴的な台北101、世界屈指の中国美術を所蔵する国立故宮博物院、賑わう士林夜市、MRT（捷運）が人気。",25.04,121.52],
+  '新北市': ['New Taipei City','新北市','Banqiao','板橋區',0,4.05,2052.6,'Special Municipality','直轄市',
+    "Taiwan's most populous city surrounding Taipei, featuring the scenic Tamsui riverside, the gold rush mountain town of Jiufen, Pingxi sky lanterns, and the golden waterfall of Jinguashi.",
+    "台北を囲む台湾最多人口の都市。景色美しい淡水河岸、金鉱山町の九份、平渓の天燈祭り、金瓜石の黄金瀑布が魅力。",24.99,121.45],
+  '桃園市': ['Taoyuan City','桃園市','Taoyuan','桃園區',0,2.32,1220.9,'Special Municipality','直轄市',
+    "Gateway to Taiwan via Taoyuan International Airport, known for thriving semiconductor and aerospace industries, Daxi Old Street's woodcraft heritage, and the scenic Shimen Reservoir.",
+    "台湾桃園国際空港を擁する台湾の玄関口。半導体・航空産業、大溪老街の木工芸、石門水庫が知られる。",24.99,121.30],
+  '新竹市': ['Hsinchu City','新竹市','East District','東區',0,0.45,104.2,'City','市',
+    "Taiwan's 'Silicon Valley,' home to the Hsinchu Science Park driving the island's semiconductor boom, renowned for glass crafts, traditional rice vermicelli noodles, and persistently windy weather.",
+    "台湾の「シリコンバレー」。半導体産業を牽引する新竹科学工業園区、ガラス工芸、米粉、強風でも知られる。",24.80,120.97],
+  '基隆市': ['Keelung City','基隆市','Zhongzheng','中正區',0,0.37,132.8,'City','市',
+    "A historic port city at the northern tip of Taiwan, famous for its lively Miaokou Night Market, well-preserved fortresses from Spanish and Dutch eras, and the Zhongyuan Ghost Festival lanterns.",
+    "台湾北端の歴史ある港湾都市。活気ある廟口夜市、スペイン・オランダ時代の要塞、中元祭りの提灯で知られる。",25.13,121.74],
+  '宜蘭縣': ['Yilan County','宜蘭縣','Yilan City','宜蘭市',0,0.46,2143.6,'County','縣',
+    "A scenic northeastern county backed by the Central Mountain Range, celebrated for the Lanyang Museum, National Center for Traditional Arts, lively Luodong Night Market, and lush coastal wetlands.",
+    "中央山脈に抱かれた風光明媚な北東部の縣。蘭陽博物館、国立伝統芸術センター、羅東夜市、緑豊かな湿地が魅力。",24.76,121.75],
+  '新竹縣': ['Hsinchu County','新竹縣','Zhubei','竹北市',0,0.57,1427.5,'County','縣',
+    "A county rich in Hakka culture, home to Lion's Head Mountain temple clusters, the glass art community of Beipu, historic Neiwan Old Street, and growing tech industry zones.",
+    "豊かな客家文化と伝統芸能を持つ縣。獅頭山の寺院群、北埔のガラス芸術、内灣老街、成長するIT産業地帯がある。",24.84,121.00],
+  '苗栗縣': ['Miaoli County','苗栗縣','Miaoli City','苗栗市',1,0.55,1820.3,'County','縣',
+    "A predominantly Hakka county of rolling hills, known for pottery craft in Gongguan, the Tri-Mountain National Scenic Area, Longteng broken bridge ruins, and hillside strawberry farms.",
+    "起伏する丘と谷が広がる客家系縣。公館の陶芸産業、参山国家風景区、龍騰断橋遺跡、いちご農園で知られる。",24.56,120.82],
+  '台中市': ['Taichung City','台中市','West District','西區',1,2.82,2214.9,'Special Municipality','直轄市',
+    "Taiwan's second-largest metropolis, renowned for the colorful Rainbow Village, the National Taichung Theater, vibrant café culture, Feng Chia Night Market, and the iconic Sun Moon Lake nearby.",
+    "台湾第2の大都市。彩虹眷村、国家歌劇院、活気あるカフェ文化、逢甲夜市、近郊の日月潭で知られる。",24.15,120.68],
+  '彰化縣': ['Changhua County','彰化縣','Changhua City','彰化市',1,1.28,1074.4,'County','縣',
+    "A fertile agricultural heartland with the iconic Great Buddha of Baguashan, the historic Lukang Old Town with Tianhou Temple, traditional crafts, and a preserved railway roundhouse.",
+    "肥沃な農業地帯。八卦山の大仏、歴史ある鹿港老街と天后宮、伝統工芸、彰化の鉄道扇形庫が有名。",24.07,120.54],
+  '南投縣': ['Nantou County','南投縣','Nantou City','南投市',1,0.49,4106.4,'County','縣',
+    "Taiwan's only landlocked county, home to the iconic Sun Moon Lake, Aboriginal Thao culture, the Alishan Forest Railway start, Cingjing Farm alpine scenery, and high-mountain oolong tea.",
+    "台湾唯一の内陸縣。象徴的な日月潭、タオ族文化、阿里山森林鉄道の起点、清境農場の高山風景、高山ウーロン茶が魅力。",23.97,120.98],
+  '雲林縣': ['Yunlin County','雲林縣','Douliu City','斗六市',1,0.68,1290.8,'County','縣',
+    "Taiwan's leading producer of rice, garlic, and onions, known for the Beigang Chaotian Temple pilgrimage, a centuries-old puppet show (budaixi) tradition, and protected coastal wetlands.",
+    "台湾最大の農業生産地で米・ニンニク・タマネギを多産。北港朝天宮巡礼、布袋戯（人形劇）伝統、沿岸湿地が有名。",23.71,120.43],
+  '嘉義市': ['Chiayi City','嘉義市','East District','東區',2,0.27,60.0,'City','市',
+    "A welcoming city serving as gateway to Alishan, famous for its turkey rice (雞肉飯), the vibrant Wenhua Road Night Market, the Taiwan Forestry Culture Garden, and warm southern hospitality.",
+    "阿里山への玄関口となる小都市。七面鳥ご飯（雞肉飯）、賑わう文化路夜市、台湾森林文化園区、温かな嘉義の人情で知られる。",23.48,120.45],
+  '嘉義縣': ['Chiayi County','嘉義縣','Taibao City','太保市',2,0.50,1902.7,'County','縣',
+    "Home to the celebrated Alishan National Scenic Area with ancient cypress forests, a world-famous sunrise sea of clouds, Taiwan's top oolong tea production, and Budai fishing port.",
+    "古代ヒノキの森と雄大な雲海の日の出で有名な阿里山国家風景区を有する。台湾屈指のウーロン茶産地、布袋漁港も知られる。",23.45,120.26],
+  '台南市': ['Tainan City','台南市','East District','東區',2,1.87,2191.7,'Special Municipality','直轄市',
+    "Taiwan's ancient capital with the richest heritage — Anping Fort, Chihkan Tower, dozens of traditional temples, the National Museum of Taiwan History, and renowned small-bite street food culture.",
+    "台湾最古の都。安平古堡、赤崁楼、多数の伝統寺院、国立台湾歴史博物館、個性豊かな郷土料理で知られる古都。",22.99,120.21],
+  '高雄市': ['Kaohsiung City','高雄市','Lingya District','苓雅區',2,2.74,2952.0,'Special Municipality','直轄市',
+    "Taiwan's largest port city and industrial hub, renowned for Lotus Pond's Dragon and Tiger Pagodas, Pier-2 Art Center, Fo Guang Shan Buddhist monastery, and the romantic Love River.",
+    "台湾最大の港湾工業都市。蓮池潭の龍虎塔、駁二芸術特区、佛光山禅寺、愛河で知られる南部の中心都市。",22.62,120.31],
+  '屏東縣': ['Pingtung County','屏東縣','Pingtung City','屏東市',2,0.84,2775.7,'County','縣',
+    "Taiwan's southernmost county, famous for Kenting National Park's tropical beaches and coral reefs, Sandimen's Aboriginal tribal culture, pineapple farming, and the black pearl wax apple.",
+    "台本島最南端の縣。熱帯ビーチとサンゴ礁の墾丁国家公園、三地門の原住民部落文化、パイナップル農業、黒真珠の蓮霧で有名。",22.67,120.49],
+  '花蓮縣': ['Hualien County','花蓮縣','Hualien City','花蓮市',3,0.33,4628.6,'County','縣',
+    "Home to the breathtaking Taroko Gorge National Park with towering marble canyon walls, Pacific coastal Hualien city, vibrant Amis and Truku Aboriginal cultures, and the scenic Pacific Highway 11.",
+    "大理石峡谷が壮観な太魯閣国立公園、太平洋沿岸の花蓮市、アミ族・タロコ族文化、絶景の台11線として知られる。",23.99,121.61],
+  '台東縣': ['Taitung County','台東縣','Taitung City','台東市',3,0.22,3515.3,'County','縣',
+    "A pristine Pacific-facing county of diverse Aboriginal cultures, the scenic East Rift Valley cycling route, Little Liuchiu and Green Island diving, lively harvest festivals, and the golden Chishang rice paddies.",
+    "多彩な原住民文化、縦谷サイクリングルート、小琉球・緑島のダイビング、収穫祭、池上の美しい水田が魅力の東部縣。",22.76,121.14],
+  '澎湖縣': ['Penghu County','澎湖縣','Magong City','馬公市',4,0.10,127.0,'County','縣',
+    "An archipelago of 90 islands in the Taiwan Strait, known for stunning basalt sea stacks, crystal-clear turquoise waters, traditional fishing villages, wind-swept cactus fields, and the International Fireworks Festival.",
+    "台湾海峡に浮かぶ90島の群島。玄武岩の奇岩怪石、碧い海、伝統的な漁村、サボテン畑、国際花火節で知られる。",23.57,119.58],
+  '金門縣': ['Kinmen County','金門縣','Jincheng','金城鎮',4,0.15,151.7,'County','縣',
+    "A former military frontline island just kilometers from Xiamen, China — now a peaceful destination famous for battle history, sorghum liquor (高粱酒), traditional Minnan architecture, and wind lion god statues.",
+    "中国・厦門から数キロの旧最前線の島。今は観光地として、戦史、高粱酒、伝統的な閩南建築、風獅爺の石像が有名。",24.43,118.32],
+  '連江縣': ['Lienchiang County','連江縣','Nangan','南竿鄉',4,0.013,28.0,'County','縣',
+    "Taiwan's smallest and most remote county — the Matsu Islands — famed for military tunnel networks, pristine beaches, Nangan's Tianhou Temple, bioluminescent blue tears algae, and authentic Fujianese culture.",
+    "台湾最小・最遠の縣、馬祖列島。軍用トンネル、美しいビーチ、南竿の天后宮、青い涙（夜光虫）、本格的な福建文化で知られる。",26.16,119.95],
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let activeRegion = null;
+let selectedKey  = null;
+let svgSel, gSel;
+let _projection, _path, _baseScale, _baseTranslate;
+let _dragging = false, _dragStartX, _dragStartY, _dragStartTranslate;
+
+// Fallback map for English property names → Chinese key
+const COUNTY_EN_MAP = {
+  'Taipei City':'台北市','Taipei':'台北市',
+  'New Taipei City':'新北市','New Taipei':'新北市',
+  'Taoyuan City':'桃園市','Taoyuan':'桃園市','Taoyuan County':'桃園市',
+  'Hsinchu City':'新竹市',
+  'Keelung City':'基隆市','Keelung':'基隆市',
+  'Yilan County':'宜蘭縣','Yilan':'宜蘭縣',
+  'Hsinchu County':'新竹縣',
+  'Miaoli County':'苗栗縣','Miaoli':'苗栗縣',
+  'Taichung City':'台中市','Taichung':'台中市',
+  'Changhua County':'彰化縣','Changhua':'彰化縣',
+  'Nantou County':'南投縣','Nantou':'南投縣',
+  'Yunlin County':'雲林縣','Yunlin':'雲林縣',
+  'Chiayi City':'嘉義市',
+  'Chiayi County':'嘉義縣',
+  'Tainan City':'台南市','Tainan':'台南市',
+  'Kaohsiung City':'高雄市','Kaohsiung':'高雄市',
+  'Pingtung County':'屏東縣','Pingtung':'屏東縣',
+  'Hualien County':'花蓮縣','Hualien':'花蓮縣',
+  'Taitung County':'台東縣','Taitung':'台東縣',
+  'Penghu County':'澎湖縣','Penghu':'澎湖縣',
+  'Kinmen County':'金門縣','Kinmen':'金門縣',
+  'Lienchiang County':'連江縣','Lienchiang':'連江縣','Matsu':'連江縣',
+};
+
+// Old boundary names → current names (Taoyuan upgraded county→city in 2014)
+const COUNTY_CN_NORMALIZE = { '桃園縣': '桃園市' };
+
+function getCountyKey(d) {
+  const p = d.properties || {};
+  // name_traditional_chinese is the property in the source GeoJSON
+  const cnRaw = (p.name_traditional_chinese || p.COUNTYNAME || p.name || p.NAME || '').replace(/臺/g, '台');
+  const cn = COUNTY_CN_NORMALIZE[cnRaw] || cnRaw;
+  if (COUNTIES[cn]) return cn;
+  // Fallback: try English name
+  const enRaw = p.name || p.COUNTYENG || p.english || p.NAME_1 || '';
+  return COUNTY_EN_MAP[enRaw] || COUNTY_EN_MAP[cn] || cn;
+}
+
+// ── Language ──────────────────────────────────────────────────────────────────
+function toggleLang() {
+  lang = lang === 'en' ? 'ja' : 'en';
+  applyLang();
+}
+
+function applyLang() {
+  const u = UI[lang];
+  document.getElementById('pageTitle').textContent     = u.title;
+  document.getElementById('langBtn').textContent       = u.langBtn;
+  document.getElementById('backBtn').textContent       = u.back;
+  document.getElementById('searchInput').placeholder   = u.placeholder;
+  document.getElementById('clearBtn').textContent      = u.clear;
+  document.getElementById('lblCapital').textContent    = u.seat;
+  document.getElementById('lblPop').textContent        = u.pop;
+  document.getElementById('lblArea').textContent       = u.area;
+  document.getElementById('lblType').textContent       = u.type;
+  document.getElementById('dpPlaceholder').textContent = u.hint;
+  renderLegend();
+  filterCounties();
+  if (selectedKey) showDetail(selectedKey);
+}
+
+// ── Legend ────────────────────────────────────────────────────────────────────
+function renderLegend() {
+  const u = UI[lang];
+  document.getElementById('legend').innerHTML = Object.entries(u.regions).map(([code, name]) =>
+    `<div class="legend-item${activeRegion === +code ? ' active' : ''}" onclick="toggleRegion(${code})">
+       <div class="legend-dot" style="background:${REGION_COLOR[code]}"></div>${name}
+     </div>`
+  ).join('');
+}
+
+function toggleRegion(code) {
+  activeRegion = (activeRegion === code) ? null : code;
+  renderLegend();
+  applyFilter();
+}
+
+// ── Filter + search ───────────────────────────────────────────────────────────
+function filterCounties() { applyFilter(); }
+
+function applyFilter() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!gSel) return;
+  gSel.selectAll('.county-path').each(function(d) {
+    const key  = getCountyKey(d);
+    const data = COUNTIES[key];
+    if (!data) return;
+    const matchRegion = activeRegion === null || data[4] === activeRegion;
+    const matchSearch = !q || data[0].toLowerCase().includes(q) || data[1].toLowerCase().includes(q);
+    d3.select(this).classed('dimmed', !(matchRegion && matchSearch));
+  });
+  if (q) {
+    let exactKey = null;
+    gSel.selectAll('.county-path').each(function(d) {
+      const key  = getCountyKey(d);
+      const data = COUNTIES[key];
+      if (!data) return;
+      if (data[0].toLowerCase() === q || data[1] === q) exactKey = key;
+    });
+    if (exactKey) showDetail(exactKey);
+  }
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  applyFilter();
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────────
+function showDetail(key) {
+  selectedKey = key;
+  const panel = document.getElementById('detailPanel');
+  const u = UI[lang];
+  const data = COUNTIES[key];
+  if (!data) return;
+
+  const color = REGION_COLOR[data[4]];
+  document.getElementById('dpColorBox').style.background = color;
+  document.getElementById('dpColorBox').textContent = '';
+  document.getElementById('dpName').textContent    = lang === 'en' ? data[0] : data[1];
+  document.getElementById('dpRegion').textContent  = u.regions[data[4]] || '';
+  document.getElementById('dpCapital').textContent = lang === 'en' ? data[2] : data[3];
+  document.getElementById('dpPop').textContent     = data[5] >= 1
+    ? (lang === 'en' ? data[5] + 'M' : data[5] + '百万人')
+    : (lang === 'en' ? (data[5]*1000|0) + 'K' : (data[5]*1000|0) + '千人');
+  document.getElementById('dpArea').textContent    = Number(data[6]).toLocaleString() + ' km²';
+  document.getElementById('dpType').textContent    = lang === 'en' ? data[7] : data[8];
+  document.getElementById('dpDesc').textContent    = lang === 'en' ? data[9] : data[10];
+
+  _currentDetailTab = 'info';
+  document.querySelectorAll('.dp-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'info'));
+  document.getElementById('dtInfo').style.display     = '';
+  document.getElementById('dtHolidays').style.display = 'none';
+  document.getElementById('dtClimate').style.display  = 'none';
+
+  panel.classList.add('visible');
+}
+
+// ── Detail tabs ───────────────────────────────────────────────────────────────
+const _holidayCache = {};
+const _climateCache = {};
+let _currentDetailTab = 'info';
+
+function setDetailTab(tab) {
+  _currentDetailTab = tab;
+  document.querySelectorAll('.dp-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('dtInfo').style.display     = tab === 'info'     ? '' : 'none';
+  document.getElementById('dtHolidays').style.display = tab === 'holidays' ? '' : 'none';
+  document.getElementById('dtClimate').style.display  = tab === 'climate'  ? '' : 'none';
+  if (tab === 'holidays') loadHolidays();
+  if (tab === 'climate' && selectedKey) loadClimate(selectedKey);
+}
+
+async function loadHolidays() {
+  const el   = document.getElementById('dtHolidays');
+  const year = new Date().getFullYear();
+  const key  = 'TW' + year;
+  if (_holidayCache[key]) { renderHolidays(_holidayCache[key]); return; }
+  el.innerHTML = '<div class="dp-loading">Loading...</div>';
+  try {
+    const res = await fetch(`https://tallyfy.com/national-holidays/api/TW/${year}.json`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const list = data.holidays || [];
+    _holidayCache[key] = list;
+    renderHolidays(list);
+  } catch {
+    el.innerHTML = '<div class="dp-unavail">Failed to load holiday data.</div>';
+  }
+}
+
+function renderHolidays(list) {
+  const el = document.getElementById('dtHolidays');
+  if (!list || !list.length) { el.innerHTML = '<div class="dp-unavail">No data available.</div>'; return; }
+  const rows = list.map(h =>
+    `<tr><td>${h.date}</td><td>${h.local_name || h.name}</td><td>${h.name}</td></tr>`
+  ).join('');
+  el.innerHTML = `<table class="dp-table"><thead><tr><th>Date</th><th>Local</th><th>English</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+async function loadClimate(key) {
+  const data = COUNTIES[key];
+  const el   = document.getElementById('dtClimate');
+  if (!data) { el.innerHTML = '<div class="dp-unavail">Not available.</div>'; return; }
+  const [lat, lon] = [data[11], data[12]];
+  const cKey = `${lat},${lon}`;
+  if (_climateCache[cKey]) { renderClimate(_climateCache[cKey], key); return; }
+  el.innerHTML = '<div class="dp-loading">Loading...</div>';
+  const latestYear = new Date().getFullYear() - 1;
+  try {
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${latestYear}-01-01&end_date=${latestYear}-12-31&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum&timezone=Asia%2FTaipei`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const json = await res.json();
+    const monthly = aggregateMonthly(json.daily);
+    _climateCache[cKey] = monthly;
+    renderClimate(monthly, key);
+  } catch {
+    el.innerHTML = '<div class="dp-unavail">Failed to load climate data.</div>';
+  }
+}
+
+function aggregateMonthly(daily) {
+  const buckets = Array.from({length: 12}, () => ({max:[],min:[],mean:[],rain:[]}));
+  daily.time.forEach((t, i) => {
+    const m = parseInt(t.split('-')[1]) - 1;
+    if (daily.temperature_2m_max[i]  != null) buckets[m].max.push(daily.temperature_2m_max[i]);
+    if (daily.temperature_2m_min[i]  != null) buckets[m].min.push(daily.temperature_2m_min[i]);
+    if (daily.temperature_2m_mean[i] != null) buckets[m].mean.push(daily.temperature_2m_mean[i]);
+    if (daily.precipitation_sum[i]   != null) buckets[m].rain.push(daily.precipitation_sum[i]);
+  });
+  const avg = a => a.length ? a.reduce((s,v)=>s+v,0)/a.length : null;
+  const sum = a => a.length ? a.reduce((s,v)=>s+v,0) : null;
+  return {
+    temperature_2m_max:  buckets.map(b => avg(b.max)),
+    temperature_2m_min:  buckets.map(b => avg(b.min)),
+    temperature_2m_mean: buckets.map(b => avg(b.mean)),
+    precipitation_sum:   buckets.map(b => sum(b.rain)),
+  };
+}
+
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function renderClimate(m, key) {
+  const el = document.getElementById('dtClimate');
+  const data = COUNTIES[key];
+  const cityName = data ? (lang === 'en' ? data[2] : data[3]) : '';
+  const cityLabel = cityName
+    ? `<div class="dp-climate-city">${lang === 'en' ? 'City' : '都市'}: ${cityName}</div>` : '';
+  const rows = MONTHS_SHORT.map((mo, i) =>
+    `<tr><td>${mo}</td><td>${m.temperature_2m_max[i]?.toFixed(1)??'—'}</td><td>${m.temperature_2m_min[i]?.toFixed(1)??'—'}</td><td>${m.temperature_2m_mean[i]?.toFixed(1)??'—'}</td><td>${m.precipitation_sum[i]?.toFixed(0)??'—'}</td></tr>`
+  ).join('');
+  el.innerHTML = `${cityLabel}<table class="dp-table"><thead><tr><th>Month</th><th>Max°C</th><th>Min°C</th><th>Avg°C</th><th>Rain mm</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── Zoom ──────────────────────────────────────────────────────────────────────
+function applyZoom(value) {
+  if (!_projection || !_baseScale) return;
+  const W = 500, H = 700;
+  const geoCenter = _projection.invert([W / 2, H / 2]);
+  _projection.scale(_baseScale * value / 100);
+  const newPos = _projection(geoCenter);
+  const [tx, ty] = _projection.translate();
+  _projection.translate([tx + (W / 2 - newPos[0]), ty + (H / 2 - newPos[1])]);
+  document.getElementById('zoomPct').textContent = value + '%';
+  redrawPaths();
+}
+
+function resetView() {
+  if (!_projection || !_baseScale || !_baseTranslate) return;
+  _projection.scale(_baseScale).translate([..._baseTranslate]);
+  document.getElementById('zoomSlider').value = 100;
+  applyZoom(100);
+}
+
+function redrawPaths() {
+  if (!gSel || !_path) return;
+  gSel.selectAll('path').attr('d', _path);
+}
+
+// ── Map init ──────────────────────────────────────────────────────────────────
+async function initMap() {
+  let geoData;
+  const URLS = [
+    'https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/taiwan.geojson',
+  ];
+  for (const url of URLS) {
+    try {
+      const raw = await d3.json(url);
+      if (raw.type === 'Topology') {
+        const objKey = Object.keys(raw.objects)[0];
+        geoData = topojson.feature(raw, raw.objects[objKey]);
+      } else {
+        geoData = raw;
+      }
+      if (geoData && geoData.features && geoData.features.length) break;
+    } catch (_) { /* try next */ }
+  }
+  if (!geoData || !geoData.features) {
+    document.getElementById('mapWrapper').innerHTML =
+      '<div style="color:#ff7675;padding:20px;font-size:0.9rem;">Failed to load map data. Please check your internet connection.</div>';
+    return;
+  }
+
+  const W = 500, H = 700;
+  svgSel = d3.select('#map-svg').attr('viewBox', `0 0 ${W} ${H}`);
+  gSel   = svgSel.append('g');
+
+  _projection    = d3.geoMercator().fitExtent([[10, 10], [W - 10, H - 10]], geoData);
+  _baseScale     = _projection.scale();
+  _baseTranslate = _projection.translate().slice();
+  _path          = d3.geoPath().projection(_projection);
+
+  const tooltip = document.getElementById('tooltip');
+
+  gSel.selectAll('.county-path')
+    .data(geoData.features)
+    .join('path')
+    .attr('class', 'county-path')
+    .attr('d', _path)
+    .attr('fill', d => {
+      const key  = getCountyKey(d);
+      const data = COUNTIES[key];
+      return data ? REGION_COLOR[data[4]] : '#636e72';
+    })
+    .on('mousemove', function(event, d) {
+      const key  = getCountyKey(d);
+      const data = COUNTIES[key];
+      const name = data ? (lang === 'en' ? data[0] : data[1]) : key;
+      tooltip.textContent = name;
+      tooltip.classList.add('visible');
+      tooltip.style.left = (event.clientX + 14) + 'px';
+      tooltip.style.top  = (event.clientY - 28) + 'px';
+      if (!d3.select(this).classed('selected')) d3.select(this).classed('highlighted', true);
+    })
+    .on('mouseleave', function() {
+      tooltip.classList.remove('visible');
+      d3.select(this).classed('highlighted', false);
+    })
+    .on('click', function(event, d) {
+      const key = getCountyKey(d);
+      gSel.selectAll('.county-path').classed('selected', false);
+      d3.select(this).classed('selected', true).classed('highlighted', false);
+      showDetail(key);
+    });
+
+  const svgEl = svgSel.node();
+
+  svgEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    _dragging           = true;
+    _dragStartX         = e.clientX;
+    _dragStartY         = e.clientY;
+    _dragStartTranslate = _projection.translate().slice();
+    svgEl.style.cursor  = 'grabbing';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', (e) => {
+    if (!_dragging) return;
+    _projection.translate([
+      _dragStartTranslate[0] + (e.clientX - _dragStartX),
+      _dragStartTranslate[1] + (e.clientY - _dragStartY)
+    ]);
+    redrawPaths();
+  });
+  document.addEventListener('mouseup', () => {
+    if (!_dragging) return;
+    _dragging = false;
+    svgEl.style.cursor = 'grab';
+  });
+
+  svgEl.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor   = e.deltaY < 0 ? 1.12 : 0.89;
+    const curScale = _projection.scale();
+    const newScale = Math.max(_baseScale * 0.5, Math.min(_baseScale * 8, curScale * factor));
+    const geoCenter = _projection.invert([W / 2, H / 2]);
+    _projection.scale(newScale);
+    const newPos = _projection(geoCenter);
+    const [tx, ty] = _projection.translate();
+    _projection.translate([tx + (W / 2 - newPos[0]), ty + (H / 2 - newPos[1])]);
+    const clampedVal = Math.min(400, Math.max(50, Math.round(newScale / _baseScale * 100)));
+    document.getElementById('zoomSlider').value = clampedVal;
+    document.getElementById('zoomPct').textContent = clampedVal + '%';
+    redrawPaths();
+  }, { passive: false });
+
+  renderLegend();
+  applyZoom(100);
+}
+
+initMap();
+</script>
+</body>
+</html>

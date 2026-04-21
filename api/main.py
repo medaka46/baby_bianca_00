@@ -1575,6 +1575,11 @@ async def map_japan():
     file_path = os.path.join(base_dir, "map", "japan.html")
     return FileResponse(file_path, media_type="text/html")
 
+@app.get("/map/taiwan.html")
+async def map_taiwan():
+    file_path = os.path.join(base_dir, "map", "taiwan.html")
+    return FileResponse(file_path, media_type="text/html")
+
 @app.get("/map/countries-110m.json")
 async def map_countries():
     file_path = os.path.join(base_dir, "map", "countries-110m.json")
