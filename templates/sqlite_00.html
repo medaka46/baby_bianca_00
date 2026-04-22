@@ -46,6 +46,7 @@
         <button type="button" id="btnRowEdits"      onclick="showMode('row')"    style="background-color: #444; color: #0f0; margin-left: 10px;" disabled>Row Edits</button>
         <button type="button" id="btnSchemaChanges" onclick="showMode('schema')" style="background-color: #444; color: #0f0; margin-left: 5px;"  disabled>Schema Changes</button>
         <button type="button" id="btnSaveDb"        onclick="saveDb()"           style="background-color: #444; color: #0f0; margin-left: 5px;"  disabled>Save</button>
+        <button type="button" id="btnSaveServer"    onclick="saveDbToServer()"   style="background-color: #444; color: #fc0; margin-left: 5px;"  disabled>Save to Server</button>
         {% endif %}
     </div>
 </header>
@@ -158,7 +159,7 @@ async function loadDatabase() {
         sqlDb = new SQL.Database(new Uint8Array(buf));
         status.textContent = 'Database loaded. Use Row Edits or Schema Changes. Click Save to download the edited file, then Upload to replace the server DB.';
         status.style.color = '#0c0';
-        ['btnRowEdits','btnSchemaChanges','btnSaveDb'].forEach(id => document.getElementById(id).disabled = false);
+        ['btnRowEdits','btnSchemaChanges','btnSaveDb','btnSaveServer'].forEach(id => document.getElementById(id).disabled = false);
     } catch (e) {
         status.textContent = 'Failed to load DB: ' + e.message;
         status.style.color = '#f66';
@@ -391,6 +392,44 @@ function saveDb() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+}
+
+async function saveDbToServer() {
+    if (!sqlDb) return alert('DB not loaded.');
+    const data = sqlDb.export();
+    const sizeMB = (data.length / 1024 / 1024).toFixed(2);
+    const confirmMessage =
+        `⚠️ DATABASE REPLACEMENT WARNING ⚠️\n\n` +
+        `You are about to replace the production database with the edited version.\n` +
+        `Size: ${sizeMB} MB\n\n` +
+        `This action will:\n` +
+        `1. Back up the current database on the server\n` +
+        `2. Replace it with the edited in-memory DB\n` +
+        `3. Restart database connections\n\n` +
+        `⚠️ This cannot be undone! ⚠️\n\n` +
+        `Are you absolutely sure you want to proceed?`;
+    if (!confirm(confirmMessage)) return;
+
+    const ts = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+    const file = new File([data], `edited_${ts}.db`, { type: 'application/octet-stream' });
+    const formData = new FormData();
+    formData.append('database_file', file);
+
+    const btn = document.getElementById('btnSaveServer');
+    const prevText = btn.textContent;
+    btn.textContent = 'Saving...';
+    btn.disabled = true;
+    try {
+        const resp = await fetch('/upload_db/', { method: 'POST', body: formData });
+        const html = await resp.text();
+        document.open();
+        document.write(html);
+        document.close();
+    } catch (e) {
+        alert('Save to server failed: ' + e.message);
+        btn.textContent = prevText;
+        btn.disabled = false;
+    }
 }
 </script>
 {% endif %}
