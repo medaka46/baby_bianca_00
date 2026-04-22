@@ -43,6 +43,9 @@
             <input type="file" id="dbFile" name="database_file" accept=".db,.sqlite,.sqlite3" style="display: none;" onchange="handleFileSelect(this)">
             <button type="button" onclick="document.getElementById('dbFile').click()" style="background-color: #444; color: #0f0;">Upload</button>
         </form>
+        <button type="button" id="btnRowEdits"      onclick="showMode('row')"    style="background-color: #444; color: #0f0; margin-left: 10px;" disabled>Row Edits</button>
+        <button type="button" id="btnSchemaChanges" onclick="showMode('schema')" style="background-color: #444; color: #0f0; margin-left: 5px;"  disabled>Schema Changes</button>
+        <button type="button" id="btnSaveDb"        onclick="saveDb()"           style="background-color: #444; color: #0f0; margin-left: 5px;"  disabled>Save</button>
         {% endif %}
     </div>
 </header>
@@ -99,7 +102,297 @@
 
 <main class="tab_00">
     <div class="scrollable-content" style="padding: 12px;">
-        <div style="color: #aaa; font-size: 13px;">Coming soon...</div>
+        {% if condition == "Production" %}
+        <div id="editorStatus" style="color: #aaa; font-size: 13px; margin-bottom: 10px;">Loading SQLite engine...</div>
+        <div id="rowEditsView" style="display: none;">
+            <label style="color:#aaa; font-size:13px;">Table:
+                <select id="rowTableSelect" style="background:#333; color:#eee; padding:2px 6px;"></select>
+            </label>
+            <button type="button" onclick="addNewRow()"      style="background:#444; color:#0f0; margin-left:10px;">+ Add Row</button>
+            <button type="button" onclick="applyRowChanges()" style="background:#444; color:#fc0; margin-left:5px;">Apply Changes</button>
+            <div id="rowTableWrap" style="margin-top:10px; overflow-x:auto;"></div>
+        </div>
+        <div id="schemaView" style="display: none;">
+            <label style="color:#aaa; font-size:13px;">Operation:
+                <select id="schemaOp" onchange="renderSchemaForm()" style="background:#333; color:#eee; padding:2px 6px;">
+                    <option value="">-- select --</option>
+                    <option value="createTable">Create Table</option>
+                    <option value="dropTable">Drop Table</option>
+                    <option value="renameTable">Rename Table</option>
+                    <option value="addColumn">Add Column</option>
+                    <option value="dropColumn">Drop Column</option>
+                    <option value="renameColumn">Rename Column</option>
+                </select>
+            </label>
+            <div id="schemaFormContainer" style="margin-top:10px;"></div>
+        </div>
+        {% else %}
+        <div style="color: #aaa; font-size: 13px;">Editing available in Production only.</div>
+        {% endif %}
     </div>
 </main>
+
+{% if condition == "Production" %}
+<style>
+    .edit-grid { border-collapse: collapse; font-size: 12px; color: #ddd; }
+    .edit-grid th, .edit-grid td { border: 1px solid #555; padding: 3px 6px; min-width: 60px; }
+    .edit-grid th { background: #333; color: #ffd; }
+    .edit-grid td[contenteditable="true"] { background: #2a2a2a; }
+    .edit-grid td[contenteditable="true"]:focus { background: #333; outline: 1px solid #0f0; }
+    .schema-input { background: #333; color: #eee; border: 1px solid #555; padding: 3px 6px; margin-right: 5px; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script>
+let sqlDb = null;
+const SQLJS_CDN = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/';
+
+async function loadDatabase() {
+    const status = document.getElementById('editorStatus');
+    try {
+        const SQL = await initSqlJs({ locateFile: f => SQLJS_CDN + f });
+        status.textContent = 'Fetching database...';
+        const resp = await fetch('/download_db/');
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const buf = await resp.arrayBuffer();
+        sqlDb = new SQL.Database(new Uint8Array(buf));
+        status.textContent = 'Database loaded. Use Row Edits or Schema Changes. Click Save to download the edited file, then Upload to replace the server DB.';
+        status.style.color = '#0c0';
+        ['btnRowEdits','btnSchemaChanges','btnSaveDb'].forEach(id => document.getElementById(id).disabled = false);
+    } catch (e) {
+        status.textContent = 'Failed to load DB: ' + e.message;
+        status.style.color = '#f66';
+    }
+}
+window.addEventListener('load', loadDatabase);
+
+function showMode(mode) {
+    document.getElementById('rowEditsView').style.display = mode === 'row' ? '' : 'none';
+    document.getElementById('schemaView').style.display   = mode === 'schema' ? '' : 'none';
+    if (mode === 'row') initRowEditor();
+    if (mode === 'schema') initSchemaEditor();
+}
+
+function getTableNames() {
+    const res = sqlDb.exec("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+    return res.length ? res[0].values.map(r => r[0]) : [];
+}
+
+function getColumnsForTable(name) {
+    const res = sqlDb.exec(`PRAGMA table_info("${name}")`);
+    return res.length ? res[0].values.map(r => r[1]) : [];
+}
+
+// ── Row Edits ───────────────────────────────────────────────────────────────
+let rowState = null;
+
+function initRowEditor() {
+    const sel = document.getElementById('rowTableSelect');
+    const tables = getTableNames();
+    sel.innerHTML = '<option value="">-- select table --</option>' + tables.map(n => `<option>${n}</option>`).join('');
+    sel.onchange = () => loadRowsForTable(sel.value);
+    document.getElementById('rowTableWrap').innerHTML = '';
+    rowState = null;
+}
+
+function loadRowsForTable(name) {
+    if (!name) { document.getElementById('rowTableWrap').innerHTML = ''; rowState = null; return; }
+    const res = sqlDb.exec(`SELECT rowid, * FROM "${name}"`);
+    const cols = res.length ? res[0].columns : ['rowid'];
+    const rows = res.length ? res[0].values : [];
+    rowState = {
+        table: name,
+        columns: cols,
+        rows: rows.map(r => ({ original: [...r], current: [...r], deleted: false, isNew: false })),
+    };
+    renderRowTable();
+}
+
+function renderRowTable() {
+    if (!rowState) return;
+    const wrap = document.getElementById('rowTableWrap');
+    const header = rowState.columns.map(c => `<th>${c}${c === 'rowid' ? ' (ro)' : ''}</th>`).join('') + '<th>Action</th>';
+    const body = rowState.rows.map((r, i) => {
+        if (r.deleted) return '';
+        const cells = rowState.columns.map((c, j) => {
+            const v = r.current[j];
+            const disp = v === null ? '' : String(v);
+            if (c === 'rowid') return `<td style="color:#888">${disp}</td>`;
+            return `<td contenteditable="true" oninput="updateCell(${i}, ${j}, this.textContent)">${disp}</td>`;
+        }).join('');
+        return `<tr>${cells}<td><button type="button" onclick="deleteRow(${i})" style="background:#622; color:#fcc;">×</button></td></tr>`;
+    }).join('');
+    wrap.innerHTML = `<table class="edit-grid"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function updateCell(rowIdx, colIdx, value) {
+    rowState.rows[rowIdx].current[colIdx] = value;
+}
+
+function deleteRow(idx) {
+    const r = rowState.rows[idx];
+    if (r.isNew) rowState.rows.splice(idx, 1);
+    else r.deleted = true;
+    renderRowTable();
+}
+
+function addNewRow() {
+    if (!rowState) return alert('Select a table first.');
+    const row = rowState.columns.map(c => c === 'rowid' ? null : '');
+    rowState.rows.push({ original: null, current: row, deleted: false, isNew: true });
+    renderRowTable();
+}
+
+function applyRowChanges() {
+    if (!rowState) return;
+    const rowidIdx = rowState.columns.indexOf('rowid');
+    const dataCols = rowState.columns.filter(c => c !== 'rowid');
+    let updated = 0, inserted = 0, deleted = 0;
+    try {
+        sqlDb.run('BEGIN');
+        for (const r of rowState.rows) {
+            if (r.deleted && !r.isNew) {
+                sqlDb.run(`DELETE FROM "${rowState.table}" WHERE rowid = ?`, [r.original[rowidIdx]]);
+                deleted++;
+            } else if (r.isNew && !r.deleted) {
+                const vals = dataCols.map(c => {
+                    const v = r.current[rowState.columns.indexOf(c)];
+                    return v === '' ? null : v;
+                });
+                const placeholders = vals.map(() => '?').join(',');
+                const colList = dataCols.map(c => `"${c}"`).join(',');
+                sqlDb.run(`INSERT INTO "${rowState.table}" (${colList}) VALUES (${placeholders})`, vals);
+                inserted++;
+            } else if (!r.isNew && !r.deleted) {
+                const changed = rowState.columns.some((c, j) => c !== 'rowid' && String(r.current[j] ?? '') !== String(r.original[j] ?? ''));
+                if (changed) {
+                    const setClause = dataCols.map(c => `"${c}" = ?`).join(',');
+                    const vals = dataCols.map(c => {
+                        const v = r.current[rowState.columns.indexOf(c)];
+                        return v === '' ? null : v;
+                    });
+                    sqlDb.run(`UPDATE "${rowState.table}" SET ${setClause} WHERE rowid = ?`, [...vals, r.original[rowidIdx]]);
+                    updated++;
+                }
+            }
+        }
+        sqlDb.run('COMMIT');
+        alert(`Applied to in-memory DB:\n  ${updated} updated, ${inserted} inserted, ${deleted} deleted.\n\nClick Save to download the edited .db, then Upload to replace the server DB.`);
+        loadRowsForTable(rowState.table);
+    } catch (e) {
+        try { sqlDb.run('ROLLBACK'); } catch (_) {}
+        alert('Error: ' + e.message);
+    }
+}
+
+// ── Schema Changes ──────────────────────────────────────────────────────────
+function initSchemaEditor() {
+    document.getElementById('schemaOp').value = '';
+    document.getElementById('schemaFormContainer').innerHTML = '';
+}
+
+function renderSchemaForm() {
+    const op = document.getElementById('schemaOp').value;
+    const c = document.getElementById('schemaFormContainer');
+    const tableOpts = getTableNames().map(n => `<option>${n}</option>`).join('');
+    if (op === 'createTable') {
+        c.innerHTML = `
+            <input class="schema-input" id="sTable" placeholder="table name">
+            <br><textarea class="schema-input" id="sCols" rows="2" cols="60" placeholder="e.g. id INTEGER PRIMARY KEY, name TEXT, age INTEGER" style="margin-top:5px;"></textarea>
+            <br><button type="button" onclick="applyCreateTable()" style="background:#444;color:#0f0;margin-top:5px;">Create</button>`;
+    } else if (op === 'dropTable') {
+        c.innerHTML = `<select class="schema-input" id="sTable">${tableOpts}</select>
+            <button type="button" onclick="applyDropTable()" style="background:#622;color:#fcc;">Drop</button>`;
+    } else if (op === 'renameTable') {
+        c.innerHTML = `<select class="schema-input" id="sTable">${tableOpts}</select>
+            <input class="schema-input" id="sNew" placeholder="new name">
+            <button type="button" onclick="applyRenameTable()" style="background:#444;color:#0f0;">Rename</button>`;
+    } else if (op === 'addColumn') {
+        c.innerHTML = `<select class="schema-input" id="sTable">${tableOpts}</select>
+            <input class="schema-input" id="sCol" placeholder="column name">
+            <input class="schema-input" id="sType" placeholder="type (TEXT/INTEGER/REAL)">
+            <button type="button" onclick="applyAddColumn()" style="background:#444;color:#0f0;">Add</button>`;
+    } else if (op === 'dropColumn') {
+        c.innerHTML = `<select class="schema-input" id="sTable" onchange="refreshColOptions()">${tableOpts}</select>
+            <select class="schema-input" id="sCol"></select>
+            <button type="button" onclick="applyDropColumn()" style="background:#622;color:#fcc;">Drop</button>`;
+        refreshColOptions();
+    } else if (op === 'renameColumn') {
+        c.innerHTML = `<select class="schema-input" id="sTable" onchange="refreshColOptions()">${tableOpts}</select>
+            <select class="schema-input" id="sCol"></select>
+            <input class="schema-input" id="sNew" placeholder="new name">
+            <button type="button" onclick="applyRenameColumn()" style="background:#444;color:#0f0;">Rename</button>`;
+        refreshColOptions();
+    }
+}
+
+function refreshColOptions() {
+    const t = document.getElementById('sTable').value;
+    const cols = getColumnsForTable(t);
+    document.getElementById('sCol').innerHTML = cols.map(c => `<option>${c}</option>`).join('');
+}
+
+function confirmSchema(msg) { return confirm(`⚠️ Schema change\n\n${msg}\n\nApplied to in-memory DB only. Save + Upload to persist.\n\nContinue?`); }
+
+function applyCreateTable() {
+    const name = document.getElementById('sTable').value.trim();
+    const cols = document.getElementById('sCols').value.trim();
+    if (!name || !cols) return alert('Fill table name and columns.');
+    if (!confirmSchema(`CREATE TABLE "${name}" (${cols})`)) return;
+    try { sqlDb.run(`CREATE TABLE "${name}" (${cols})`); alert('Table created.'); } catch (e) { alert('Error: ' + e.message); }
+}
+function applyDropTable() {
+    const t = document.getElementById('sTable').value;
+    if (!confirmSchema(`DROP TABLE "${t}"`)) return;
+    try { sqlDb.run(`DROP TABLE "${t}"`); alert('Dropped.'); renderSchemaForm(); } catch (e) { alert('Error: ' + e.message); }
+}
+function applyRenameTable() {
+    const t = document.getElementById('sTable').value;
+    const n = document.getElementById('sNew').value.trim();
+    if (!n) return alert('Enter new name.');
+    if (!confirmSchema(`RENAME TABLE "${t}" → "${n}"`)) return;
+    try { sqlDb.run(`ALTER TABLE "${t}" RENAME TO "${n}"`); alert('Renamed.'); renderSchemaForm(); } catch (e) { alert('Error: ' + e.message); }
+}
+function applyAddColumn() {
+    const t = document.getElementById('sTable').value;
+    const col = document.getElementById('sCol').value.trim();
+    const typ = document.getElementById('sType').value.trim() || 'TEXT';
+    if (!col) return alert('Enter column name.');
+    if (!confirmSchema(`ADD COLUMN "${col}" ${typ} to "${t}"`)) return;
+    try { sqlDb.run(`ALTER TABLE "${t}" ADD COLUMN "${col}" ${typ}`); alert('Added.'); } catch (e) { alert('Error: ' + e.message); }
+}
+function applyDropColumn() {
+    const t = document.getElementById('sTable').value;
+    const col = document.getElementById('sCol').value;
+    if (!col) return alert('No column selected.');
+    if (!confirmSchema(`DROP COLUMN "${col}" from "${t}"`)) return;
+    try { sqlDb.run(`ALTER TABLE "${t}" DROP COLUMN "${col}"`); alert('Dropped.'); refreshColOptions(); } catch (e) { alert('Error: ' + e.message); }
+}
+function applyRenameColumn() {
+    const t = document.getElementById('sTable').value;
+    const col = document.getElementById('sCol').value;
+    const n = document.getElementById('sNew').value.trim();
+    if (!col || !n) return alert('Select column and enter new name.');
+    if (!confirmSchema(`RENAME COLUMN "${col}" → "${n}" on "${t}"`)) return;
+    try { sqlDb.run(`ALTER TABLE "${t}" RENAME COLUMN "${col}" TO "${n}"`); alert('Renamed.'); refreshColOptions(); } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ── Save ────────────────────────────────────────────────────────────────────
+function saveDb() {
+    if (!sqlDb) return alert('DB not loaded.');
+    const data = sqlDb.export();
+    const blob = new Blob([data], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+    a.href = url;
+    a.download = `edited_${ts}.db`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+</script>
+{% endif %}
+
 {% endblock %}
