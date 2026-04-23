@@ -303,10 +303,15 @@
         <div style="width: 100%">
 
             <!-- Drop zone -->
-            <div id="drop-zone" onclick="document.getElementById('file-input').click()">
-                <div style="font-size: 16px; margin-bottom: 2px;">&#8659;</div>
-                <div>Drag a file here or click to select</div>
-                <div style="font-size: 11px; color: #666; margin-top: 2px;">Supported: .xlsx, .xls, .csv, .db, .sqlite, .sqlite3</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px;">
+                <div id="drop-zone" onclick="document.getElementById('file-input').click()" style="margin: 0;">
+                    <div style="font-size: 16px; margin-bottom: 2px;">&#8659;</div>
+                    <div>Drag a file here or click to select</div>
+                    <div style="font-size: 11px; color: #666; margin-top: 2px;">Supported: .xlsx, .xls, .csv, .db, .sqlite, .sqlite3</div>
+                </div>
+                <form action="/project/edit/" method="get" style="margin: 0;">
+                    <button type="submit" class="proj-btn">Edit</button>
+                </form>
             </div>
             <input type="file" id="file-input" accept=".xlsx,.xls,.csv,.db,.sqlite,.sqlite3" style="display:none;">
 
