@@ -1667,6 +1667,8 @@ async def project_edit(request: Request):
         "tab_page_active": "project",
         "message_color": message_color,
         "project_sub_tab_active": "edit",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+        "condition": condition,
     })
 
 @app.get("/project/chart/")
