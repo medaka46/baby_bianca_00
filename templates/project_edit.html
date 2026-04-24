@@ -47,10 +47,10 @@
         <div class="title_00" style="margin: 0;">{{ today }}</div>
         <div id="clock_project_edit" class="title_00" style="margin: 0;"></div>
 
-        {% if condition == "Production" %}
         <button type="button" id="btnRowEdits"      onclick="showMode('row')"    style="background-color: #444; color: #0f0; margin-left: 10px;" disabled>Row Edits</button>
         <button type="button" id="btnSchemaChanges" onclick="showMode('schema')" style="background-color: #444; color: #0f0; margin-left: 5px;"  disabled>Schema Changes</button>
         <button type="button" id="btnSaveDb"        onclick="saveDb()"           style="background-color: #444; color: #0f0; margin-left: 5px;"  disabled>Save</button>
+        {% if condition == "Production" %}
         <button type="button" id="btnSaveServer"    onclick="saveDbToServer()"   style="background-color: #444; color: #fc0; margin-left: 5px;"  disabled>Save to Server</button>
         {% endif %}
     </div>
@@ -70,8 +70,8 @@
 
 <main class="tab_00">
     <div class="scrollable-content" style="padding: 12px;">
-        {% if condition == "Production" %}
         <div id="editorStatus" style="color: #aaa; font-size: 13px; margin-bottom: 10px;">Loading SQLite engine...</div>
+        <div id="uploadedInfo" style="color: #8cf; font-size: 12px; margin-bottom: 10px; display:none;"></div>
         <div id="rowEditsView" style="display: none;">
             <label style="color:#aaa; font-size:13px;">Table:
                 <select id="rowTableSelect" style="background:#333; color:#eee; padding:2px 6px;"></select>
@@ -94,13 +94,9 @@
             </label>
             <div id="schemaFormContainer" style="margin-top:10px;"></div>
         </div>
-        {% else %}
-        <div style="color: #aaa; font-size: 13px;">Editing available in Production only.</div>
-        {% endif %}
     </div>
 </main>
 
-{% if condition == "Production" %}
 <style>
     .edit-grid { border-collapse: collapse; font-size: 12px; color: #ddd; }
     .edit-grid th, .edit-grid td { border: 1px solid #555; padding: 3px 6px; min-width: 60px; }
@@ -113,20 +109,54 @@
 <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
 <script>
 let sqlDb = null;
+let uploadedFilename = null;
 const SQLJS_CDN = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/';
+
+// ── IndexedDB access (shared with Sort/Select upload) ───────────────────────
+function _projEditIdbOpen() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open('projectEditDB', 1);
+        req.onupgradeneeded = () => req.result.createObjectStore('files');
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+async function projEditLoadDb() {
+    const db = await _projEditIdbOpen();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction('files', 'readonly');
+        const req = tx.objectStore('files').get('current');
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+    });
+}
 
 async function loadDatabase() {
     const status = document.getElementById('editorStatus');
+    const info = document.getElementById('uploadedInfo');
     try {
         const SQL = await initSqlJs({ locateFile: f => SQLJS_CDN + f });
-        status.textContent = 'Fetching database...';
-        const resp = await fetch('/download_db/');
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
-        const buf = await resp.arrayBuffer();
-        sqlDb = new SQL.Database(new Uint8Array(buf));
-        status.textContent = 'Database loaded. Use Row Edits or Schema Changes. Click Save to download the edited file, then Upload to replace the server DB.';
+        status.textContent = 'Looking for uploaded database...';
+
+        const stored = await projEditLoadDb();
+        if (!stored) {
+            status.textContent = 'No database uploaded. Go to Sort/Select and drop a .db / .sqlite / .sqlite3 file first.';
+            status.style.color = '#fa0';
+            return;
+        }
+
+        sqlDb = new SQL.Database(new Uint8Array(stored.buffer));
+        uploadedFilename = stored.filename;
+        info.style.display = 'block';
+        info.textContent = `Source: ${stored.filename} (uploaded via Sort/Select — edits are in-memory only until you Save)`;
+        status.textContent = 'Database loaded. Use Row Edits or Schema Changes. Click Save to download the edited file.';
         status.style.color = '#0c0';
-        ['btnRowEdits','btnSchemaChanges','btnSaveDb','btnSaveServer'].forEach(id => document.getElementById(id).disabled = false);
+        ['btnRowEdits','btnSchemaChanges','btnSaveDb'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = false;
+        });
+        const saveServer = document.getElementById('btnSaveServer');
+        if (saveServer) saveServer.disabled = false;
     } catch (e) {
         status.textContent = 'Failed to load DB: ' + e.message;
         status.style.color = '#f66';
@@ -245,7 +275,7 @@ function applyRowChanges() {
             }
         }
         sqlDb.run('COMMIT');
-        alert(`Applied to in-memory DB:\n  ${updated} updated, ${inserted} inserted, ${deleted} deleted.\n\nClick Save to download the edited .db, then Upload to replace the server DB.`);
+        alert(`Applied to in-memory DB:\n  ${updated} updated, ${inserted} inserted, ${deleted} deleted.\n\nClick Save to download the edited .db.`);
         loadRowsForTable(rowState.table);
     } catch (e) {
         try { sqlDb.run('ROLLBACK'); } catch (_) {}
@@ -300,7 +330,7 @@ function refreshColOptions() {
     document.getElementById('sCol').innerHTML = cols.map(c => `<option>${c}</option>`).join('');
 }
 
-function confirmSchema(msg) { return confirm(`⚠️ Schema change\n\n${msg}\n\nApplied to in-memory DB only. Save + Upload to persist.\n\nContinue?`); }
+function confirmSchema(msg) { return confirm(`⚠️ Schema change\n\n${msg}\n\nApplied to in-memory DB only. Save to download the edited file.\n\nContinue?`); }
 
 function applyCreateTable() {
     const name = document.getElementById('sTable').value.trim();
@@ -353,8 +383,9 @@ function saveDb() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     const ts = new Date().toISOString().replace(/[:.]/g, '').slice(0, 15);
+    const baseName = (uploadedFilename || 'uploaded').replace(/\.(db|sqlite|sqlite3)$/i, '');
     a.href = url;
-    a.download = `edited_${ts}.db`;
+    a.download = `${baseName}_edited_${ts}.db`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -367,10 +398,11 @@ async function saveDbToServer() {
     const sizeMB = (data.length / 1024 / 1024).toFixed(2);
     const confirmMessage =
         `⚠️ DATABASE REPLACEMENT WARNING ⚠️\n\n` +
-        `You are about to replace the production database with the edited version.\n` +
+        `You are about to replace the production database with the edited version of:\n` +
+        `${uploadedFilename || '(uploaded file)'}\n` +
         `Size: ${sizeMB} MB\n\n` +
         `This action will:\n` +
-        `1. Back up the current database on the server\n` +
+        `1. Back up the current production database\n` +
         `2. Replace it with the edited in-memory DB\n` +
         `3. Restart database connections\n\n` +
         `⚠️ This cannot be undone! ⚠️\n\n` +
@@ -399,6 +431,5 @@ async function saveDbToServer() {
     }
 }
 </script>
-{% endif %}
 
 {% endblock %}

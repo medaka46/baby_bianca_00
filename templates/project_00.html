@@ -456,9 +456,48 @@
         xhr.send(formData);
     }
 
+    // --- IndexedDB helpers for sharing uploaded DB with Edit sub-tab ---
+    function _projEditIdbOpen() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open('projectEditDB', 1);
+            req.onupgradeneeded = () => req.result.createObjectStore('files');
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+    async function projEditSaveDb(buffer, filename) {
+        const db = await _projEditIdbOpen();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('files', 'readwrite');
+            tx.objectStore('files').put({ buffer, filename }, 'current');
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+    async function projEditClearDb() {
+        const db = await _projEditIdbOpen();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction('files', 'readwrite');
+            tx.objectStore('files').delete('current');
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    }
+
     // --- Handle file upload ---
-    function handleFile(file) {
+    async function handleFile(file) {
         uploadedFile = file;
+        // Share uploaded SQLite file with Edit sub-tab (or clear old one for non-SQLite)
+        try {
+            if (/\.(db|sqlite|sqlite3)$/i.test(file.name)) {
+                const buf = await file.arrayBuffer();
+                await projEditSaveDb(buf, file.name);
+            } else {
+                await projEditClearDb();
+            }
+        } catch (e) {
+            console.warn('projEdit IndexedDB save failed:', e);
+        }
         sessionStorage.removeItem('proj_filename');
         sessionStorage.removeItem('proj_filetype');
         sessionStorage.removeItem('proj_columns');
