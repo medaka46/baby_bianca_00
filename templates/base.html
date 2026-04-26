@@ -533,8 +533,13 @@
             </form>
 
             <form action="/action/" method="get">
-                
+
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "action" else "#aaa" }};">Function</button>
+            </form>
+
+            <form action="/todo/" method="get">
+
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "todo" else "#aaa" }};">To Do</button>
             </form>
 
             <form action="/music/" method="get">

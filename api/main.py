@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from api.database import SessionLocal, engine, Base, ENVIRONMENT # Use absolute import
-from api.models import User, Schedule, Link  # Use absolute import
+from api.models import User, Schedule, Link, Todo  # Use absolute import
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -1761,3 +1761,219 @@ async def project_columns(file: UploadFile = File(...), sheet: str = Form(...)):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+
+# --------------------
+# To Do routes (per-user, private)
+
+def _todo_resolve_user(request: Request, db: Session):
+    """Return (login_username, id_user) for current session. id_user may be None if user not in DB."""
+    login_username = request.session.get('login_username')
+    if not login_username:
+        return None, None
+    user = db.query(User).filter(User.username == login_username).first()
+    return login_username, (user.id if user else None)
+
+
+def _todo_query_for_user(db: Session, login_username: str, id_user):
+    """Query Todo rows owned by current user. Match by id_user if known, else fall back to username."""
+    q = db.query(Todo)
+    if id_user is not None:
+        q = q.filter((Todo.id_user == id_user) | (Todo.username == login_username))
+    else:
+        q = q.filter(Todo.username == login_username)
+    return q.order_by(Todo.id)
+
+
+@app.get("/todo/")
+async def todo_list(request: Request, db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    time_zone = request.session.get('time_zone')
+
+    todos_data = []
+    todos_json_list = []
+    if login_username:
+        todos = _todo_query_for_user(db, login_username, id_user).all()
+        for t in todos:
+            todos_data.append(t)
+            todos_json_list.append({
+                "id": t.id,
+                "title": t.title or "",
+                "description": t.description or "",
+                "category": t.category or "",
+                "priority": t.priority or "",
+                "status": t.status or "",
+                "due_date": t.due_date.strftime('%Y-%m-%d') if t.due_date else "",
+                "created_at": t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else "",
+                "updated_at": t.updated_at.strftime('%Y-%m-%d %H:%M') if t.updated_at else "",
+            })
+
+    return templates.TemplateResponse("todo_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "todo",
+        "todo_sub_tab_active": "sort_select",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+        "todos": todos_data,
+        "todos_json": json.dumps(todos_json_list),
+    })
+
+
+@app.get("/todo/edit/")
+async def todo_edit(request: Request, db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    time_zone = request.session.get('time_zone')
+
+    todos = []
+    if login_username:
+        todos = _todo_query_for_user(db, login_username, id_user).all()
+
+    return templates.TemplateResponse("todo_edit.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "todo",
+        "todo_sub_tab_active": "edit",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+        "todos": todos,
+        "item": None,
+    })
+
+
+@app.get("/todo/edit_task/{item_id}")
+async def todo_edit_task(item_id: int, request: Request, db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    time_zone = request.session.get('time_zone')
+
+    if not login_username:
+        return RedirectResponse("/todo/edit/", status_code=303)
+
+    db_item = _todo_query_for_user(db, login_username, id_user).filter(Todo.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="To Do item not found")
+
+    todos = _todo_query_for_user(db, login_username, id_user).all()
+
+    return templates.TemplateResponse("todo_edit.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "todo",
+        "todo_sub_tab_active": "edit",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+        "todos": todos,
+        "item": db_item,
+    })
+
+
+@app.post("/todo/add_task/")
+async def todo_add_task(
+    request: Request,
+    title: str = Form(...),
+    description: str = Form(None),
+    category: str = Form(None),
+    priority: str = Form(None),
+    status: str = Form(None),
+    due_date: str = Form(None),
+    db: Session = Depends(get_db),
+):
+    login_username, id_user = _todo_resolve_user(request, db)
+    if not login_username:
+        return RedirectResponse("/todo/edit/", status_code=303)
+
+    due_date_val = None
+    if due_date:
+        try:
+            due_date_val = datetime.strptime(due_date, '%Y-%m-%d').date()
+        except ValueError:
+            due_date_val = None
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db_item = Todo(
+        title=title,
+        description=description,
+        category=category,
+        priority=priority or "Medium",
+        status=status or "Pending",
+        due_date=due_date_val,
+        created_at=now,
+        updated_at=now,
+        id_user=id_user,
+        username=login_username,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return RedirectResponse("/todo/", status_code=303)
+
+
+@app.post("/todo/update_task/{item_id}")
+async def todo_update_task(
+    item_id: int,
+    request: Request,
+    title: str = Form(...),
+    description: str = Form(None),
+    category: str = Form(None),
+    priority: str = Form(None),
+    status: str = Form(None),
+    due_date: str = Form(None),
+    db: Session = Depends(get_db),
+):
+    login_username, id_user = _todo_resolve_user(request, db)
+    if not login_username:
+        return RedirectResponse("/todo/edit/", status_code=303)
+
+    db_item = _todo_query_for_user(db, login_username, id_user).filter(Todo.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="To Do item not found")
+
+    due_date_val = None
+    if due_date:
+        try:
+            due_date_val = datetime.strptime(due_date, '%Y-%m-%d').date()
+        except ValueError:
+            due_date_val = None
+
+    db_item.title = title
+    db_item.description = description
+    db_item.category = category
+    db_item.priority = priority or "Medium"
+    db_item.status = status or "Pending"
+    db_item.due_date = due_date_val
+    db_item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    db.refresh(db_item)
+    return RedirectResponse("/todo/", status_code=303)
+
+
+@app.post("/todo/delete_task/")
+async def todo_delete_task(request: Request, item_id: int = Form(...), db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    if not login_username:
+        return RedirectResponse("/todo/edit/", status_code=303)
+
+    db_item = _todo_query_for_user(db, login_username, id_user).filter(Todo.id == item_id).first()
+    if db_item:
+        db.delete(db_item)
+        db.commit()
+    return RedirectResponse("/todo/", status_code=303)
+
+
+@app.post("/todo/mark_done/")
+async def todo_mark_done(
+    request: Request,
+    item_id: int = Form(...),
+    redirect_to: str = Form("/todo/"),
+    db: Session = Depends(get_db),
+):
+    login_username, id_user = _todo_resolve_user(request, db)
+    if not login_username:
+        return RedirectResponse("/todo/edit/", status_code=303)
+
+    db_item = _todo_query_for_user(db, login_username, id_user).filter(Todo.id == item_id).first()
+    if db_item:
+        db_item.status = "Done"
+        db_item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.commit()
+    target = redirect_to if redirect_to in ("/todo/", "/todo/edit/") else "/todo/"
+    return RedirectResponse(target, status_code=303)

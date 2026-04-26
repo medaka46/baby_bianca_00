@@ -47,11 +47,11 @@ class Schedule(Base):
     
 class Project(Base):
     __tablename__ = "projects"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     id = Column(Integer, Sequence('project_id_seq'), primary_key=True, index=True)
-    
-    
+
+
     name = Column(String, index=True)
     country = Column(String, index=True)
     client = Column(String, index=True)
@@ -60,7 +60,25 @@ class Project(Base):
     m_amount = Column(Float, index=True)
     currency = Column(String)
     date_of_submission = Column(Date)
-    
+
     id_user = Column(Integer)
+
+
+class Todo(Base):
+    __tablename__ = "todo"
+
+    id = Column(Integer, Sequence('todo_id_seq'), primary_key=True, index=True)
+
+    title = Column(String, index=True)
+    description = Column(String)
+    category = Column(String, index=True)
+    priority = Column(String, index=True)
+    status = Column(String, index=True)
+    due_date = Column(Date)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+    id_user = Column(Integer, index=True)
+    username = Column(String, index=True)
 
 

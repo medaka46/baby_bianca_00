@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+        padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+
+    .proj-btn {
+        background-color: #444;
+        color: #0f0;
+        border: 1px solid #666;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+    .proj-btn:hover { background-color: #555; }
+
+    .form-card {
+        background-color: #1a1a1a;
+        border: 1px solid #444;
+        border-radius: 5px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    .form-card h3 {
+        margin: 0 0 10px 0;
+        color: #0f0;
+        font-size: 14px;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 6px 10px;
+        align-items: center;
+    }
+    .form-grid label {
+        color: #aaa;
+        font-size: 12px;
+        text-align: right;
+    }
+    .form-grid input[type=text],
+    .form-grid input[type=date],
+    .form-grid select,
+    .form-grid textarea {
+        background-color: #444;
+        color: #fff;
+        border: 1px solid #666;
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 3px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .form-grid textarea { min-height: 60px; resize: vertical; }
+    .form-actions { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        color: #ccc;
+    }
+    .data-table th {
+        background-color: #333;
+        color: #0f0;
+        padding: 6px 10px;
+        text-align: left;
+        white-space: nowrap;
+        border-bottom: 1px solid #555;
+    }
+    .data-table td {
+        padding: 5px 10px;
+        border-bottom: 1px solid #2a2a2a;
+        white-space: nowrap;
+        color: #0f0;
+    }
+    .data-table tr:hover td { background-color: #2a2a2a; }
+    .data-table-wrap {
+        margin-top: 8px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        overflow: auto;
+        max-height: 400px;
+    }
+    .badge {
+        background-color: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: #0f0;
+    }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex;">
+        <form action="/todo/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if todo_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
+        </form>
+        <form action="/todo/edit/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if todo_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
+        </form>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">To Do · Edit</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_todo_edit" class="title_00" style="margin: 0;"></div>
+        <span class="badge" style="margin-left: auto;">User: {{ login_username or "(not logged in)" }}</span>
+    </div>
+</header>
+
+<main class="tab_00">
+    <div class="scrollable-content" style="padding: 12px;">
+
+        {% if not login_username %}
+        <div class="form-card" style="border-color: #f55; background-color: #2a1a1a;">
+            <h3 style="color: #f55;">Please log in</h3>
+            <div style="color: #faa; font-size: 12px;">To Do items are private to each user. Please log in first.</div>
+        </div>
+        {% else %}
+
+        <!-- Add / Edit form -->
+        <div class="form-card">
+            <h3>{% if item %}Edit To Do (ID {{ item.id }}){% else %}Add new To Do{% endif %}</h3>
+            <form action="{% if item %}/todo/update_task/{{ item.id }}{% else %}/todo/add_task/{% endif %}" method="post">
+                <div class="form-grid">
+                    <label for="title">Title*</label>
+                    <input type="text" id="title" name="title" required value="{{ item.title if item else '' }}" placeholder="What needs to be done?">
+
+                    <label for="category">Category</label>
+                    <input type="text" id="category" name="category" value="{{ item.category if item else '' }}" placeholder="Work / Personal / Shopping ...">
+
+                    <label for="priority">Priority</label>
+                    <select id="priority" name="priority">
+                        {% set p = item.priority if item else 'Medium' %}
+                        <option value="High" {% if p == 'High' %}selected{% endif %}>High</option>
+                        <option value="Medium" {% if p == 'Medium' %}selected{% endif %}>Medium</option>
+                        <option value="Low" {% if p == 'Low' %}selected{% endif %}>Low</option>
+                    </select>
+
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        {% set s = item.status if item else 'Pending' %}
+                        <option value="Pending" {% if s == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="In Progress" {% if s == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="Done" {% if s == 'Done' %}selected{% endif %}>Done</option>
+                    </select>
+
+                    <label for="due_date">Due Date</label>
+                    <input type="date" id="due_date" name="due_date" value="{{ item.due_date.strftime('%Y-%m-%d') if item and item.due_date else '' }}">
+
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" placeholder="Optional notes...">{{ item.description if item else '' }}</textarea>
+                </div>
+                <div class="form-actions">
+                    {% if item %}
+                    <a href="/todo/edit/" class="proj-btn" style="text-decoration: none;">Cancel</a>
+                    <button type="submit" class="proj-btn">Save Changes</button>
+                    {% else %}
+                    <button type="submit" class="proj-btn">Add To Do</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Existing list with edit / delete -->
+        <div class="form-card">
+            <h3 style="display: flex; align-items: center; gap: 10px;">
+                Your To Do items
+                <span class="badge" id="todoTotalBadge">{{ todos|length }}</span>
+                <span class="badge" id="todoVisibleBadge">Visible: {{ todos|length }}</span>
+                <label style="color:#aaa; font-size:11px; font-weight:normal; display:flex; align-items:center; gap:4px;">
+                    <input type="checkbox" id="showDoneToggleEdit"> Show Done
+                </label>
+            </h3>
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Due Date</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in todos %}
+                        <tr data-status="{{ t.status or '' }}">
+                            <td>{{ t.id }}</td>
+                            <td>{{ t.title }}</td>
+                            <td>{{ t.category or '' }}</td>
+                            <td>{{ t.priority or '' }}</td>
+                            <td>{{ t.status or '' }}</td>
+                            <td>{{ t.due_date.strftime('%Y-%m-%d') if t.due_date else '' }}</td>
+                            <td>
+                                {% if t.status != 'Done' %}
+                                <form action="/todo/mark_done/" method="post" style="display:inline; margin-right:8px;">
+                                    <input type="hidden" name="item_id" value="{{ t.id }}">
+                                    <input type="hidden" name="redirect_to" value="/todo/edit/">
+                                    <button type="submit" style="background:#004400; border:1px solid #0f0; color:#0f0; cursor:pointer; padding:1px 8px; font-size:11px; border-radius:3px;">Done</button>
+                                </form>
+                                {% endif %}
+                                <a href="/todo/edit_task/{{ t.id }}" style="color:#0f0; margin-right:8px;">Edit</a>
+                                <form action="/todo/delete_task/" method="post" style="display:inline;" onsubmit="return confirm('Delete this To Do item?');">
+                                    <input type="hidden" name="item_id" value="{{ t.id }}">
+                                    <button type="submit" style="background:none; border:none; color:#f55; cursor:pointer; padding:0; font-size:12px;">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" style="color:#888; text-align:center;">No To Do items yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% endif %}
+
+    </div>
+</main>
+
+<script>
+    function updateClockTodoEdit() {
+        const now = new Date();
+        const t = now.toLocaleTimeString();
+        const el = document.getElementById('clock_todo_edit');
+        if (el) el.textContent = t;
+    }
+    setInterval(updateClockTodoEdit, 1000);
+    updateClockTodoEdit();
+
+    // Show/Hide Done rows
+    const showDoneToggleEdit = document.getElementById('showDoneToggleEdit');
+    function applyDoneFilterEdit() {
+        const showDone = showDoneToggleEdit ? showDoneToggleEdit.checked : false;
+        const rows = document.querySelectorAll('tr[data-status]');
+        let visible = 0;
+        rows.forEach(r => {
+            const isDone = r.getAttribute('data-status') === 'Done';
+            if (isDone && !showDone) {
+                r.style.display = 'none';
+            } else {
+                r.style.display = '';
+                visible++;
+            }
+        });
+        const vb = document.getElementById('todoVisibleBadge');
+        if (vb) vb.textContent = 'Visible: ' + visible;
+    }
+    if (showDoneToggleEdit) {
+        showDoneToggleEdit.addEventListener('change', applyDoneFilterEdit);
+    }
+    applyDoneFilterEdit();
+</script>
+{% endblock %}

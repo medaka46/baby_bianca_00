@@ -1,0 +1,566 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+        padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+
+    .proj-btn {
+        background-color: #444;
+        color: #0f0;
+        border: 1px solid #666;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+    .proj-btn:hover { background-color: #555; }
+
+    .info-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: #aaa;
+        flex-wrap: wrap;
+    }
+    .badge {
+        background-color: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: #0f0;
+    }
+    .col-tag {
+        background-color: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: #ccc;
+        margin: 2px;
+        display: inline-block;
+        cursor: pointer;
+        user-select: none;
+    }
+    .col-tag.col-hidden {
+        color: #555;
+        text-decoration: line-through;
+        background-color: #1a1a1a;
+        border-color: #333;
+    }
+    .col-tag.col-filter {
+        border-color: #ff0;
+        color: #ff0;
+        background-color: #2a2a00;
+    }
+
+    /* Filter condition bar */
+    #select-conditions {
+        display: none;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin: 8px 0 4px 0;
+        padding: 6px 8px;
+        background-color: #1e1e00;
+        border: 1px solid #555500;
+        border-radius: 4px;
+    }
+    .filter-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background-color: #2a2a00;
+        border: 1px solid #666600;
+        border-radius: 4px;
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+    .filter-chip-name {
+        color: #ff0;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+    .filter-op {
+        background-color: #333;
+        color: #0f0;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 1px 3px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .filter-val {
+        background-color: #333;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 11px;
+        width: 100px;
+    }
+    .filter-val:focus { outline: 1px solid #ff0; border-color: #ff0; }
+    .filter-toggle {
+        border: 1px solid #666;
+        border-radius: 3px;
+        padding: 1px 6px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .filter-toggle.on  { background-color: #004400; color: #0f0; border-color: #0f0; }
+    .filter-toggle.off { background-color: #333;    color: #666; border-color: #555; }
+    .filter-remove {
+        background: none;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0 2px;
+        line-height: 1;
+    }
+    .filter-remove:hover { color: #f00; }
+
+    /* Data table */
+    .data-table-wrap {
+        margin-top: 14px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .data-table-scroll {
+        max-height: 400px;
+        overflow-y: auto;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .data-table-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+    .data-table-scroll::-webkit-scrollbar-track { background: #333; }
+    .data-table-scroll::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        color: #ccc;
+    }
+    .data-table th {
+        background-color: #333;
+        color: #0f0;
+        padding: 6px 10px;
+        text-align: left;
+        white-space: nowrap;
+        border-bottom: 1px solid #555;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        cursor: pointer;
+        user-select: none;
+    }
+    .data-table th:hover { background-color: #3a3a3a; }
+    .sort-indicator {
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 10px;
+        color: #0f0;
+        opacity: 0.4;
+    }
+    .sort-indicator.active { opacity: 1; }
+    .data-table td {
+        padding: 5px 10px;
+        border-bottom: 1px solid #2a2a2a;
+        white-space: nowrap;
+        color: #0f0;
+    }
+    .data-table tr:hover td { background-color: #2a2a2a; }
+    .status-Done { color: #888 !important; text-decoration: line-through; }
+    .status-In-Progress { color: #ff0 !important; }
+    .status-Pending { color: #0ff !important; }
+    .priority-High { color: #f33 !important; font-weight: bold; }
+    .priority-Medium { color: #fa0 !important; }
+    .priority-Low { color: #888 !important; }
+    #tableHeight {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 6px;
+        border-radius: 3px;
+        outline: none;
+        background-color: #444;
+    }
+    #tableHeight::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #0f0;
+        cursor: pointer;
+    }
+    #tableHeight::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #0f0;
+        cursor: pointer;
+        border: none;
+    }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex;">
+        <form action="/todo/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if todo_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
+        </form>
+        <form action="/todo/edit/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if todo_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
+        </form>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">To Do</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_todo" class="title_00" style="margin: 0;"></div>
+        <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+            <label style="color: #0f0; font-size: 11px;">Table Height:</label>
+            <input type="range" id="tableHeight" min="400" max="1000" value="400" style="width: 100px;">
+            <span id="tableHeightValue" style="color: #0f0; font-size: 11px; min-width: 40px;">400px</span>
+        </div>
+    </div>
+</header>
+
+<main class="tab_00">
+    <div class="scrollable-content" style="padding: 12px;">
+        <div style="width: 100%">
+
+            <!-- Info row -->
+            <div class="info-row" style="margin-bottom: 8px;">
+                <span class="badge">User: {{ login_username or "(not logged in)" }}</span>
+                <span class="badge" id="totalBadge">Total: {{ todos|length }}</span>
+                <span class="badge" id="visibleBadge">Visible: {{ todos|length }}</span>
+                <label style="color:#aaa; font-size:11px; display:flex; align-items:center; gap:4px;">
+                    <input type="checkbox" id="showDoneToggle"> Show Done
+                </label>
+                <form action="/todo/edit/" method="get" style="margin: 0; margin-left: auto;">
+                    <button type="submit" class="proj-btn">+ Add / Edit</button>
+                </form>
+            </div>
+
+            <!-- Column tag bar (click to hide / shift-click to filter) -->
+            <div style="margin-bottom: 4px;">
+                <span style="color: #888; font-size: 11px; margin-right: 6px;">Columns (click = hide, shift+click = filter):</span>
+                <span id="col-tags"></span>
+            </div>
+
+            <!-- Filter conditions bar -->
+            <div id="select-conditions"></div>
+
+            <!-- Data table -->
+            <div class="data-table-wrap">
+                <div class="data-table-scroll" id="dataTableScroll">
+                    <table class="data-table" id="todoTable">
+                        <thead>
+                            <tr id="todoHeaderRow"></tr>
+                        </thead>
+                        <tbody id="todoBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<script>
+    // Live clock
+    function updateClock() {
+        const now = new Date();
+        const t = now.toLocaleTimeString();
+        const el = document.getElementById('clock_todo');
+        if (el) el.textContent = t;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Table height slider
+    const heightSlider = document.getElementById('tableHeight');
+    const heightValue = document.getElementById('tableHeightValue');
+    const tableScroll = document.getElementById('dataTableScroll');
+    if (heightSlider) {
+        heightSlider.addEventListener('input', function() {
+            tableScroll.style.maxHeight = this.value + 'px';
+            heightValue.textContent = this.value + 'px';
+        });
+    }
+
+    // ----- Data from server -----
+    const TODOS = {{ todos_json | safe }};
+    const COLUMNS = ["id", "title", "category", "priority", "status", "due_date", "description", "created_at", "updated_at"];
+    const COLUMN_LABELS = {
+        id: "ID",
+        title: "Title",
+        category: "Category",
+        priority: "Priority",
+        status: "Status",
+        due_date: "Due Date",
+        description: "Description",
+        created_at: "Created",
+        updated_at: "Updated"
+    };
+
+    // State
+    let sortCol = "id";
+    let sortAsc = true;
+    let showDone = false;
+    const hiddenCols = new Set(["description", "created_at", "updated_at"]);
+    const filters = {}; // { col: { op: "==", val: "...", on: true } }
+
+    const showDoneToggle = document.getElementById('showDoneToggle');
+    if (showDoneToggle) {
+        showDoneToggle.addEventListener('change', function() {
+            showDone = this.checked;
+            renderTable();
+        });
+    }
+
+    function renderColTags() {
+        const wrap = document.getElementById('col-tags');
+        wrap.innerHTML = '';
+        COLUMNS.forEach(col => {
+            const tag = document.createElement('span');
+            tag.className = 'col-tag';
+            if (hiddenCols.has(col)) tag.classList.add('col-hidden');
+            if (filters[col]) tag.classList.add('col-filter');
+            tag.textContent = COLUMN_LABELS[col];
+            tag.addEventListener('click', function(e) {
+                if (e.shiftKey) {
+                    if (filters[col]) {
+                        delete filters[col];
+                    } else {
+                        filters[col] = { op: "contains", val: "", on: true };
+                    }
+                    renderFilterBar();
+                } else {
+                    if (hiddenCols.has(col)) hiddenCols.delete(col);
+                    else hiddenCols.add(col);
+                }
+                renderAll();
+            });
+            wrap.appendChild(tag);
+        });
+    }
+
+    function renderFilterBar() {
+        const bar = document.getElementById('select-conditions');
+        bar.innerHTML = '';
+        const cols = Object.keys(filters);
+        if (cols.length === 0) {
+            bar.style.display = 'none';
+            return;
+        }
+        bar.style.display = 'flex';
+        cols.forEach(col => {
+            const f = filters[col];
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+
+            const name = document.createElement('span');
+            name.className = 'filter-chip-name';
+            name.textContent = COLUMN_LABELS[col];
+            chip.appendChild(name);
+
+            const op = document.createElement('select');
+            op.className = 'filter-op';
+            ["contains", "==", "!=", ">", ">=", "<", "<="].forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o;
+                opt.textContent = o;
+                if (f.op === o) opt.selected = true;
+                op.appendChild(opt);
+            });
+            op.addEventListener('change', () => { f.op = op.value; renderTable(); });
+            chip.appendChild(op);
+
+            const val = document.createElement('input');
+            val.className = 'filter-val';
+            val.type = 'text';
+            val.value = f.val;
+            val.placeholder = 'value...';
+            val.addEventListener('input', () => { f.val = val.value; renderTable(); });
+            chip.appendChild(val);
+
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'filter-toggle ' + (f.on ? 'on' : 'off');
+            toggle.textContent = f.on ? 'ON' : 'OFF';
+            toggle.addEventListener('click', () => {
+                f.on = !f.on;
+                toggle.className = 'filter-toggle ' + (f.on ? 'on' : 'off');
+                toggle.textContent = f.on ? 'ON' : 'OFF';
+                renderTable();
+            });
+            chip.appendChild(toggle);
+
+            const rm = document.createElement('button');
+            rm.type = 'button';
+            rm.className = 'filter-remove';
+            rm.textContent = '×';
+            rm.addEventListener('click', () => {
+                delete filters[col];
+                renderColTags();
+                renderFilterBar();
+                renderTable();
+            });
+            chip.appendChild(rm);
+
+            bar.appendChild(chip);
+        });
+    }
+
+    function compareVals(a, b) {
+        if (a == null && b == null) return 0;
+        if (a == null) return -1;
+        if (b == null) return 1;
+        const na = parseFloat(a), nb = parseFloat(b);
+        if (!isNaN(na) && !isNaN(nb) && (''+na === ''+a) && (''+nb === ''+b)) {
+            return na - nb;
+        }
+        return (''+a).localeCompare(''+b);
+    }
+
+    function passesFilters(row) {
+        for (const col of Object.keys(filters)) {
+            const f = filters[col];
+            if (!f.on) continue;
+            const cell = row[col] == null ? '' : ''+row[col];
+            const target = f.val;
+            if (target === '') continue;
+            const num_cell = parseFloat(cell);
+            const num_target = parseFloat(target);
+            const numeric = !isNaN(num_cell) && !isNaN(num_target);
+            switch (f.op) {
+                case 'contains':
+                    if (!cell.toLowerCase().includes(target.toLowerCase())) return false; break;
+                case '==':
+                    if (numeric ? num_cell !== num_target : cell !== target) return false; break;
+                case '!=':
+                    if (numeric ? num_cell === num_target : cell === target) return false; break;
+                case '>':
+                    if (numeric ? !(num_cell > num_target) : !(cell > target)) return false; break;
+                case '>=':
+                    if (numeric ? !(num_cell >= num_target) : !(cell >= target)) return false; break;
+                case '<':
+                    if (numeric ? !(num_cell < num_target) : !(cell < target)) return false; break;
+                case '<=':
+                    if (numeric ? !(num_cell <= num_target) : !(cell <= target)) return false; break;
+            }
+        }
+        return true;
+    }
+
+    function renderTable() {
+        const headerRow = document.getElementById('todoHeaderRow');
+        const body = document.getElementById('todoBody');
+        headerRow.innerHTML = '';
+        body.innerHTML = '';
+
+        const visibleCols = COLUMNS.filter(c => !hiddenCols.has(c));
+
+        visibleCols.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = COLUMN_LABELS[col];
+            const ind = document.createElement('span');
+            ind.className = 'sort-indicator';
+            if (sortCol === col) {
+                ind.classList.add('active');
+                ind.textContent = sortAsc ? '▲' : '▼';
+            } else {
+                ind.textContent = '▲';
+            }
+            th.appendChild(ind);
+            th.addEventListener('click', () => {
+                if (sortCol === col) sortAsc = !sortAsc;
+                else { sortCol = col; sortAsc = true; }
+                renderTable();
+            });
+            headerRow.appendChild(th);
+        });
+        // Action column
+        const thAction = document.createElement('th');
+        thAction.textContent = "Action";
+        thAction.style.cursor = 'default';
+        headerRow.appendChild(thAction);
+
+        const filtered = TODOS.filter(row => (showDone || row.status !== 'Done') && passesFilters(row));
+        filtered.sort((a, b) => {
+            const r = compareVals(a[sortCol], b[sortCol]);
+            return sortAsc ? r : -r;
+        });
+
+        filtered.forEach(row => {
+            const tr = document.createElement('tr');
+            visibleCols.forEach(col => {
+                const td = document.createElement('td');
+                td.textContent = row[col] == null ? '' : row[col];
+                if (col === 'status' && row.status) {
+                    td.className = 'status-' + (row.status || '').replace(/\s+/g, '-');
+                }
+                if (col === 'priority' && row.priority) {
+                    td.className = 'priority-' + (row.priority || '').replace(/\s+/g, '-');
+                }
+                tr.appendChild(td);
+            });
+            const tdAction = document.createElement('td');
+            const doneBtn = row.status === 'Done' ? '' : `
+                <form action="/todo/mark_done/" method="post" style="display:inline; margin-right:8px;">
+                    <input type="hidden" name="item_id" value="${row.id}">
+                    <input type="hidden" name="redirect_to" value="/todo/">
+                    <button type="submit" style="background:#004400; border:1px solid #0f0; color:#0f0; cursor:pointer; padding:1px 8px; font-size:11px; border-radius:3px;">Done</button>
+                </form>`;
+            tdAction.innerHTML = `
+                ${doneBtn}
+                <a href="/todo/edit_task/${row.id}" style="color:#0f0; margin-right:8px;">Edit</a>
+                <form action="/todo/delete_task/" method="post" style="display:inline;" onsubmit="return confirm('Delete this To Do item?');">
+                    <input type="hidden" name="item_id" value="${row.id}">
+                    <button type="submit" style="background:none; border:none; color:#f55; cursor:pointer; padding:0; font-size:12px;">Delete</button>
+                </form>
+            `;
+            tr.appendChild(tdAction);
+            body.appendChild(tr);
+        });
+
+        document.getElementById('visibleBadge').textContent = 'Visible: ' + filtered.length;
+    }
+
+    function renderAll() {
+        renderColTags();
+        renderFilterBar();
+        renderTable();
+    }
+
+    renderAll();
+</script>
+{% endblock %}
