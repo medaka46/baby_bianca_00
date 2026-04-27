@@ -153,7 +153,17 @@
                     <input type="text" id="title" name="title" required value="{{ item.title if item else '' }}" placeholder="What needs to be done?">
 
                     <label for="category">Category</label>
-                    <input type="text" id="category" name="category" value="{{ item.category if item else '' }}" placeholder="Work / Personal / Shopping ...">
+                    {% set cat = item.category if item else '' %}
+                    {% set cat_options = ['Work', 'Business', 'Private', 'Family', 'Study', 'Hobby', 'Others'] %}
+                    <select id="category" name="category">
+                        <option value="" {% if not cat %}selected{% endif %}>-- Select --</option>
+                        {% for c in cat_options %}
+                        <option value="{{ c }}" {% if cat == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                        {% if cat and cat not in cat_options %}
+                        <option value="{{ cat }}" selected>{{ cat }} (legacy)</option>
+                        {% endif %}
+                    </select>
 
                     <label for="priority">Priority</label>
                     <select id="priority" name="priority">

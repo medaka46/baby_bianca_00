@@ -204,7 +204,7 @@
     .priority-High { color: #f33 !important; font-weight: bold; }
     .priority-Medium { color: #fa0 !important; }
     .priority-Low { color: #888 !important; }
-    #tableHeight {
+    #fontSize {
         -webkit-appearance: none;
         appearance: none;
         height: 6px;
@@ -212,7 +212,7 @@
         outline: none;
         background-color: #444;
     }
-    #tableHeight::-webkit-slider-thumb {
+    #fontSize::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
         width: 16px;
@@ -221,7 +221,7 @@
         background: #0f0;
         cursor: pointer;
     }
-    #tableHeight::-moz-range-thumb {
+    #fontSize::-moz-range-thumb {
         width: 16px;
         height: 16px;
         border-radius: 50%;
@@ -245,9 +245,9 @@
         <div class="title_00" style="margin: 0;">{{ today }}</div>
         <div id="clock_todo" class="title_00" style="margin: 0;"></div>
         <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
-            <label style="color: #0f0; font-size: 11px;">Table Height:</label>
-            <input type="range" id="tableHeight" min="400" max="1000" value="400" style="width: 100px;">
-            <span id="tableHeightValue" style="color: #0f0; font-size: 11px; min-width: 40px;">400px</span>
+            <label style="color: #0f0; font-size: 11px;">Font Size:</label>
+            <input type="range" id="fontSize" min="10" max="22" step="1" value="12" style="width: 100px;">
+            <span id="fontSizeValue" style="color: #0f0; font-size: 11px; min-width: 40px;">12px</span>
         </div>
     </div>
 </header>
@@ -305,15 +305,19 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Table height slider
-    const heightSlider = document.getElementById('tableHeight');
-    const heightValue = document.getElementById('tableHeightValue');
-    const tableScroll = document.getElementById('dataTableScroll');
-    if (heightSlider) {
-        heightSlider.addEventListener('input', function() {
-            tableScroll.style.maxHeight = this.value + 'px';
-            heightValue.textContent = this.value + 'px';
+    // Font size slider — adjusts table font size
+    const fontSlider = document.getElementById('fontSize');
+    const fontValue = document.getElementById('fontSizeValue');
+    const todoTable = document.getElementById('todoTable');
+    function applyFontSize(px) {
+        if (todoTable) todoTable.style.fontSize = px + 'px';
+        if (fontValue) fontValue.textContent = px + 'px';
+    }
+    if (fontSlider) {
+        fontSlider.addEventListener('input', function() {
+            applyFontSize(this.value);
         });
+        applyFontSize(fontSlider.value);
     }
 
     // ----- Data from server -----
