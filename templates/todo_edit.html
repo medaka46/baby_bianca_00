@@ -223,12 +223,13 @@
                     </thead>
                     <tbody>
                         {% for t in todos %}
+                        {% set eff = t.effective_status or t.status or '' %}
                         <tr data-status="{{ t.status or '' }}">
                             <td>{{ t.id }}</td>
                             <td>{{ t.title }}</td>
                             <td>{{ t.category or '' }}</td>
                             <td>{{ t.priority or '' }}</td>
-                            <td>{{ t.status or '' }}</td>
+                            <td{% if eff == 'Overdue' %} style="color:#f33; font-weight:bold;"{% endif %}>{{ eff }}</td>
                             <td>{{ t.due_date.strftime('%Y-%m-%d') if t.due_date else '' }}</td>
                             <td>
                                 {% if t.status != 'Done' %}

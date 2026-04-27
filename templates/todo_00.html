@@ -164,7 +164,8 @@
     .data-table-scroll::-webkit-scrollbar-track { background: #333; }
     .data-table-scroll::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
     .data-table {
-        width: 100%;
+        width: auto;
+        table-layout: fixed;
         border-collapse: collapse;
         font-size: 12px;
         color: #ccc;
@@ -181,8 +182,25 @@
         z-index: 1;
         cursor: pointer;
         user-select: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .data-table th:hover { background-color: #3a3a3a; }
+    .resize-handle {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        user-select: none;
+        background-color: #555;
+        opacity: 0.4;
+    }
+    .resize-handle:hover, .resize-handle.active {
+        background-color: #0f0;
+        opacity: 1;
+    }
     .sort-indicator {
         display: inline-block;
         margin-left: 4px;
@@ -196,11 +214,14 @@
         border-bottom: 1px solid #2a2a2a;
         white-space: nowrap;
         color: #0f0;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .data-table tr:hover td { background-color: #2a2a2a; }
     .status-Done { color: #888 !important; text-decoration: line-through; }
     .status-In-Progress { color: #ff0 !important; }
     .status-Pending { color: #0ff !important; }
+    .status-Overdue { color: #f33 !important; font-weight: bold; }
     .priority-High { color: #f33 !important; font-weight: bold; }
     .priority-Medium { color: #fa0 !important; }
     .priority-Low { color: #888 !important; }
@@ -341,6 +362,7 @@
     let showDone = false;
     const hiddenCols = new Set(["description", "created_at", "updated_at"]);
     const filters = {}; // { col: { op: "==", val: "...", on: true } }
+    const colWidths = {}; // persists user-resized widths across re-renders
 
     const showDoneToggle = document.getElementById('showDoneToggle');
     if (showDoneToggle) {
@@ -455,11 +477,16 @@
         return (''+a).localeCompare(''+b);
     }
 
+    function displayValue(row, col) {
+        if (col === 'status') return row.effective_status || row.status || '';
+        return row[col] == null ? '' : ''+row[col];
+    }
+
     function passesFilters(row) {
         for (const col of Object.keys(filters)) {
             const f = filters[col];
             if (!f.on) continue;
-            const cell = row[col] == null ? '' : ''+row[col];
+            const cell = displayValue(row, col);
             const target = f.val;
             if (target === '') continue;
             const num_cell = parseFloat(cell);
@@ -493,9 +520,19 @@
 
         const visibleCols = COLUMNS.filter(c => !hiddenCols.has(c));
 
+        const DEFAULT_WIDTHS = {
+            id: 60, title: 200, category: 100, priority: 90, status: 110,
+            due_date: 110, description: 220, created_at: 140, updated_at: 140
+        };
         visibleCols.forEach(col => {
             const th = document.createElement('th');
             th.textContent = COLUMN_LABELS[col];
+            th.dataset.colName = col;
+            const w = (colWidths[col] != null) ? colWidths[col] : (DEFAULT_WIDTHS[col] || 120);
+            th.style.width = w + 'px';
+            th.style.minWidth = '0';
+            th.style.maxWidth = w + 'px';
+
             const ind = document.createElement('span');
             ind.className = 'sort-indicator';
             if (sortCol === col) {
@@ -505,7 +542,13 @@
                 ind.textContent = '▲';
             }
             th.appendChild(ind);
-            th.addEventListener('click', () => {
+
+            const handle = document.createElement('div');
+            handle.className = 'resize-handle';
+            th.appendChild(handle);
+
+            th.addEventListener('click', (e) => {
+                if (e.target.classList.contains('resize-handle')) return;
                 if (sortCol === col) sortAsc = !sortAsc;
                 else { sortCol = col; sortAsc = true; }
                 renderTable();
@@ -515,12 +558,20 @@
         // Action column
         const thAction = document.createElement('th');
         thAction.textContent = "Action";
+        thAction.dataset.colName = "__action__";
         thAction.style.cursor = 'default';
+        const aw = (colWidths["__action__"] != null) ? colWidths["__action__"] : 160;
+        thAction.style.width = aw + 'px';
+        thAction.style.minWidth = '0';
+        thAction.style.maxWidth = aw + 'px';
+        const aHandle = document.createElement('div');
+        aHandle.className = 'resize-handle';
+        thAction.appendChild(aHandle);
         headerRow.appendChild(thAction);
 
         const filtered = TODOS.filter(row => (showDone || row.status !== 'Done') && passesFilters(row));
         filtered.sort((a, b) => {
-            const r = compareVals(a[sortCol], b[sortCol]);
+            const r = compareVals(displayValue(a, sortCol), displayValue(b, sortCol));
             return sortAsc ? r : -r;
         });
 
@@ -528,12 +579,15 @@
             const tr = document.createElement('tr');
             visibleCols.forEach(col => {
                 const td = document.createElement('td');
-                td.textContent = row[col] == null ? '' : row[col];
-                if (col === 'status' && row.status) {
-                    td.className = 'status-' + (row.status || '').replace(/\s+/g, '-');
-                }
-                if (col === 'priority' && row.priority) {
-                    td.className = 'priority-' + (row.priority || '').replace(/\s+/g, '-');
+                if (col === 'status') {
+                    const eff = row.effective_status || row.status || '';
+                    td.textContent = eff;
+                    td.className = 'status-' + eff.replace(/\s+/g, '-');
+                } else {
+                    td.textContent = row[col] == null ? '' : row[col];
+                    if (col === 'priority' && row.priority) {
+                        td.className = 'priority-' + (row.priority || '').replace(/\s+/g, '-');
+                    }
                 }
                 tr.appendChild(td);
             });
@@ -557,6 +611,47 @@
         });
 
         document.getElementById('visibleBadge').textContent = 'Visible: ' + filtered.length;
+        initResizable();
+    }
+
+    // --- Column resize ---
+    let _resizing = null;
+    document.addEventListener('mousemove', function(e) {
+        if (!_resizing) return;
+        const newW = Math.max(30, _resizing.startW + (e.clientX - _resizing.startX));
+        _resizing.th.style.width = newW + 'px';
+        _resizing.th.style.minWidth = '0';
+        _resizing.th.style.maxWidth = newW + 'px';
+        const name = _resizing.th.dataset.colName;
+        if (name) colWidths[name] = newW;
+    });
+    document.addEventListener('mouseup', function() {
+        if (!_resizing) return;
+        _resizing.handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        _resizing = null;
+    });
+    function initResizable() {
+        document.querySelectorAll('#todoTable .resize-handle').forEach(function(handle) {
+            if (handle._wired) return;
+            handle._wired = true;
+            handle.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const th = handle.parentElement;
+                const styleW = parseFloat(th.style.width);
+                _resizing = {
+                    handle: handle,
+                    th: th,
+                    startX: e.clientX,
+                    startW: !isNaN(styleW) ? styleW : th.offsetWidth
+                };
+                handle.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
+        });
     }
 
     function renderAll() {

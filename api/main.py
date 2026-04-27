@@ -1784,10 +1784,18 @@ def _todo_query_for_user(db: Session, login_username: str, id_user):
     return q.order_by(Todo.id)
 
 
+def _todo_effective_status(t: "Todo", today_d) -> str:
+    """Return 'Overdue' if a Pending item's due_date is past, else its stored status."""
+    if t.status == "Pending" and t.due_date and t.due_date < today_d:
+        return "Overdue"
+    return t.status or ""
+
+
 @app.get("/todo/")
 async def todo_list(request: Request, db: Session = Depends(get_db)):
     login_username, id_user = _todo_resolve_user(request, db)
     time_zone = request.session.get('time_zone')
+    today_d = datetime.today().date()
 
     todos_data = []
     todos_json_list = []
@@ -1802,6 +1810,7 @@ async def todo_list(request: Request, db: Session = Depends(get_db)):
                 "category": t.category or "",
                 "priority": t.priority or "",
                 "status": t.status or "",
+                "effective_status": _todo_effective_status(t, today_d),
                 "due_date": t.due_date.strftime('%Y-%m-%d') if t.due_date else "",
                 "created_at": t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at else "",
                 "updated_at": t.updated_at.strftime('%Y-%m-%d %H:%M') if t.updated_at else "",
@@ -1823,10 +1832,13 @@ async def todo_list(request: Request, db: Session = Depends(get_db)):
 async def todo_edit(request: Request, db: Session = Depends(get_db)):
     login_username, id_user = _todo_resolve_user(request, db)
     time_zone = request.session.get('time_zone')
+    today_d = datetime.today().date()
 
     todos = []
     if login_username:
         todos = _todo_query_for_user(db, login_username, id_user).all()
+        for t in todos:
+            t.effective_status = _todo_effective_status(t, today_d)
 
     return templates.TemplateResponse("todo_edit.html", {
         "request": request,
@@ -1844,6 +1856,7 @@ async def todo_edit(request: Request, db: Session = Depends(get_db)):
 async def todo_edit_task(item_id: int, request: Request, db: Session = Depends(get_db)):
     login_username, id_user = _todo_resolve_user(request, db)
     time_zone = request.session.get('time_zone')
+    today_d = datetime.today().date()
 
     if not login_username:
         return RedirectResponse("/todo/edit/", status_code=303)
@@ -1853,6 +1866,9 @@ async def todo_edit_task(item_id: int, request: Request, db: Session = Depends(g
         raise HTTPException(status_code=404, detail="To Do item not found")
 
     todos = _todo_query_for_user(db, login_username, id_user).all()
+    for t in todos:
+        t.effective_status = _todo_effective_status(t, today_d)
+    db_item.effective_status = _todo_effective_status(db_item, today_d)
 
     return templates.TemplateResponse("todo_edit.html", {
         "request": request,
