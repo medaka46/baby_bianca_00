@@ -542,6 +542,11 @@
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "todo" else "#aaa" }};">To Do</button>
             </form>
 
+            <form action="/diary/" method="get">
+
+                <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "diary" else "#aaa" }};">Diary/Memo</button>
+            </form>
+
             <form action="/music/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "music" else "#aaa" }};">Music</button>

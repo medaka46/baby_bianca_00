@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from api.database import SessionLocal, engine, Base, ENVIRONMENT # Use absolute import
-from api.models import User, Schedule, Link, Todo  # Use absolute import
+from api.models import User, Schedule, Link, Todo, Diary  # Use absolute import
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -1993,3 +1993,209 @@ async def todo_mark_done(
         db.commit()
     target = redirect_to if redirect_to in ("/todo/", "/todo/edit/") else "/todo/"
     return RedirectResponse(target, status_code=303)
+
+
+# --------------------
+# Diary / Memo routes (per-user, private)
+
+def _diary_query_for_user(db: Session, login_username: str, id_user):
+    q = db.query(Diary)
+    if id_user is not None:
+        q = q.filter((Diary.id_user == id_user) | (Diary.username == login_username))
+    else:
+        q = q.filter(Diary.username == login_username)
+    return q.order_by(Diary.entry_date.desc(), Diary.id.desc())
+
+
+@app.get("/diary/")
+async def diary_list(request: Request, db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    time_zone = request.session.get('time_zone')
+
+    entries_data = []
+    entries_json_list = []
+    if login_username:
+        entries = _diary_query_for_user(db, login_username, id_user).all()
+        for e in entries:
+            entries_data.append(e)
+            content = e.content or ""
+            preview = content[:80] + ("…" if len(content) > 80 else "")
+            entries_json_list.append({
+                "id": e.id,
+                "title": e.title or "",
+                "type": e.type or "",
+                "category": e.category or "",
+                "entry_date": e.entry_date.strftime('%Y-%m-%d') if e.entry_date else "",
+                "content_preview": preview.replace("\n", " "),
+                "created_at": e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else "",
+                "updated_at": e.updated_at.strftime('%Y-%m-%d %H:%M') if e.updated_at else "",
+            })
+
+    return templates.TemplateResponse("diary_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "diary",
+        "diary_sub_tab_active": "sort_select",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+        "entries": entries_data,
+        "entries_json": json.dumps(entries_json_list),
+    })
+
+
+def _diary_titles_index(entries):
+    """Return a JSON-safe list of {id, title} for wiki-link resolution."""
+    return [{"id": e.id, "title": e.title or ""} for e in entries if e.title]
+
+
+@app.get("/diary/edit/")
+async def diary_edit(request: Request, db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    time_zone = request.session.get('time_zone')
+
+    entries = []
+    if login_username:
+        entries = _diary_query_for_user(db, login_username, id_user).all()
+
+    return templates.TemplateResponse("diary_edit.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "diary",
+        "diary_sub_tab_active": "edit",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+        "entries": entries,
+        "item": None,
+        "titles_json": json.dumps(_diary_titles_index(entries)),
+        "backlinks": [],
+    })
+
+
+@app.get("/diary/edit_task/{item_id}")
+async def diary_edit_task(item_id: int, request: Request, db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    time_zone = request.session.get('time_zone')
+
+    if not login_username:
+        return RedirectResponse("/diary/edit/", status_code=303)
+
+    db_item = _diary_query_for_user(db, login_username, id_user).filter(Diary.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Diary entry not found")
+
+    entries = _diary_query_for_user(db, login_username, id_user).all()
+
+    # Compute backlinks: other entries whose content contains [[<this title>]] (case-insensitive)
+    backlinks = []
+    if db_item.title:
+        import re as _re
+        pattern = _re.compile(r"\[\[\s*" + _re.escape(db_item.title) + r"\s*\]\]", _re.IGNORECASE)
+        for e in entries:
+            if e.id == db_item.id:
+                continue
+            if e.content and pattern.search(e.content):
+                backlinks.append(e)
+
+    return templates.TemplateResponse("diary_edit.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "diary",
+        "diary_sub_tab_active": "edit",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+        "entries": entries,
+        "item": db_item,
+        "titles_json": json.dumps(_diary_titles_index(entries)),
+        "backlinks": backlinks,
+    })
+
+
+@app.post("/diary/add_task/")
+async def diary_add_task(
+    request: Request,
+    title: str = Form(...),
+    content: str = Form(None),
+    type: str = Form(None),
+    category: str = Form(None),
+    entry_date: str = Form(None),
+    db: Session = Depends(get_db),
+):
+    login_username, id_user = _todo_resolve_user(request, db)
+    if not login_username:
+        return RedirectResponse("/diary/edit/", status_code=303)
+
+    entry_date_val = None
+    if entry_date:
+        try:
+            entry_date_val = datetime.strptime(entry_date, '%Y-%m-%d').date()
+        except ValueError:
+            entry_date_val = None
+    if entry_date_val is None:
+        entry_date_val = datetime.today().date()
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    db_item = Diary(
+        title=title,
+        content=content,
+        type=type or "Diary",
+        category=category,
+        entry_date=entry_date_val,
+        created_at=now,
+        updated_at=now,
+        id_user=id_user,
+        username=login_username,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return RedirectResponse("/diary/", status_code=303)
+
+
+@app.post("/diary/update_task/{item_id}")
+async def diary_update_task(
+    item_id: int,
+    request: Request,
+    title: str = Form(...),
+    content: str = Form(None),
+    type: str = Form(None),
+    category: str = Form(None),
+    entry_date: str = Form(None),
+    db: Session = Depends(get_db),
+):
+    login_username, id_user = _todo_resolve_user(request, db)
+    if not login_username:
+        return RedirectResponse("/diary/edit/", status_code=303)
+
+    db_item = _diary_query_for_user(db, login_username, id_user).filter(Diary.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Diary entry not found")
+
+    entry_date_val = None
+    if entry_date:
+        try:
+            entry_date_val = datetime.strptime(entry_date, '%Y-%m-%d').date()
+        except ValueError:
+            entry_date_val = None
+
+    db_item.title = title
+    db_item.content = content
+    db_item.type = type or "Diary"
+    db_item.category = category
+    db_item.entry_date = entry_date_val
+    db_item.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    db.commit()
+    db.refresh(db_item)
+    return RedirectResponse("/diary/", status_code=303)
+
+
+@app.post("/diary/delete_task/")
+async def diary_delete_task(request: Request, item_id: int = Form(...), db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    if not login_username:
+        return RedirectResponse("/diary/edit/", status_code=303)
+
+    db_item = _diary_query_for_user(db, login_username, id_user).filter(Diary.id == item_id).first()
+    if db_item:
+        db.delete(db_item)
+        db.commit()
+    return RedirectResponse("/diary/", status_code=303)

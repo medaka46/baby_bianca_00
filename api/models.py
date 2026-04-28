@@ -82,3 +82,20 @@ class Todo(Base):
     username = Column(String, index=True)
 
 
+class Diary(Base):
+    __tablename__ = "diary"
+
+    id = Column(Integer, Sequence('diary_id_seq'), primary_key=True, index=True)
+
+    title = Column(String, index=True)
+    content = Column(String)
+    type = Column(String, index=True)
+    category = Column(String, index=True)
+    entry_date = Column(Date, index=True)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+    id_user = Column(Integer, index=True)
+    username = Column(String, index=True)
+
+

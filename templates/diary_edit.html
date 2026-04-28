@@ -1,0 +1,531 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+        padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+
+    .proj-btn {
+        background-color: #444;
+        color: #0f0;
+        border: 1px solid #666;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+    .proj-btn:hover { background-color: #555; }
+
+    .form-card {
+        background-color: #1a1a1a;
+        border: 1px solid #444;
+        border-radius: 5px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    .form-card h3 {
+        margin: 0 0 10px 0;
+        color: #0f0;
+        font-size: 14px;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: 120px 1fr 120px 1fr;
+        gap: 6px 10px;
+        align-items: center;
+    }
+    .form-grid label {
+        color: #aaa;
+        font-size: 12px;
+        text-align: right;
+    }
+    .form-grid input[type=text],
+    .form-grid input[type=date],
+    .form-grid select {
+        background-color: #444;
+        color: #fff;
+        border: 1px solid #666;
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 3px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .form-actions { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* Markdown editor + preview */
+    .md-toolbar {
+        display: flex;
+        gap: 4px;
+        margin: 8px 0 6px 0;
+        flex-wrap: wrap;
+    }
+    .md-tool {
+        background-color: #333;
+        color: #0f0;
+        border: 1px solid #555;
+        padding: 3px 8px;
+        font-size: 11px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-family: monospace;
+    }
+    .md-tool:hover { background-color: #444; }
+    .md-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        height: 480px;
+    }
+    .md-pane {
+        border: 1px solid #555;
+        border-radius: 4px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .md-pane-label {
+        background-color: #333;
+        color: #0f0;
+        padding: 4px 8px;
+        font-size: 11px;
+        border-bottom: 1px solid #555;
+    }
+    #md-content {
+        flex: 1;
+        background-color: #1a1a1a;
+        color: #ddd;
+        border: none;
+        outline: none;
+        padding: 10px;
+        font-family: 'Menlo', 'Consolas', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        resize: none;
+        min-height: 0;
+    }
+    #md-preview {
+        flex: 1;
+        background-color: #1e1e1e;
+        color: #ddd;
+        padding: 10px;
+        overflow-y: auto;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 13px;
+        line-height: 1.55;
+    }
+    /* Markdown rendered styles */
+    #md-preview h1, #md-preview h2, #md-preview h3, #md-preview h4 {
+        color: #0f0;
+        margin: 0.6em 0 0.3em 0;
+    }
+    #md-preview h1 { font-size: 1.6em; border-bottom: 1px solid #444; padding-bottom: 4px; }
+    #md-preview h2 { font-size: 1.35em; border-bottom: 1px solid #333; padding-bottom: 3px; }
+    #md-preview h3 { font-size: 1.15em; }
+    #md-preview p { margin: 0.5em 0; }
+    #md-preview a { color: #4af; }
+    #md-preview code {
+        background-color: #2a2a2a;
+        color: #ff0;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 0.9em;
+    }
+    #md-preview pre {
+        background-color: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 8px;
+        overflow-x: auto;
+    }
+    #md-preview pre code { background: transparent; padding: 0; color: #0ff; }
+    #md-preview blockquote {
+        border-left: 3px solid #666;
+        margin: 0.5em 0;
+        padding: 0.2em 10px;
+        color: #aaa;
+        background-color: #222;
+    }
+    #md-preview ul, #md-preview ol { padding-left: 24px; margin: 0.4em 0; }
+    #md-preview hr { border: 0; border-top: 1px solid #444; margin: 1em 0; }
+    #md-preview table { border-collapse: collapse; }
+    #md-preview th, #md-preview td { border: 1px solid #444; padding: 4px 8px; }
+    #md-preview img { max-width: 100%; }
+    #md-preview a.wikilink {
+        color: #0ff;
+        text-decoration: none;
+        background-color: #003344;
+        padding: 1px 5px;
+        border-radius: 3px;
+        border: 1px solid #066;
+    }
+    #md-preview a.wikilink:hover {
+        background-color: #006677;
+        text-decoration: underline;
+    }
+    #md-preview span.wikilink-broken {
+        color: #f88;
+        background-color: #441111;
+        padding: 1px 5px;
+        border-radius: 3px;
+        border: 1px dashed #844;
+        font-style: italic;
+    }
+    .backlinks-card {
+        background-color: #1a1a1a;
+        border: 1px solid #066;
+        border-radius: 5px;
+        padding: 10px 12px;
+        margin-bottom: 12px;
+    }
+    .backlinks-card h3 { color: #0ff; margin: 0 0 6px 0; font-size: 13px; }
+    .backlinks-card ul { margin: 0; padding-left: 20px; }
+    .backlinks-card a { color: #0ff; }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        color: #ccc;
+    }
+    .data-table th {
+        background-color: #333;
+        color: #0f0;
+        padding: 6px 10px;
+        text-align: left;
+        white-space: nowrap;
+        border-bottom: 1px solid #555;
+    }
+    .data-table td {
+        padding: 5px 10px;
+        border-bottom: 1px solid #2a2a2a;
+        white-space: nowrap;
+        color: #0f0;
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .data-table tr:hover td { background-color: #2a2a2a; }
+    .data-table-wrap {
+        margin-top: 8px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        overflow: auto;
+        max-height: 360px;
+    }
+    .badge {
+        background-color: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: #0f0;
+    }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex;">
+        <form action="/diary/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
+        </form>
+        <form action="/diary/edit/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
+        </form>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">Diary/Memo · Edit</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_diary_edit" class="title_00" style="margin: 0;"></div>
+        <span class="badge" style="margin-left: auto;">User: {{ login_username or "(not logged in)" }}</span>
+    </div>
+</header>
+
+<main class="tab_00">
+    <div class="scrollable-content" style="padding: 12px;">
+
+        {% if not login_username %}
+        <div class="form-card" style="border-color: #f55; background-color: #2a1a1a;">
+            <h3 style="color: #f55;">Please log in</h3>
+            <div style="color: #faa; font-size: 12px;">Diary entries are private to each user. Please log in first.</div>
+        </div>
+        {% else %}
+
+        <div class="form-card">
+            <h3>{% if item %}Edit entry (ID {{ item.id }}){% else %}New entry{% endif %}</h3>
+            <form action="{% if item %}/diary/update_task/{{ item.id }}{% else %}/diary/add_task/{% endif %}" method="post">
+                <div class="form-grid">
+                    <label for="title">Title*</label>
+                    <input type="text" id="title" name="title" required value="{{ item.title if item else '' }}" placeholder="Entry title">
+
+                    <label for="entry_date">Date</label>
+                    <input type="date" id="entry_date" name="entry_date" value="{{ item.entry_date.strftime('%Y-%m-%d') if item and item.entry_date else today }}">
+
+                    <label for="type">Type</label>
+                    {% set t_val = item.type if item else 'Diary' %}
+                    <select id="type" name="type">
+                        <option value="Diary" {% if t_val == 'Diary' %}selected{% endif %}>Diary</option>
+                        <option value="Memo" {% if t_val == 'Memo' %}selected{% endif %}>Memo</option>
+                        <option value="Other" {% if t_val == 'Other' %}selected{% endif %}>Other</option>
+                    </select>
+
+                    <label for="category">Category</label>
+                    {% set cat = item.category if item else '' %}
+                    {% set cat_options = ['Work', 'Business', 'Private', 'Family', 'Study', 'Hobby', 'Others'] %}
+                    <select id="category" name="category">
+                        <option value="" {% if not cat %}selected{% endif %}>-- Select --</option>
+                        {% for c in cat_options %}
+                        <option value="{{ c }}" {% if cat == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                        {% if cat and cat not in cat_options %}
+                        <option value="{{ cat }}" selected>{{ cat }} (legacy)</option>
+                        {% endif %}
+                    </select>
+                </div>
+
+                <div class="md-toolbar">
+                    <button type="button" class="md-tool" data-action="bold"><b>B</b></button>
+                    <button type="button" class="md-tool" data-action="italic"><i>I</i></button>
+                    <button type="button" class="md-tool" data-action="h1">H1</button>
+                    <button type="button" class="md-tool" data-action="h2">H2</button>
+                    <button type="button" class="md-tool" data-action="h3">H3</button>
+                    <button type="button" class="md-tool" data-action="ul">• List</button>
+                    <button type="button" class="md-tool" data-action="ol">1. List</button>
+                    <button type="button" class="md-tool" data-action="quote">&gt; Quote</button>
+                    <button type="button" class="md-tool" data-action="code">&lt;/&gt; Code</button>
+                    <button type="button" class="md-tool" data-action="link">🔗 Link</button>
+                    <button type="button" class="md-tool" data-action="wiki">[[Wiki]]</button>
+                    <button type="button" class="md-tool" data-action="hr">— HR</button>
+                </div>
+
+                <div class="md-split">
+                    <div class="md-pane">
+                        <div class="md-pane-label">Markdown (editor)</div>
+                        <textarea id="md-content" name="content" placeholder="Write here using Markdown...
+# Heading 1
+## Heading 2
+**bold** *italic* `inline code`
+- bullet list
+> quote
+```
+code block
+```
+[link text](https://example.com)">{{ item.content if item else '' }}</textarea>
+                    </div>
+                    <div class="md-pane">
+                        <div class="md-pane-label">Preview</div>
+                        <div id="md-preview"></div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    {% if item %}
+                    <a href="/diary/edit/" class="proj-btn" style="text-decoration: none;">Cancel</a>
+                    <button type="submit" class="proj-btn">Save Changes</button>
+                    {% else %}
+                    <button type="submit" class="proj-btn">Add Entry</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        {% if item and backlinks %}
+        <div class="backlinks-card">
+            <h3>Backlinks ({{ backlinks|length }}) — entries linking to "{{ item.title }}"</h3>
+            <ul>
+                {% for b in backlinks %}
+                <li>
+                    <a href="/diary/edit_task/{{ b.id }}">{{ b.title }}</a>
+                    <span style="color:#888; font-size: 11px;">
+                        {% if b.entry_date %}— {{ b.entry_date.strftime('%Y-%m-%d') }}{% endif %}
+                        {% if b.type %}· {{ b.type }}{% endif %}
+                    </span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="form-card">
+            <h3 style="display: flex; align-items: center; gap: 10px;">
+                Your Diary/Memo entries
+                <span class="badge">{{ entries|length }}</span>
+            </h3>
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Category</th>
+                            <th>Title</th>
+                            <th>Preview</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in entries %}
+                        <tr>
+                            <td>{{ e.id }}</td>
+                            <td>{{ e.entry_date.strftime('%Y-%m-%d') if e.entry_date else '' }}</td>
+                            <td>{{ e.type or '' }}</td>
+                            <td>{{ e.category or '' }}</td>
+                            <td>{{ e.title }}</td>
+                            <td>{{ (e.content or '')[:80] }}{% if e.content and e.content|length > 80 %}…{% endif %}</td>
+                            <td>
+                                <a href="/diary/edit_task/{{ e.id }}" style="color:#0f0; margin-right:8px;">Edit</a>
+                                <form action="/diary/delete_task/" method="post" style="display:inline;" onsubmit="return confirm('Delete this entry?');">
+                                    <input type="hidden" name="item_id" value="{{ e.id }}">
+                                    <button type="submit" style="background:none; border:none; color:#f55; cursor:pointer; padding:0; font-size:12px;">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="7" style="color:#888; text-align:center;">No entries yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% endif %}
+
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    function updateClockDiaryEdit() {
+        const now = new Date();
+        const t = now.toLocaleTimeString();
+        const el = document.getElementById('clock_diary_edit');
+        if (el) el.textContent = t;
+    }
+    setInterval(updateClockDiaryEdit, 1000);
+    updateClockDiaryEdit();
+
+    const ta = document.getElementById('md-content');
+    const pv = document.getElementById('md-preview');
+
+    // Wiki-link index: array of {id, title} for current user's entries
+    const TITLE_INDEX = {{ titles_json | safe }};
+    const TITLE_MAP = {};
+    TITLE_INDEX.forEach(e => { TITLE_MAP[(e.title || '').trim().toLowerCase()] = e.id; });
+
+    function escapeHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // Replace [[Title]] with HTML BEFORE marked parses, using a placeholder
+    // that survives Markdown processing.
+    function preprocessWikiLinks(src) {
+        return src.replace(/\[\[\s*([^\[\]\n]+?)\s*\]\]/g, (m, title) => {
+            const t = title.trim();
+            const key = t.toLowerCase();
+            const id = TITLE_MAP[key];
+            const label = escapeHtml(t);
+            if (id != null) {
+                return `<a class="wikilink" href="/diary/edit_task/${id}">${label}</a>`;
+            }
+            return `<span class="wikilink-broken" title="No entry with this title yet">${label}</span>`;
+        });
+    }
+
+    function renderPreview() {
+        if (!ta || !pv || typeof marked === 'undefined') return;
+        try {
+            const pre = preprocessWikiLinks(ta.value || '');
+            pv.innerHTML = marked.parse(pre);
+        } catch (e) {
+            pv.textContent = '(preview error: ' + e.message + ')';
+        }
+    }
+    if (ta) {
+        ta.addEventListener('input', renderPreview);
+        renderPreview();
+    }
+
+    // Toolbar wrapping helpers
+    function wrapSelection(before, after) {
+        if (!ta) return;
+        const start = ta.selectionStart, end = ta.selectionEnd;
+        const sel = ta.value.slice(start, end);
+        ta.value = ta.value.slice(0, start) + before + sel + after + ta.value.slice(end);
+        ta.focus();
+        ta.selectionStart = start + before.length;
+        ta.selectionEnd = end + before.length;
+        renderPreview();
+    }
+    function prefixLines(prefix) {
+        if (!ta) return;
+        const start = ta.selectionStart, end = ta.selectionEnd;
+        const before = ta.value.slice(0, start);
+        const sel = ta.value.slice(start, end) || 'item';
+        const after = ta.value.slice(end);
+        const lines = sel.split('\n').map(l => prefix + l).join('\n');
+        ta.value = before + lines + after;
+        ta.focus();
+        ta.selectionStart = start;
+        ta.selectionEnd = start + lines.length;
+        renderPreview();
+    }
+    function insertText(text) {
+        if (!ta) return;
+        const start = ta.selectionStart;
+        ta.value = ta.value.slice(0, start) + text + ta.value.slice(start);
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = start + text.length;
+        renderPreview();
+    }
+
+    document.querySelectorAll('.md-tool').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const a = btn.dataset.action;
+            switch (a) {
+                case 'bold':   wrapSelection('**', '**'); break;
+                case 'italic': wrapSelection('*', '*'); break;
+                case 'h1':     prefixLines('# '); break;
+                case 'h2':     prefixLines('## '); break;
+                case 'h3':     prefixLines('### '); break;
+                case 'ul':     prefixLines('- '); break;
+                case 'ol':     prefixLines('1. '); break;
+                case 'quote':  prefixLines('> '); break;
+                case 'code':   wrapSelection('`', '`'); break;
+                case 'link':   wrapSelection('[', '](https://)'); break;
+                case 'wiki':   wrapSelection('[[', ']]'); break;
+                case 'hr':     insertText('\n\n---\n\n'); break;
+            }
+        });
+    });
+</script>
+{% endblock %}

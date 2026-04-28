@@ -1,0 +1,568 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+        padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+
+    .proj-btn {
+        background-color: #444;
+        color: #0f0;
+        border: 1px solid #666;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+    .proj-btn:hover { background-color: #555; }
+
+    .info-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: #aaa;
+        flex-wrap: wrap;
+    }
+    .badge {
+        background-color: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: #0f0;
+    }
+    .col-tag {
+        background-color: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: #ccc;
+        margin: 2px;
+        display: inline-block;
+        cursor: pointer;
+        user-select: none;
+    }
+    .col-tag.col-hidden {
+        color: #555;
+        text-decoration: line-through;
+        background-color: #1a1a1a;
+        border-color: #333;
+    }
+    .col-tag.col-filter {
+        border-color: #ff0;
+        color: #ff0;
+        background-color: #2a2a00;
+    }
+
+    #select-conditions {
+        display: none;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin: 8px 0 4px 0;
+        padding: 6px 8px;
+        background-color: #1e1e00;
+        border: 1px solid #555500;
+        border-radius: 4px;
+    }
+    .filter-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background-color: #2a2a00;
+        border: 1px solid #666600;
+        border-radius: 4px;
+        padding: 3px 6px;
+        font-size: 11px;
+    }
+    .filter-chip-name {
+        color: #ff0;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+    .filter-op {
+        background-color: #333;
+        color: #0f0;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 1px 3px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .filter-val {
+        background-color: #333;
+        color: #fff;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 1px 5px;
+        font-size: 11px;
+        width: 100px;
+    }
+    .filter-val:focus { outline: 1px solid #ff0; border-color: #ff0; }
+    .filter-toggle {
+        border: 1px solid #666;
+        border-radius: 3px;
+        padding: 1px 6px;
+        font-size: 11px;
+        cursor: pointer;
+    }
+    .filter-toggle.on  { background-color: #004400; color: #0f0; border-color: #0f0; }
+    .filter-toggle.off { background-color: #333;    color: #666; border-color: #555; }
+    .filter-remove {
+        background: none;
+        border: none;
+        color: #888;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 0 2px;
+        line-height: 1;
+    }
+    .filter-remove:hover { color: #f00; }
+
+    .data-table-wrap {
+        margin-top: 14px;
+        border: 1px solid #444;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .data-table-scroll {
+        max-height: 400px;
+        overflow-y: auto;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .data-table-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+    .data-table-scroll::-webkit-scrollbar-track { background: #333; }
+    .data-table-scroll::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+    .data-table {
+        width: auto;
+        table-layout: fixed;
+        border-collapse: collapse;
+        font-size: 12px;
+        color: #ccc;
+    }
+    .data-table th {
+        background-color: #333;
+        color: #0f0;
+        padding: 6px 10px;
+        text-align: left;
+        white-space: nowrap;
+        border-bottom: 1px solid #555;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        cursor: pointer;
+        user-select: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .data-table th:hover { background-color: #3a3a3a; }
+    .resize-handle {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        user-select: none;
+        background-color: #555;
+        opacity: 0.4;
+    }
+    .resize-handle:hover, .resize-handle.active {
+        background-color: #0f0;
+        opacity: 1;
+    }
+    .sort-indicator {
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 10px;
+        color: #0f0;
+        opacity: 0.4;
+    }
+    .sort-indicator.active { opacity: 1; }
+    .data-table td {
+        padding: 5px 10px;
+        border-bottom: 1px solid #2a2a2a;
+        white-space: nowrap;
+        color: #0f0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .data-table tr:hover td { background-color: #2a2a2a; }
+    .type-Diary { color: #0ff !important; }
+    .type-Memo { color: #ff0 !important; }
+    .type-Other { color: #aaa !important; }
+    #fontSize {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 6px;
+        border-radius: 3px;
+        outline: none;
+        background-color: #444;
+    }
+    #fontSize::-webkit-slider-thumb {
+        -webkit-appearance: none; appearance: none;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #0f0; cursor: pointer;
+    }
+    #fontSize::-moz-range-thumb {
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #0f0; cursor: pointer; border: none;
+    }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex;">
+        <form action="/diary/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
+        </form>
+        <form action="/diary/edit/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
+        </form>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">Diary/Memo</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_diary" class="title_00" style="margin: 0;"></div>
+        <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+            <label style="color: #0f0; font-size: 11px;">Font Size:</label>
+            <input type="range" id="fontSize" min="10" max="22" step="1" value="12" style="width: 100px;">
+            <span id="fontSizeValue" style="color: #0f0; font-size: 11px; min-width: 40px;">12px</span>
+        </div>
+    </div>
+</header>
+
+<main class="tab_00">
+    <div class="scrollable-content" style="padding: 12px;">
+        <div style="width: 100%">
+
+            <div class="info-row" style="margin-bottom: 8px;">
+                <span class="badge">User: {{ login_username or "(not logged in)" }}</span>
+                <span class="badge" id="totalBadge">Total: {{ entries|length }}</span>
+                <span class="badge" id="visibleBadge">Visible: {{ entries|length }}</span>
+                <form action="/diary/edit/" method="get" style="margin: 0; margin-left: auto;">
+                    <button type="submit" class="proj-btn">+ Add / Edit</button>
+                </form>
+            </div>
+
+            <div style="margin-bottom: 4px;">
+                <span style="color: #888; font-size: 11px; margin-right: 6px;">Columns (click = hide, shift+click = filter):</span>
+                <span id="col-tags"></span>
+            </div>
+
+            <div id="select-conditions"></div>
+
+            <div class="data-table-wrap">
+                <div class="data-table-scroll" id="dataTableScroll">
+                    <table class="data-table" id="diaryTable">
+                        <thead>
+                            <tr id="diaryHeaderRow"></tr>
+                        </thead>
+                        <tbody id="diaryBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<script>
+    function updateClock() {
+        const now = new Date();
+        const t = now.toLocaleTimeString();
+        const el = document.getElementById('clock_diary');
+        if (el) el.textContent = t;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Font size slider
+    const fontSlider = document.getElementById('fontSize');
+    const fontValue = document.getElementById('fontSizeValue');
+    const diaryTable = document.getElementById('diaryTable');
+    function applyFontSize(px) {
+        if (diaryTable) diaryTable.style.fontSize = px + 'px';
+        if (fontValue) fontValue.textContent = px + 'px';
+    }
+    if (fontSlider) {
+        fontSlider.addEventListener('input', function() { applyFontSize(this.value); });
+        applyFontSize(fontSlider.value);
+    }
+
+    const ENTRIES = {{ entries_json | safe }};
+    const COLUMNS = ["id", "title", "type", "category", "entry_date", "content_preview", "created_at", "updated_at"];
+    const COLUMN_LABELS = {
+        id: "ID",
+        title: "Title",
+        type: "Type",
+        category: "Category",
+        entry_date: "Date",
+        content_preview: "Content",
+        created_at: "Created",
+        updated_at: "Updated"
+    };
+
+    let sortCol = "entry_date";
+    let sortAsc = false;
+    const hiddenCols = new Set(["created_at", "updated_at"]);
+    const filters = {};
+    const colWidths = {};
+
+    function renderColTags() {
+        const wrap = document.getElementById('col-tags');
+        wrap.innerHTML = '';
+        COLUMNS.forEach(col => {
+            const tag = document.createElement('span');
+            tag.className = 'col-tag';
+            if (hiddenCols.has(col)) tag.classList.add('col-hidden');
+            if (filters[col]) tag.classList.add('col-filter');
+            tag.textContent = COLUMN_LABELS[col];
+            tag.addEventListener('click', function(e) {
+                if (e.shiftKey) {
+                    if (filters[col]) delete filters[col];
+                    else filters[col] = { op: "contains", val: "", on: true };
+                    renderFilterBar();
+                } else {
+                    if (hiddenCols.has(col)) hiddenCols.delete(col);
+                    else hiddenCols.add(col);
+                }
+                renderAll();
+            });
+            wrap.appendChild(tag);
+        });
+    }
+
+    function renderFilterBar() {
+        const bar = document.getElementById('select-conditions');
+        bar.innerHTML = '';
+        const cols = Object.keys(filters);
+        if (cols.length === 0) { bar.style.display = 'none'; return; }
+        bar.style.display = 'flex';
+        cols.forEach(col => {
+            const f = filters[col];
+            const chip = document.createElement('div');
+            chip.className = 'filter-chip';
+            const name = document.createElement('span');
+            name.className = 'filter-chip-name';
+            name.textContent = COLUMN_LABELS[col];
+            chip.appendChild(name);
+            const op = document.createElement('select');
+            op.className = 'filter-op';
+            ["contains", "==", "!=", ">", ">=", "<", "<="].forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o; opt.textContent = o;
+                if (f.op === o) opt.selected = true;
+                op.appendChild(opt);
+            });
+            op.addEventListener('change', () => { f.op = op.value; renderTable(); });
+            chip.appendChild(op);
+            const val = document.createElement('input');
+            val.className = 'filter-val'; val.type = 'text'; val.value = f.val; val.placeholder = 'value...';
+            val.addEventListener('input', () => { f.val = val.value; renderTable(); });
+            chip.appendChild(val);
+            const toggle = document.createElement('button');
+            toggle.type = 'button';
+            toggle.className = 'filter-toggle ' + (f.on ? 'on' : 'off');
+            toggle.textContent = f.on ? 'ON' : 'OFF';
+            toggle.addEventListener('click', () => {
+                f.on = !f.on;
+                toggle.className = 'filter-toggle ' + (f.on ? 'on' : 'off');
+                toggle.textContent = f.on ? 'ON' : 'OFF';
+                renderTable();
+            });
+            chip.appendChild(toggle);
+            const rm = document.createElement('button');
+            rm.type = 'button'; rm.className = 'filter-remove'; rm.textContent = '×';
+            rm.addEventListener('click', () => {
+                delete filters[col];
+                renderColTags(); renderFilterBar(); renderTable();
+            });
+            chip.appendChild(rm);
+            bar.appendChild(chip);
+        });
+    }
+
+    function compareVals(a, b) {
+        if (a == null && b == null) return 0;
+        if (a == null) return -1;
+        if (b == null) return 1;
+        const na = parseFloat(a), nb = parseFloat(b);
+        if (!isNaN(na) && !isNaN(nb) && (''+na === ''+a) && (''+nb === ''+b)) return na - nb;
+        return (''+a).localeCompare(''+b);
+    }
+
+    function passesFilters(row) {
+        for (const col of Object.keys(filters)) {
+            const f = filters[col];
+            if (!f.on) continue;
+            const cell = row[col] == null ? '' : ''+row[col];
+            const target = f.val;
+            if (target === '') continue;
+            const num_cell = parseFloat(cell), num_target = parseFloat(target);
+            const numeric = !isNaN(num_cell) && !isNaN(num_target);
+            switch (f.op) {
+                case 'contains': if (!cell.toLowerCase().includes(target.toLowerCase())) return false; break;
+                case '==': if (numeric ? num_cell !== num_target : cell !== target) return false; break;
+                case '!=': if (numeric ? num_cell === num_target : cell === target) return false; break;
+                case '>':  if (numeric ? !(num_cell >  num_target) : !(cell >  target)) return false; break;
+                case '>=': if (numeric ? !(num_cell >= num_target) : !(cell >= target)) return false; break;
+                case '<':  if (numeric ? !(num_cell <  num_target) : !(cell <  target)) return false; break;
+                case '<=': if (numeric ? !(num_cell <= num_target) : !(cell <= target)) return false; break;
+            }
+        }
+        return true;
+    }
+
+    function renderTable() {
+        const headerRow = document.getElementById('diaryHeaderRow');
+        const body = document.getElementById('diaryBody');
+        headerRow.innerHTML = '';
+        body.innerHTML = '';
+
+        const visibleCols = COLUMNS.filter(c => !hiddenCols.has(c));
+        const DEFAULT_WIDTHS = {
+            id: 60, title: 200, type: 90, category: 110, entry_date: 110,
+            content_preview: 320, created_at: 140, updated_at: 140
+        };
+
+        visibleCols.forEach(col => {
+            const th = document.createElement('th');
+            th.textContent = COLUMN_LABELS[col];
+            th.dataset.colName = col;
+            const w = (colWidths[col] != null) ? colWidths[col] : (DEFAULT_WIDTHS[col] || 120);
+            th.style.width = w + 'px';
+            th.style.minWidth = '0';
+            th.style.maxWidth = w + 'px';
+            const ind = document.createElement('span');
+            ind.className = 'sort-indicator';
+            if (sortCol === col) {
+                ind.classList.add('active');
+                ind.textContent = sortAsc ? '▲' : '▼';
+            } else { ind.textContent = '▲'; }
+            th.appendChild(ind);
+            const handle = document.createElement('div');
+            handle.className = 'resize-handle';
+            th.appendChild(handle);
+            th.addEventListener('click', (e) => {
+                if (e.target.classList.contains('resize-handle')) return;
+                if (sortCol === col) sortAsc = !sortAsc;
+                else { sortCol = col; sortAsc = true; }
+                renderTable();
+            });
+            headerRow.appendChild(th);
+        });
+        const thAction = document.createElement('th');
+        thAction.textContent = "Action";
+        thAction.dataset.colName = "__action__";
+        thAction.style.cursor = 'default';
+        const aw = (colWidths["__action__"] != null) ? colWidths["__action__"] : 140;
+        thAction.style.width = aw + 'px';
+        thAction.style.minWidth = '0';
+        thAction.style.maxWidth = aw + 'px';
+        const aHandle = document.createElement('div');
+        aHandle.className = 'resize-handle';
+        thAction.appendChild(aHandle);
+        headerRow.appendChild(thAction);
+
+        const filtered = ENTRIES.filter(passesFilters);
+        filtered.sort((a, b) => {
+            const r = compareVals(a[sortCol], b[sortCol]);
+            return sortAsc ? r : -r;
+        });
+
+        filtered.forEach(row => {
+            const tr = document.createElement('tr');
+            visibleCols.forEach(col => {
+                const td = document.createElement('td');
+                td.textContent = row[col] == null ? '' : row[col];
+                if (col === 'type' && row.type) {
+                    td.className = 'type-' + (row.type || '').replace(/\s+/g, '-');
+                }
+                tr.appendChild(td);
+            });
+            const tdAction = document.createElement('td');
+            tdAction.innerHTML = `
+                <a href="/diary/edit_task/${row.id}" style="color:#0f0; margin-right:8px;">Edit</a>
+                <form action="/diary/delete_task/" method="post" style="display:inline;" onsubmit="return confirm('Delete this entry?');">
+                    <input type="hidden" name="item_id" value="${row.id}">
+                    <button type="submit" style="background:none; border:none; color:#f55; cursor:pointer; padding:0; font-size:12px;">Delete</button>
+                </form>
+            `;
+            tr.appendChild(tdAction);
+            body.appendChild(tr);
+        });
+
+        document.getElementById('visibleBadge').textContent = 'Visible: ' + filtered.length;
+        initResizable();
+    }
+
+    let _resizing = null;
+    document.addEventListener('mousemove', function(e) {
+        if (!_resizing) return;
+        const newW = Math.max(30, _resizing.startW + (e.clientX - _resizing.startX));
+        _resizing.th.style.width = newW + 'px';
+        _resizing.th.style.minWidth = '0';
+        _resizing.th.style.maxWidth = newW + 'px';
+        const name = _resizing.th.dataset.colName;
+        if (name) colWidths[name] = newW;
+    });
+    document.addEventListener('mouseup', function() {
+        if (!_resizing) return;
+        _resizing.handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        _resizing = null;
+    });
+    function initResizable() {
+        document.querySelectorAll('#diaryTable .resize-handle').forEach(function(handle) {
+            if (handle._wired) return;
+            handle._wired = true;
+            handle.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const th = handle.parentElement;
+                const styleW = parseFloat(th.style.width);
+                _resizing = {
+                    handle: handle, th: th,
+                    startX: e.clientX,
+                    startW: !isNaN(styleW) ? styleW : th.offsetWidth
+                };
+                handle.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            });
+        });
+    }
+
+    function renderAll() { renderColTags(); renderFilterBar(); renderTable(); }
+    renderAll();
+</script>
+{% endblock %}
