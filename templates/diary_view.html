@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    .scrollable-content {
+        flex: 1;
+        overflow-y: auto;
+        max-height: none;
+        padding-bottom: 0;
+        scrollbar-width: thin;
+        scrollbar-color: #666 #333;
+    }
+    .scrollable-content::-webkit-scrollbar { width: 8px; }
+    .scrollable-content::-webkit-scrollbar-track { background: #333; }
+    .scrollable-content::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+
+    .proj-btn {
+        background-color: #444;
+        color: #0f0;
+        border: 1px solid #666;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+    .proj-btn:hover { background-color: #555; }
+
+    .badge {
+        background-color: #333;
+        border: 1px solid #555;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: #0f0;
+    }
+    .type-badge {
+        background-color: #003344;
+        border: 1px solid #066;
+        color: #0ff;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+    }
+    .cat-badge {
+        background-color: #2a2a00;
+        border: 1px solid #666600;
+        color: #ff0;
+        border-radius: 3px;
+        padding: 2px 8px;
+        font-size: 11px;
+    }
+
+    .view-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+    .view-toolbar input[type=text],
+    .view-toolbar select {
+        background-color: #444;
+        color: #fff;
+        border: 1px solid #666;
+        padding: 4px 8px;
+        font-size: 12px;
+        border-radius: 3px;
+    }
+
+    .entry-card {
+        background-color: #1a1a1a;
+        border: 1px solid #444;
+        border-radius: 5px;
+        padding: 14px 18px;
+        margin-bottom: 14px;
+    }
+    .entry-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+        border-bottom: 1px solid #333;
+        padding-bottom: 8px;
+    }
+    .entry-date {
+        color: #0f0;
+        font-family: 'Menlo', 'Consolas', monospace;
+        font-size: 13px;
+    }
+    .entry-title {
+        color: #fff;
+        font-size: 16px;
+        font-weight: bold;
+    }
+    .entry-actions { margin-left: auto; }
+    .entry-actions a { color: #0f0; font-size: 12px; margin-right: 8px; }
+    .entry-actions a.delete { color: #f55; }
+
+    .entry-content {
+        color: #ddd;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    .entry-content h1, .entry-content h2, .entry-content h3, .entry-content h4 {
+        color: #0f0;
+        margin: 0.7em 0 0.3em 0;
+    }
+    .entry-content h1 { font-size: 1.5em; border-bottom: 1px solid #444; padding-bottom: 4px; }
+    .entry-content h2 { font-size: 1.3em; border-bottom: 1px solid #333; padding-bottom: 3px; }
+    .entry-content h3 { font-size: 1.1em; }
+    .entry-content p { margin: 0.5em 0; }
+    .entry-content a { color: #4af; }
+    .entry-content code {
+        background-color: #2a2a2a;
+        color: #ff0;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 0.9em;
+    }
+    .entry-content pre {
+        background-color: #2a2a2a;
+        border: 1px solid #444;
+        border-radius: 4px;
+        padding: 8px;
+        overflow-x: auto;
+    }
+    .entry-content pre code { background: transparent; padding: 0; color: #0ff; }
+    .entry-content blockquote {
+        border-left: 3px solid #666;
+        margin: 0.5em 0;
+        padding: 0.2em 10px;
+        color: #aaa;
+        background-color: #222;
+    }
+    .entry-content ul, .entry-content ol { padding-left: 24px; margin: 0.4em 0; }
+    .entry-content hr { border: 0; border-top: 1px solid #444; margin: 1em 0; }
+    .entry-content a.wikilink {
+        color: #0ff;
+        text-decoration: none;
+        background-color: #003344;
+        padding: 1px 5px;
+        border-radius: 3px;
+        border: 1px solid #066;
+    }
+    .entry-content a.wikilink:hover {
+        background-color: #006677;
+        text-decoration: underline;
+    }
+    .entry-content span.wikilink-broken {
+        color: #f88;
+        background-color: #441111;
+        padding: 1px 5px;
+        border-radius: 3px;
+        border: 1px dashed #844;
+        font-style: italic;
+    }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex; align-items: center;">
+        <form action="/diary/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
+        </form>
+        <select id="diaryTypeFilter" title="Type filter (applies on Edit and View)"
+                style="background-color: #2a2a2a; color: #0ff; border: 1px solid #066; padding: 3px 8px; font-size: 12px; border-radius: 3px; margin: 0 6px;">
+            <option value="Diary"  {% if current_type == 'Diary'  %}selected{% endif %}>Diary</option>
+            <option value="Memo"   {% if current_type == 'Memo'   %}selected{% endif %}>Memo</option>
+            <option value="Other"  {% if current_type == 'Other'  %}selected{% endif %}>Other</option>
+        </select>
+        <form action="/diary/edit/" method="get">
+            <input type="hidden" name="type" id="editTypeInput" value="{{ current_type }}">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
+        </form>
+        <form action="/diary/view/" method="get">
+            <input type="hidden" name="type" id="viewTypeInput" value="{{ current_type }}">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'view' else '#aaa' }};">View</button>
+        </form>
+    </div>
+    <script>
+        (function () {
+            const sel = document.getElementById('diaryTypeFilter');
+            if (!sel) return;
+            function sync() {
+                const v = sel.value;
+                const e = document.getElementById('editTypeInput'); if (e) e.value = v;
+                const w = document.getElementById('viewTypeInput'); if (w) w.value = v;
+            }
+            sel.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">Diary/Memo · View</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_diary_view" class="title_00" style="margin: 0;"></div>
+        <span class="badge" style="margin-left: auto;">User: {{ login_username or "(not logged in)" }}</span>
+    </div>
+</header>
+
+<main class="tab_00">
+    <div class="scrollable-content" style="padding: 12px;">
+
+        {% if not login_username %}
+        <div class="entry-card" style="border-color: #f55;">
+            <div style="color: #faa; font-size: 12px;">Please log in to view your diary entries.</div>
+        </div>
+        {% else %}
+
+        <div class="view-toolbar">
+            <span class="badge">Total: {{ entries|length }}</span>
+            <span class="badge" id="visibleCount">Visible: {{ entries|length }}</span>
+            <input type="text" id="searchBox" placeholder="Search title or content..." style="width: 240px;">
+            <select id="filterCategory">
+                <option value="">All categories</option>
+                <option value="Work">Work</option>
+                <option value="Business">Business</option>
+                <option value="Private">Private</option>
+                <option value="Family">Family</option>
+                <option value="Study">Study</option>
+                <option value="Hobby">Hobby</option>
+                <option value="Others">Others</option>
+            </select>
+            <form action="/diary/edit/" method="get" style="margin: 0;">
+                <button type="submit" class="proj-btn">+ New Entry</button>
+            </form>
+        </div>
+
+        {% if entries|length == 0 %}
+        <div class="entry-card">
+            <div style="color: #888; text-align: center;">No entries yet. Click <a href="/diary/edit/" style="color:#0f0;">+ New Entry</a> to create one.</div>
+        </div>
+        {% endif %}
+
+        <div id="entry-list">
+        {% for e in entries %}
+            <div class="entry-card" data-title="{{ (e.title or '')|lower }}" data-content="{{ (e.content or '')|lower }}" data-type="{{ e.type or '' }}" data-category="{{ e.category or '' }}">
+                <div class="entry-header">
+                    <span class="entry-date">{{ e.entry_date.strftime('%Y-%m-%d') if e.entry_date else '' }}</span>
+                    <span class="entry-title">{{ e.title }}</span>
+                    {% if e.type %}<span class="type-badge">{{ e.type }}</span>{% endif %}
+                    {% if e.category %}<span class="cat-badge">{{ e.category }}</span>{% endif %}
+                    <span class="entry-actions">
+                        <a href="/diary/edit_task/{{ e.id }}">Edit</a>
+                    </span>
+                </div>
+                <div class="entry-content" data-raw="{{ e.content or '' }}"></div>
+            </div>
+        {% endfor %}
+        </div>
+
+        {% endif %}
+
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    function updateClockDiaryView() {
+        const now = new Date();
+        const t = now.toLocaleTimeString();
+        const el = document.getElementById('clock_diary_view');
+        if (el) el.textContent = t;
+    }
+    setInterval(updateClockDiaryView, 1000);
+    updateClockDiaryView();
+
+    const TITLE_INDEX = {{ titles_json | safe }};
+    const TITLE_MAP = {};
+    TITLE_INDEX.forEach(e => { TITLE_MAP[(e.title || '').trim().toLowerCase()] = e.id; });
+
+    function escapeHtml(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function preprocessWikiLinks(src) {
+        return src.replace(/\[\[\s*([^\[\]\n]+?)\s*\]\]/g, (m, title) => {
+            const t = title.trim();
+            const key = t.toLowerCase();
+            const id = TITLE_MAP[key];
+            const label = escapeHtml(t);
+            if (id != null) {
+                return `<a class="wikilink" href="/diary/edit_task/${id}">${label}</a>`;
+            }
+            return `<span class="wikilink-broken" title="No entry with this title yet">${label}</span>`;
+        });
+    }
+
+    // Render every entry's markdown
+    document.querySelectorAll('.entry-content').forEach(el => {
+        const raw = el.getAttribute('data-raw') || '';
+        try {
+            el.innerHTML = marked.parse(preprocessWikiLinks(raw));
+        } catch (e) {
+            el.textContent = '(render error: ' + e.message + ')';
+        }
+    });
+
+    // Search / category filter (Type is filtered server-side via the cross-sub-tab selector)
+    const searchBox = document.getElementById('searchBox');
+    const filterCategory = document.getElementById('filterCategory');
+    const visibleCount = document.getElementById('visibleCount');
+    function applyFilter() {
+        const q = (searchBox?.value || '').trim().toLowerCase();
+        const c = filterCategory?.value || '';
+        let visible = 0;
+        document.querySelectorAll('.entry-card[data-title]').forEach(card => {
+            const title = card.getAttribute('data-title') || '';
+            const content = card.getAttribute('data-content') || '';
+            const cat = card.getAttribute('data-category') || '';
+            const matchesQ = !q || title.includes(q) || content.includes(q);
+            const matchesC = !c || cat === c;
+            if (matchesQ && matchesC) {
+                card.style.display = '';
+                visible++;
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        if (visibleCount) visibleCount.textContent = 'Visible: ' + visible;
+    }
+    if (searchBox) searchBox.addEventListener('input', applyFilter);
+    if (filterCategory) filterCategory.addEventListener('change', applyFilter);
+</script>
+{% endblock %}

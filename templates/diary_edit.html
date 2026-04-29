@@ -249,14 +249,38 @@
 </style>
 
 <header class="tab_00">
-    <div style="display: flex;">
+    <div style="display: flex; align-items: center;">
         <form action="/diary/" method="get">
             <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
         </form>
+        <select id="diaryTypeFilter" title="Type filter (applies on Edit and View)"
+                style="background-color: #2a2a2a; color: #0ff; border: 1px solid #066; padding: 3px 8px; font-size: 12px; border-radius: 3px; margin: 0 6px;">
+            <option value="Diary"  {% if current_type == 'Diary'  %}selected{% endif %}>Diary</option>
+            <option value="Memo"   {% if current_type == 'Memo'   %}selected{% endif %}>Memo</option>
+            <option value="Other"  {% if current_type == 'Other'  %}selected{% endif %}>Other</option>
+        </select>
         <form action="/diary/edit/" method="get">
+            <input type="hidden" name="type" id="editTypeInput" value="{{ current_type }}">
             <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
         </form>
+        <form action="/diary/view/" method="get">
+            <input type="hidden" name="type" id="viewTypeInput" value="{{ current_type }}">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'view' else '#aaa' }};">View</button>
+        </form>
     </div>
+    <script>
+        (function () {
+            const sel = document.getElementById('diaryTypeFilter');
+            if (!sel) return;
+            function sync() {
+                const v = sel.value;
+                const e = document.getElementById('editTypeInput'); if (e) e.value = v;
+                const w = document.getElementById('viewTypeInput'); if (w) w.value = v;
+            }
+            sel.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
         <div class="title_00" style="margin: 0;">Diary/Memo · Edit</div>
         <div class="title_00" style="margin: 0;">{{ today }}</div>
@@ -286,7 +310,7 @@
                     <input type="date" id="entry_date" name="entry_date" value="{{ item.entry_date.strftime('%Y-%m-%d') if item and item.entry_date else today }}">
 
                     <label for="type">Type</label>
-                    {% set t_val = item.type if item else 'Diary' %}
+                    {% set t_val = item.type if item else (current_type or 'Diary') %}
                     <select id="type" name="type">
                         <option value="Diary" {% if t_val == 'Diary' %}selected{% endif %}>Diary</option>
                         <option value="Memo" {% if t_val == 'Memo' %}selected{% endif %}>Memo</option>
@@ -347,6 +371,7 @@ code block
                     <a href="/diary/edit/" class="proj-btn" style="text-decoration: none;">Cancel</a>
                     <button type="submit" class="proj-btn">Save Changes</button>
                     {% else %}
+                    <a href="/diary/" class="proj-btn" style="text-decoration: none;">Cancel</a>
                     <button type="submit" class="proj-btn">Add Entry</button>
                     {% endif %}
                 </div>

@@ -2008,9 +2008,10 @@ def _diary_query_for_user(db: Session, login_username: str, id_user):
 
 
 @app.get("/diary/")
-async def diary_list(request: Request, db: Session = Depends(get_db)):
+async def diary_list(request: Request, type: str | None = Query(None), db: Session = Depends(get_db)):
     login_username, id_user = _todo_resolve_user(request, db)
     time_zone = request.session.get('time_zone')
+    current_type = _diary_resolve_type(request, type)
 
     entries_data = []
     entries_json_list = []
@@ -2040,6 +2041,7 @@ async def diary_list(request: Request, db: Session = Depends(get_db)):
         "today": datetime.today().strftime('%Y-%m-%d'),
         "entries": entries_data,
         "entries_json": json.dumps(entries_json_list),
+        "current_type": current_type,
     })
 
 
@@ -2048,14 +2050,31 @@ def _diary_titles_index(entries):
     return [{"id": e.id, "title": e.title or ""} for e in entries if e.title]
 
 
+_DIARY_TYPES = ("Diary", "Memo", "Other")
+
+
+def _diary_resolve_type(request: Request, type_param: str | None) -> str:
+    """Pick the active type filter: query param wins, else session, else 'Diary'."""
+    if type_param in _DIARY_TYPES:
+        request.session['diary_type_filter'] = type_param
+        return type_param
+    saved = request.session.get('diary_type_filter')
+    if saved in _DIARY_TYPES:
+        return saved
+    return "Diary"
+
+
 @app.get("/diary/edit/")
-async def diary_edit(request: Request, db: Session = Depends(get_db)):
+async def diary_edit(request: Request, type: str | None = Query(None), db: Session = Depends(get_db)):
     login_username, id_user = _todo_resolve_user(request, db)
     time_zone = request.session.get('time_zone')
+    current_type = _diary_resolve_type(request, type)
 
-    entries = []
+    all_entries = []
+    entries_filtered = []
     if login_username:
-        entries = _diary_query_for_user(db, login_username, id_user).all()
+        all_entries = _diary_query_for_user(db, login_username, id_user).all()
+        entries_filtered = [e for e in all_entries if (e.type or "") == current_type]
 
     return templates.TemplateResponse("diary_edit.html", {
         "request": request,
@@ -2064,17 +2083,19 @@ async def diary_edit(request: Request, db: Session = Depends(get_db)):
         "tab_page_active": "diary",
         "diary_sub_tab_active": "edit",
         "today": datetime.today().strftime('%Y-%m-%d'),
-        "entries": entries,
+        "entries": entries_filtered,
         "item": None,
-        "titles_json": json.dumps(_diary_titles_index(entries)),
+        "titles_json": json.dumps(_diary_titles_index(all_entries)),
         "backlinks": [],
+        "current_type": current_type,
     })
 
 
 @app.get("/diary/edit_task/{item_id}")
-async def diary_edit_task(item_id: int, request: Request, db: Session = Depends(get_db)):
+async def diary_edit_task(item_id: int, request: Request, type: str | None = Query(None), db: Session = Depends(get_db)):
     login_username, id_user = _todo_resolve_user(request, db)
     time_zone = request.session.get('time_zone')
+    current_type = _diary_resolve_type(request, type)
 
     if not login_username:
         return RedirectResponse("/diary/edit/", status_code=303)
@@ -2083,14 +2104,15 @@ async def diary_edit_task(item_id: int, request: Request, db: Session = Depends(
     if not db_item:
         raise HTTPException(status_code=404, detail="Diary entry not found")
 
-    entries = _diary_query_for_user(db, login_username, id_user).all()
+    all_entries = _diary_query_for_user(db, login_username, id_user).all()
+    entries_filtered = [e for e in all_entries if (e.type or "") == current_type]
 
     # Compute backlinks: other entries whose content contains [[<this title>]] (case-insensitive)
     backlinks = []
     if db_item.title:
         import re as _re
         pattern = _re.compile(r"\[\[\s*" + _re.escape(db_item.title) + r"\s*\]\]", _re.IGNORECASE)
-        for e in entries:
+        for e in all_entries:
             if e.id == db_item.id:
                 continue
             if e.content and pattern.search(e.content):
@@ -2103,10 +2125,11 @@ async def diary_edit_task(item_id: int, request: Request, db: Session = Depends(
         "tab_page_active": "diary",
         "diary_sub_tab_active": "edit",
         "today": datetime.today().strftime('%Y-%m-%d'),
-        "entries": entries,
+        "entries": entries_filtered,
         "item": db_item,
-        "titles_json": json.dumps(_diary_titles_index(entries)),
+        "titles_json": json.dumps(_diary_titles_index(all_entries)),
         "backlinks": backlinks,
+        "current_type": current_type,
     })
 
 
@@ -2133,11 +2156,13 @@ async def diary_add_task(
     if entry_date_val is None:
         entry_date_val = datetime.today().date()
 
+    chosen_type = type if type in _DIARY_TYPES else _diary_resolve_type(request, None)
+
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     db_item = Diary(
         title=title,
         content=content,
-        type=type or "Diary",
+        type=chosen_type,
         category=category,
         entry_date=entry_date_val,
         created_at=now,
@@ -2199,3 +2224,28 @@ async def diary_delete_task(request: Request, item_id: int = Form(...), db: Sess
         db.delete(db_item)
         db.commit()
     return RedirectResponse("/diary/", status_code=303)
+
+
+@app.get("/diary/view/")
+async def diary_view(request: Request, type: str | None = Query(None), db: Session = Depends(get_db)):
+    login_username, id_user = _todo_resolve_user(request, db)
+    time_zone = request.session.get('time_zone')
+    current_type = _diary_resolve_type(request, type)
+
+    all_entries = []
+    entries_filtered = []
+    if login_username:
+        all_entries = _diary_query_for_user(db, login_username, id_user).all()
+        entries_filtered = [e for e in all_entries if (e.type or "") == current_type]
+
+    return templates.TemplateResponse("diary_view.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "diary",
+        "diary_sub_tab_active": "view",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+        "entries": entries_filtered,
+        "titles_json": json.dumps(_diary_titles_index(all_entries)),
+        "current_type": current_type,
+    })
