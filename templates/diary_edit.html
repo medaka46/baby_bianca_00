@@ -498,6 +498,59 @@ code block
     if (ta) {
         ta.addEventListener('input', renderPreview);
         renderPreview();
+
+        // List auto-continuation:
+        //   - Enter on "- foo"    → new line starts with "- "
+        //   - Enter on "1. foo"   → new line starts with "2. "
+        //   - Enter on empty list → strip the prefix (exit the list)
+        //   - Esc on a list line  → strip the prefix on the current line
+        ta.addEventListener('keydown', function (e) {
+            if (e.isComposing) return;
+            const start = ta.selectionStart, end = ta.selectionEnd;
+            if (start !== end) return;
+            const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+
+            if (e.key === 'Escape') {
+                const lineEndIdx = (() => {
+                    const i = ta.value.indexOf('\n', start);
+                    return i === -1 ? ta.value.length : i;
+                })();
+                const currentLine = ta.value.slice(lineStart, lineEndIdx);
+                const stripBullet = currentLine.match(/^(\s*)[-*+]\s+/);
+                const stripNumbered = currentLine.match(/^(\s*)\d+\.\s+/);
+                const sm = stripBullet || stripNumbered;
+                if (!sm) return;
+                e.preventDefault();
+                const prefixLen = sm[0].length;
+                ta.value = ta.value.slice(0, lineStart) + currentLine.slice(prefixLen) + ta.value.slice(lineEndIdx);
+                const newPos = Math.max(lineStart, start - prefixLen);
+                ta.selectionStart = ta.selectionEnd = newPos;
+                renderPreview();
+                return;
+            }
+
+            if (e.key !== 'Enter' || e.shiftKey) return;
+            const currentLine = ta.value.slice(lineStart, start);
+            const bullet = currentLine.match(/^(\s*)([-*+])(\s+)(.*)$/);
+            const numbered = currentLine.match(/^(\s*)(\d+)\.(\s+)(.*)$/);
+            const m = bullet || numbered;
+            if (!m) return;
+            const indent = m[1], marker = m[2], space = m[3], content = m[4];
+            if (content.trim() === '') {
+                e.preventDefault();
+                ta.value = ta.value.slice(0, lineStart) + ta.value.slice(start);
+                ta.selectionStart = ta.selectionEnd = lineStart;
+                renderPreview();
+                return;
+            }
+            e.preventDefault();
+            const newPrefix = numbered
+                ? '\n' + indent + (parseInt(marker, 10) + 1) + '.' + space
+                : '\n' + indent + marker + space;
+            ta.value = ta.value.slice(0, start) + newPrefix + ta.value.slice(end);
+            ta.selectionStart = ta.selectionEnd = start + newPrefix.length;
+            renderPreview();
+        });
     }
 
     // Toolbar wrapping helpers
@@ -515,8 +568,15 @@ code block
         if (!ta) return;
         const start = ta.selectionStart, end = ta.selectionEnd;
         const before = ta.value.slice(0, start);
-        const sel = ta.value.slice(start, end) || 'item';
         const after = ta.value.slice(end);
+        if (start === end) {
+            ta.value = before + prefix + after;
+            ta.focus();
+            ta.selectionStart = ta.selectionEnd = start + prefix.length;
+            renderPreview();
+            return;
+        }
+        const sel = ta.value.slice(start, end);
         const lines = sel.split('\n').map(l => prefix + l).join('\n');
         ta.value = before + lines + after;
         ta.focus();
