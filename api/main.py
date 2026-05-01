@@ -2047,17 +2047,18 @@ def _diary_titles_index(entries):
 
 
 _DIARY_TYPES = ("Diary", "Memo", "Other")
+_DIARY_TYPE_FILTERS = ("All",) + _DIARY_TYPES
 
 
 def _diary_resolve_type(request: Request, type_param: str | None) -> str:
-    """Pick the active type filter: query param wins, else session, else 'Diary'."""
-    if type_param in _DIARY_TYPES:
+    """Pick the active type filter: query param wins, else session, else 'All'."""
+    if type_param in _DIARY_TYPE_FILTERS:
         request.session['diary_type_filter'] = type_param
         return type_param
     saved = request.session.get('diary_type_filter')
-    if saved in _DIARY_TYPES:
+    if saved in _DIARY_TYPE_FILTERS:
         return saved
-    return "Diary"
+    return "All"
 
 
 @app.get("/diary/edit/")
@@ -2070,7 +2071,7 @@ async def diary_edit(request: Request, type: str | None = Query(None), db: Sessi
     entries_filtered = []
     if login_username:
         all_entries = _diary_query_for_user(db, login_username, id_user).all()
-        entries_filtered = [e for e in all_entries if (e.type or "") == current_type]
+        entries_filtered = all_entries if current_type == "All" else [e for e in all_entries if (e.type or "") == current_type]
 
     return templates.TemplateResponse("diary_edit.html", {
         "request": request,
@@ -2101,7 +2102,7 @@ async def diary_edit_task(item_id: int, request: Request, type: str | None = Que
         raise HTTPException(status_code=404, detail="Diary entry not found")
 
     all_entries = _diary_query_for_user(db, login_username, id_user).all()
-    entries_filtered = [e for e in all_entries if (e.type or "") == current_type]
+    entries_filtered = all_entries if current_type == "All" else [e for e in all_entries if (e.type or "") == current_type]
 
     # Compute backlinks: other entries whose content contains [[<this title>]] (case-insensitive)
     backlinks = []
@@ -2232,7 +2233,7 @@ async def diary_view(request: Request, type: str | None = Query(None), db: Sessi
     entries_filtered = []
     if login_username:
         all_entries = _diary_query_for_user(db, login_username, id_user).all()
-        entries_filtered = [e for e in all_entries if (e.type or "") == current_type]
+        entries_filtered = all_entries if current_type == "All" else [e for e in all_entries if (e.type or "") == current_type]
 
     return templates.TemplateResponse("diary_view.html", {
         "request": request,

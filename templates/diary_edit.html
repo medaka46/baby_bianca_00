@@ -75,7 +75,7 @@
         width: 100%;
         box-sizing: border-box;
     }
-    .form-actions { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-end; }
+    .form-actions { margin-top: 10px; display: flex; gap: 8px; justify-content: flex-start; }
 
     /* Markdown editor + preview */
     .md-toolbar {
@@ -253,12 +253,6 @@
         <form action="/diary/" method="get">
             <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'sort_select' else '#aaa' }};">Sort/Select</button>
         </form>
-        <select id="diaryTypeFilter" title="Type filter (applies on Edit and View)"
-                style="background-color: #2a2a2a; color: #0ff; border: 1px solid #066; padding: 3px 8px; font-size: 12px; border-radius: 3px; margin: 0 6px;">
-            <option value="Diary"  {% if current_type == 'Diary'  %}selected{% endif %}>Diary</option>
-            <option value="Memo"   {% if current_type == 'Memo'   %}selected{% endif %}>Memo</option>
-            <option value="Other"  {% if current_type == 'Other'  %}selected{% endif %}>Other</option>
-        </select>
         <form action="/diary/edit/" method="get">
             <input type="hidden" name="type" id="editTypeInput" value="{{ current_type }}">
             <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'edit' else '#aaa' }};">Edit</button>
@@ -267,6 +261,13 @@
             <input type="hidden" name="type" id="viewTypeInput" value="{{ current_type }}">
             <button type="submit" style="background-color: #444; color: {{ '#0f0' if diary_sub_tab_active == 'view' else '#aaa' }};">View</button>
         </form>
+        <select id="diaryTypeFilter" title="Type filter (applies on Edit and View)"
+                style="background-color: #2a2a2a; color: #0ff; border: 1px solid #066; padding: 3px 8px; font-size: 12px; border-radius: 3px; margin: 0 0 0 12px;">
+            <option value="All"    {% if current_type == 'All'    %}selected{% endif %}>All</option>
+            <option value="Diary"  {% if current_type == 'Diary'  %}selected{% endif %}>Diary</option>
+            <option value="Memo"   {% if current_type == 'Memo'   %}selected{% endif %}>Memo</option>
+            <option value="Other"  {% if current_type == 'Other'  %}selected{% endif %}>Other</option>
+        </select>
     </div>
     <script>
         (function () {
