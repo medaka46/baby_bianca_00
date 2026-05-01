@@ -1129,19 +1129,13 @@ async def schedule_up(request: Request):
 
 # --------------------
 @app.get("/link_001/")
-async def get_tasks(request: Request, time_zone: str = "UTC", db: Session = Depends(get_db), date_sequence = date_sequence, today_date = today_date):  
-
-    link_tab_page_active = "link_001"
-    request.session['link_tab_page_active'] = link_tab_page_active
+async def get_tasks_001(request: Request):
+    request.session['link_tab_page_active'] = "link_001"
     return RedirectResponse("/link_00/", status_code=303)
-    
-@app.get("/link_002/")
-async def get_tasks(request: Request, time_zone: str = "UTC", db: Session = Depends(get_db), date_sequence = date_sequence, today_date = today_date):  
 
-    link_tab_page_active = "link_002"
-    request.session['link_tab_page_active'] = link_tab_page_active
-    
-    
+@app.get("/link_002/")
+async def get_tasks_002(request: Request):
+    request.session['link_tab_page_active'] = "link_002"
     return RedirectResponse("/link_00/", status_code=303)
 
 
@@ -1150,14 +1144,16 @@ async def get_tasks(request: Request, time_zone: str = "UTC", db: Session = Depe
 
 
 @app.get("/link_00/")
-async def get_tasks(request: Request, time_zone: str = "UTC", db: Session = Depends(get_db), date_sequence = date_sequence, today_date = today_date):  
-# async def get_tasks(request: Request, db: Session = Depends(get_db), date_sequence = date_sequence, today_date = today_date):
-# async def get_tasks(request: Request, db: Session = Depends(get_db), date_sequence = date_sequence, today_date = today_date, login_username = login_username):
-    # global local_time_zone
-    # global active_meeting
+async def get_tasks(request: Request, time_zone: str = "UTC", db: Session = Depends(get_db)):
     login_username = request.session.get('login_username')
     time_zone = request.session.get('time_zone')
     print(f"time_zone is {time_zone}")
+
+    # Compute date_sequence and today_date freshly per request
+    # (was previously frozen at server-start via module-level defaults).
+    _start_date = datetime.today() - timedelta(days=datetime.today().weekday())
+    date_sequence = [str((_start_date + timedelta(days=i)).strftime('%Y-%m-%d')) for i in range(7 * 10)]
+    today_date = datetime.today().strftime('%Y-%m-%d')
     
     # tasks = db.query(Meeting).order_by(Meeting.name).all()
     tasks = db.query(Link).order_by(Link.id).all()
