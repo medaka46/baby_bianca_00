@@ -1394,6 +1394,7 @@ def do_download(job_id: str, url: str) -> None:
 
     cookies_path = get_cookies_path()
     cookies_found = os.path.exists(cookies_path)
+    is_render = bool(os.getenv("RENDER"))
     download_jobs[job_id]["cookies_used"] = cookies_found
     download_jobs[job_id]["cookies_path"] = cookies_path
 
@@ -1414,6 +1415,10 @@ def do_download(job_id: str, url: str) -> None:
     }
     if cookies_found:
         ydl_opts['cookiefile'] = cookies_path
+    elif not is_render:
+        # Local fallback: read cookies directly from Chrome (requires login on YouTube).
+        # Skipped on Render because the server has no browser installed.
+        ydl_opts['cookiesfrombrowser'] = ('chrome',)
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -1592,6 +1597,18 @@ async def sqlite_page(request: Request):
         "tab_page_active": "sqlite",
         "today": datetime.today().strftime('%Y-%m-%d'),
         "condition": condition,
+    })
+
+@app.get("/3d/")
+async def viewer_3d(request: Request):
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    return templates.TemplateResponse("3d_00.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "3d",
+        "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
 @app.get("/game/")

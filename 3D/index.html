@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Model Viewer · Trial (baby_bianca_00)</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            color: #ccc;
+        }
+
+        /* --- Top-level tab nav (matches base.html / Schedule) --- */
+        .tab_00 {
+            background-color: #444;
+            color: #0f0;
+            font-size: 12px;
+            height: auto;
+        }
+        .tab_00 button {
+            background-color: #444;
+            color: #aaa;
+            border: 1px solid #555;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .tab_00 form {
+            display: inline-block;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* --- Sub-tabs row (matches Project's sub-tabs) --- */
+        .subtab_row {
+            background-color: #333;
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+        }
+        .subtab_row button {
+            background-color: #444;
+            border: 1px solid #555;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 0 2px;
+        }
+        .title_row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: #2a2a2a;
+            padding: 6px 12px;
+            color: #0f0;
+            font-size: 13px;
+        }
+        .title_00 { font-size: 14px; }
+
+        /* --- Main viewer area --- */
+        main.viewer_main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+
+        /* --- Drop zone (matches Project's #drop-zone) --- */
+        #drop-zone {
+            border: 1px solid #999;
+            border-radius: 5px;
+            padding: 7px 15px;
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s;
+            margin: 0 auto 12px auto;
+            user-select: none;
+            width: 30%;
+        }
+        #drop-zone.drag-over {
+            border-color: #0f0;
+            background-color: #1a2a1a;
+            color: #0f0;
+        }
+
+        /* --- Status & info --- */
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 12px;
+            color: #aaa;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+        .badge {
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 2px 8px;
+            font-size: 11px;
+            color: #0f0;
+        }
+        #status {
+            font-size: 12px;
+            color: #aaa;
+            text-align: center;
+            min-height: 16px;
+            margin-bottom: 8px;
+        }
+
+        /* --- 3D canvas container --- */
+        #canvas-wrap {
+            flex: 1;
+            min-height: 0;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #1a1a1a;
+            position: relative;
+            overflow: hidden;
+        }
+        #canvas-wrap canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        #hud {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            color: #888;
+            font-size: 11px;
+            font-family: monospace;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 4px 8px;
+            border-radius: 3px;
+            pointer-events: none;
+        }
+    </style>
+
+    <!-- Three.js via ES module import map (works in modern Chrome/Edge/Safari/Firefox) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+    <!-- Top-level tabs (visual replica of base.html nav) -->
+    <header class="tab_00">
+        <div style="display: flex;">
+            <form><button type="button">Schedule</button></form>
+            <form><button type="button">Link</button></form>
+            <form><button type="button">Project</button></form>
+            <form><button type="button">Function</button></form>
+            <form><button type="button">To Do</button></form>
+            <form><button type="button">Diary/Memo</button></form>
+            <form><button type="button">Music</button></form>
+            <form><button type="button">Game</button></form>
+            <form><button type="button">Data</button></form>
+        </div>
+    </header>
+
+    <!-- Sub-tabs (matches Project's Sort/Select / Edit / Chart pattern) -->
+    <div class="subtab_row">
+        <form><button type="button" style="color: #0f0;">View</button></form>
+        <form><button type="button" style="color: #aaa;">Library</button></form>
+        <form><button type="button" style="color: #aaa;">Settings</button></form>
+    </div>
+
+    <!-- Title row -->
+    <div class="title_row">
+        <div class="title_00">3D Model Viewer</div>
+        <div id="today-label" class="title_00"></div>
+        <div id="clock-label" class="title_00"></div>
+    </div>
+
+    <!-- Main viewer area -->
+    <main class="viewer_main">
+        <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <div style="font-size: 16px; margin-bottom: 2px;">&#8659;</div>
+            <div>Drag a 3D model file here or click to select</div>
+            <div style="font-size: 11px; color: #666; margin-top: 2px;">Supported: .stl, .3ds, .obj, .fbx, .ply, .glb, .gltf</div>
+        </div>
+        <input type="file" id="file-input" accept=".stl,.3ds,.obj,.fbx,.ply,.glb,.gltf" style="display:none;">
+
+        <!-- File info (shown after load) -->
+        <div class="info-row" id="info-row" style="display: none;">
+            <span style="color: #888;">File:</span>
+            <span id="info-filename" style="color: #fff;"></span>
+            <span class="badge" id="info-size"></span>
+            <span class="badge" id="info-tris"></span>
+        </div>
+
+        <div id="status">Idle — drop an STL file or click the drop zone to load.</div>
+
+        <div id="canvas-wrap">
+            <div id="hud">Mouse: rotate · Wheel: zoom · Right-drag: pan</div>
+        </div>
+    </main>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { STLLoader }  from 'three/addons/loaders/STLLoader.js';
+        import { OBJLoader }  from 'three/addons/loaders/OBJLoader.js';
+        import { TDSLoader }  from 'three/addons/loaders/TDSLoader.js';
+        import { FBXLoader }  from 'three/addons/loaders/FBXLoader.js';
+        import { PLYLoader }  from 'three/addons/loaders/PLYLoader.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // ----- Today + clock -----
+        function pad(n) { return String(n).padStart(2, '0'); }
+        function updateClock() {
+            const d = new Date();
+            document.getElementById('today-label').textContent =
+                `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            document.getElementById('clock-label').textContent =
+                `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // ----- Three.js scene setup -----
+        const wrap = document.getElementById('canvas-wrap');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x1a1a1a);
+
+        const camera = new THREE.PerspectiveCamera(45, wrap.clientWidth / wrap.clientHeight, 0.1, 10000);
+        camera.position.set(80, 80, 120);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+        wrap.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+        const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+        keyLight.position.set(100, 200, 150);
+        scene.add(keyLight);
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.35);
+        fillLight.position.set(-100, -50, -100);
+        scene.add(fillLight);
+
+        // Ground grid
+        const grid = new THREE.GridHelper(200, 20, 0x444444, 0x2a2a2a);
+        grid.position.y = -0.01;
+        scene.add(grid);
+
+        // Default placeholder mesh (cube) until user loads a 3D model
+        const placeholderMat = new THREE.MeshStandardMaterial({ color: 0x667788, metalness: 0.1, roughness: 0.6 });
+        const placeholderGeo = new THREE.BoxGeometry(40, 40, 40);
+        let currentObject = new THREE.Mesh(placeholderGeo, placeholderMat);
+        currentObject.position.y = 20;
+        scene.add(currentObject);
+
+        // Resize handler
+        function onResize() {
+            const w = wrap.clientWidth, h = wrap.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+        window.addEventListener('resize', onResize);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // ----- 3D model loading (multi-format) -----
+        const stlLoader  = new STLLoader();
+        const objLoader  = new OBJLoader();
+        const tdsLoader  = new TDSLoader();
+        const fbxLoader  = new FBXLoader();
+        const plyLoader  = new PLYLoader();
+        const gltfLoader = new GLTFLoader();
+
+        const dropZone     = document.getElementById('drop-zone');
+        const fileInput    = document.getElementById('file-input');
+        const statusEl     = document.getElementById('status');
+        const infoRow      = document.getElementById('info-row');
+        const infoFilename = document.getElementById('info-filename');
+        const infoSize     = document.getElementById('info-size');
+        const infoTris     = document.getElementById('info-tris');
+
+        const SUPPORTED_EXTS = ['stl', '3ds', 'obj', 'fbx', 'ply', 'glb', 'gltf'];
+        const TEXT_EXTS      = ['obj', 'gltf'];   // others are read as ArrayBuffer
+
+        function defaultMaterial() {
+            return new THREE.MeshStandardMaterial({
+                color: 0x88ccff,
+                metalness: 0.15,
+                roughness: 0.55,
+                flatShading: false
+            });
+        }
+
+        function disposeObject(obj) {
+            obj.traverse(child => {
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) {
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    mats.forEach(m => m.dispose && m.dispose());
+                }
+            });
+        }
+
+        function countTris(object3D) {
+            let total = 0;
+            object3D.traverse(obj => {
+                if (obj.isMesh && obj.geometry && obj.geometry.attributes && obj.geometry.attributes.position) {
+                    total += obj.geometry.attributes.position.count / 3;
+                }
+            });
+            return Math.round(total);
+        }
+
+        function replaceCurrentObject(object3D, filename, ext) {
+            // Remove and dispose the previous object
+            scene.remove(currentObject);
+            disposeObject(currentObject);
+
+            currentObject = object3D;
+
+            // Compute combined bounding box across all child meshes
+            const bbox = new THREE.Box3().setFromObject(object3D);
+            const size = new THREE.Vector3();
+            bbox.getSize(size);
+            const center = new THREE.Vector3();
+            bbox.getCenter(center);
+            const maxDim = Math.max(size.x, size.y, size.z) || 1;
+
+            // Center horizontally (X / Z) and place bottom on the grid (Y)
+            object3D.position.x -= center.x;
+            object3D.position.z -= center.z;
+            object3D.position.y -= bbox.min.y;
+
+            scene.add(object3D);
+
+            // Move camera to a sensible distance based on model size
+            const dist = maxDim * 2.2;
+            camera.position.set(dist * 0.7, dist * 0.6, dist);
+            controls.target.set(0, size.y / 2, 0);
+            controls.update();
+
+            // Update HUD info
+            const triCount = countTris(object3D);
+            infoRow.style.display = 'flex';
+            infoFilename.textContent = filename;
+            infoSize.textContent = `${size.x.toFixed(1)} × ${size.y.toFixed(1)} × ${size.z.toFixed(1)}`;
+            infoTris.textContent = triCount > 0
+                ? `${triCount.toLocaleString()} tris (${ext.toUpperCase()})`
+                : `${ext.toUpperCase()}`;
+            statusEl.textContent = `Loaded: ${filename}`;
+        }
+
+        // Per-format parsers — each returns a Mesh or Group via replaceCurrentObject()
+        function parseSTL(buffer, filename) {
+            const geometry = stlLoader.parse(buffer);
+            geometry.computeVertexNormals();
+            const mesh = new THREE.Mesh(geometry, defaultMaterial());
+            replaceCurrentObject(mesh, filename, 'stl');
+        }
+        function parsePLY(buffer, filename) {
+            const geometry = plyLoader.parse(buffer);
+            geometry.computeVertexNormals();
+            const mesh = new THREE.Mesh(geometry, defaultMaterial());
+            replaceCurrentObject(mesh, filename, 'ply');
+        }
+        function parseOBJ(text, filename) {
+            const group = objLoader.parse(text);
+            // OBJ without an .mtl file has no material — apply our default
+            group.traverse(o => { if (o.isMesh && !o.material) o.material = defaultMaterial(); });
+            replaceCurrentObject(group, filename, 'obj');
+        }
+        function parse3DS(buffer, filename) {
+            const group = tdsLoader.parse(buffer, '');
+            group.traverse(o => { if (o.isMesh && !o.material) o.material = defaultMaterial(); });
+            replaceCurrentObject(group, filename, '3ds');
+        }
+        function parseFBX(buffer, filename) {
+            const group = fbxLoader.parse(buffer, '');
+            group.traverse(o => { if (o.isMesh && !o.material) o.material = defaultMaterial(); });
+            replaceCurrentObject(group, filename, 'fbx');
+        }
+        function parseGLB(buffer, filename, ext) {
+            // GLTFLoader.parse is async with callbacks
+            gltfLoader.parse(buffer, '',
+                (gltf) => replaceCurrentObject(gltf.scene, filename, ext),
+                (err)  => { statusEl.textContent = `Error parsing ${ext.toUpperCase()}: ${err}`; console.error(err); }
+            );
+        }
+
+        function loadFile(file) {
+            if (!file) return;
+            const ext = file.name.toLowerCase().split('.').pop();
+            if (!SUPPORTED_EXTS.includes(ext)) {
+                statusEl.textContent = `Unsupported file: ${file.name} (supported: ${SUPPORTED_EXTS.join(', ')})`;
+                return;
+            }
+            statusEl.textContent = `Loading ${file.name}...`;
+            const reader = new FileReader();
+            reader.onerror = () => { statusEl.textContent = `Error reading ${file.name}`; };
+            reader.onload = (e) => {
+                try {
+                    const data = e.target.result;
+                    switch (ext) {
+                        case 'stl':  parseSTL(data, file.name); break;
+                        case 'ply':  parsePLY(data, file.name); break;
+                        case 'obj':  parseOBJ(data, file.name); break;
+                        case '3ds':  parse3DS(data, file.name); break;
+                        case 'fbx':  parseFBX(data, file.name); break;
+                        case 'glb':
+                        case 'gltf': parseGLB(data, file.name, ext); break;
+                    }
+                } catch (err) {
+                    statusEl.textContent = `Error parsing ${ext.toUpperCase()}: ${err.message}`;
+                    console.error(err);
+                }
+            };
+            // OBJ (and standalone .gltf) are text; everything else is binary
+            if (TEXT_EXTS.includes(ext)) reader.readAsText(file);
+            else                          reader.readAsArrayBuffer(file);
+        }
+
+        // ----- Drop zone events -----
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0]);
+        });
+
+        // Allow dropping anywhere on the page (not just the small drop zone)
+        document.body.addEventListener('dragover', (e) => e.preventDefault());
+        document.body.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files.length > 0) loadFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) loadFile(e.target.files[0]);
+        });
+    </script>
+</body>
+</html>

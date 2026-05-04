@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Control · Trial (baby_bianca_00)</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .tab_00 {
+            background-color: #444;
+            color: #0f0;
+            font-size: 12px;
+            height: auto;
+        }
+
+        .tab_00 button {
+            background-color: #444;
+            color: #aaa;
+            border: 1px solid #555;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .tab_00 form {
+            display: inline-block;
+            margin: 0;
+            padding: 0;
+        }
+
+        .voice-controls {
+            padding: 15px 20px;
+            background-color: #f8f8f8;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .voice-controls button {
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            border: 1px solid #888;
+            border-radius: 3px;
+            background-color: #eee;
+        }
+
+        .voice-controls button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #voice-status {
+            font-size: 13px;
+            color: #333;
+            font-family: monospace;
+        }
+
+        #voice-heard {
+            font-size: 13px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .listening-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: #ccc;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .listening-indicator.active {
+            background-color: #f00;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .placeholder {
+            padding: 20px;
+            color: #333;
+            font-size: 13px;
+        }
+        .placeholder code {
+            background: #eee;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <header class="tab_00">
+        <div style="display: flex;">
+            <form>
+                <button type="button" data-tab="schedule" data-active-color="#0f0">Schedule</button>
+            </form>
+            <form>
+                <button type="button" data-tab="link" data-active-color="#0f0">Link</button>
+            </form>
+            <form>
+                <button type="button" data-tab="project" data-active-color="#0f0">Project</button>
+            </form>
+            <form>
+                <button type="button" data-tab="function" data-active-color="#0f0">Function</button>
+            </form>
+            <form>
+                <button type="button" data-tab="todo" data-active-color="#0f0">To Do</button>
+            </form>
+            <form>
+                <button type="button" data-tab="diary" data-active-color="#0f0">Diary/Memo</button>
+            </form>
+            <form>
+                <button type="button" data-tab="music" data-active-color="#0f0">Music</button>
+            </form>
+            <form>
+                <button type="button" data-tab="game" data-active-color="#0f0">Game</button>
+            </form>
+            <form>
+                <button type="button" data-tab="data" data-active-color="#f00">Data</button>
+            </form>
+        </div>
+    </header>
+
+    <div class="voice-controls">
+        <button id="btn-start">Start Listening</button>
+        <button id="btn-stop" disabled>Stop</button>
+        <span><span id="indicator" class="listening-indicator"></span><span id="voice-status">Idle</span></span>
+        <span id="voice-heard"></span>
+    </div>
+
+    <div class="placeholder">
+        <h3>Voice Control · Trial</h3>
+        <p>Click <strong>Start Listening</strong>, allow microphone access, then say one of the tab names:</p>
+        <p>
+            <code>schedule</code>, <code>link</code>, <code>project</code>, <code>function</code>,
+            <code>to do</code> (or <code>todo</code>), <code>diary</code> (or <code>memo</code>),
+            <code>music</code>, <code>game</code>, <code>data</code>
+        </p>
+        <p>The named tab will become active — highlighted in green (or red for Data, matching baby_bianca_00).</p>
+        <p><strong>Browser support:</strong> Web Speech API works best in Chrome and Edge. Safari has limited support. Firefox does not support it.</p>
+    </div>
+
+    <script>
+        // Map spoken keywords (lowercased) → tab data-tab attribute
+        const KEYWORD_MAP = {
+            'schedule': 'schedule',
+            'link': 'link',
+            'links': 'link',
+            'project': 'project',
+            'projects': 'project',
+            'function': 'function',
+            'functions': 'function',
+            'to do': 'todo',
+            'todo': 'todo',
+            'todos': 'todo',
+            'diary memo': 'diary',
+            'diary': 'diary',
+            'memo': 'diary',
+            'music': 'music',
+            'game': 'game',
+            'games': 'game',
+            'data': 'data',
+        };
+
+        const buttons = document.querySelectorAll('.tab_00 button[data-tab]');
+        const statusEl = document.getElementById('voice-status');
+        const heardEl = document.getElementById('voice-heard');
+        const indicator = document.getElementById('indicator');
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+
+        function setActiveTab(tabId) {
+            buttons.forEach(btn => {
+                if (btn.dataset.tab === tabId) {
+                    btn.style.color = btn.dataset.activeColor;
+                } else {
+                    btn.style.color = '#aaa';
+                }
+            });
+        }
+
+        function processTranscript(transcript) {
+            const lower = transcript.toLowerCase().trim();
+            heardEl.textContent = `Heard: "${transcript}"`;
+
+            // Find the LAST matching keyword in the transcript
+            // (so "please open schedule" picks "schedule", and "go to link" picks "link")
+            // Sort keys longest-first so "to do" wins over "do" (if "do" were a key)
+            const sortedKeys = Object.keys(KEYWORD_MAP).sort((a, b) => b.length - a.length);
+            let foundKey = null;
+            let foundPos = -1;
+            for (const key of sortedKeys) {
+                const pos = lower.lastIndexOf(key);
+                if (pos > foundPos) {
+                    foundPos = pos;
+                    foundKey = key;
+                }
+            }
+            if (foundKey) {
+                const tabId = KEYWORD_MAP[foundKey];
+                setActiveTab(tabId);
+                statusEl.textContent = `Activated: ${tabId} (matched "${foundKey}")`;
+            } else {
+                statusEl.textContent = 'No matching tab keyword';
+            }
+        }
+
+        // Web Speech API setup
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let shouldKeepListening = false;
+
+        if (!SpeechRecognition) {
+            statusEl.textContent = 'Web Speech API not supported in this browser';
+            btnStart.disabled = true;
+        } else {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = true;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                indicator.classList.add('active');
+                statusEl.textContent = 'Listening...';
+                btnStart.disabled = true;
+                btnStop.disabled = false;
+            };
+
+            recognition.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        processTranscript(event.results[i][0].transcript);
+                    }
+                }
+            };
+
+            recognition.onerror = (event) => {
+                // Common errors: 'no-speech', 'audio-capture', 'not-allowed', 'network'
+                statusEl.textContent = `Error: ${event.error}`;
+                if (event.error === 'not-allowed') {
+                    shouldKeepListening = false;
+                }
+            };
+
+            recognition.onend = () => {
+                indicator.classList.remove('active');
+                if (shouldKeepListening) {
+                    // Chrome stops recognition after ~5s of silence; auto-restart.
+                    try {
+                        recognition.start();
+                    } catch (e) { /* already starting */ }
+                } else {
+                    statusEl.textContent = 'Stopped';
+                    btnStart.disabled = false;
+                    btnStop.disabled = true;
+                }
+            };
+
+            btnStart.addEventListener('click', () => {
+                shouldKeepListening = true;
+                try {
+                    recognition.start();
+                } catch (e) {
+                    statusEl.textContent = `Could not start: ${e.message}`;
+                }
+            });
+
+            btnStop.addEventListener('click', () => {
+                shouldKeepListening = false;
+                recognition.stop();
+            });
+        }
+    </script>
+</body>
+</html>
