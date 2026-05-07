@@ -27,3 +27,8 @@ uvicorn==0.30.6
 yt-dlp>=2026.3.17
 mutagen
 openpyxl
+pdfplumber==0.11.9
+pypdf==6.10.2
+reportlab==4.5.0
+pythainlp==5.3.4
+argostranslate==1.11.0

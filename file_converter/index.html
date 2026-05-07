@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Converter &middot; Trial (baby_bianca_00)</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            font-family: Arial, sans-serif;
+            background-color: #222;
+            color: #ccc;
+        }
+
+        /* --- Top-level tab nav (matches base.html) --- */
+        .tab_00 {
+            background-color: #444;
+            color: #0f0;
+            font-size: 12px;
+            height: auto;
+        }
+        .tab_00 button {
+            background-color: #444;
+            color: #aaa;
+            border: 1px solid #555;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .tab_00 form {
+            display: inline-block;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* --- Sub-tabs row (matches Project's sub-tabs) --- */
+        .subtab_row {
+            background-color: #333;
+            padding: 4px 0;
+            display: flex;
+            align-items: center;
+        }
+        .subtab_row button {
+            background-color: #444;
+            border: 1px solid #555;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 0 2px;
+            color: #aaa;
+        }
+        .title_row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: #2a2a2a;
+            padding: 6px 12px;
+            color: #0f0;
+            font-size: 13px;
+        }
+        .title_00 { font-size: 14px; }
+
+        /* --- Main converter area --- */
+        main.converter_main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            padding: 12px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #666 #333;
+        }
+        main.converter_main::-webkit-scrollbar { width: 8px; }
+        main.converter_main::-webkit-scrollbar-track { background: #333; }
+        main.converter_main::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; }
+
+        /* --- Drop zone (matches Project's #drop-zone) --- */
+        #drop-zone {
+            border: 1px solid #999;
+            border-radius: 5px;
+            padding: 7px 15px;
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s;
+            margin: 0 auto 12px auto;
+            user-select: none;
+            width: 30%;
+        }
+        #drop-zone.drag-over {
+            border-color: #0f0;
+            background-color: #1a2a1a;
+            color: #0f0;
+        }
+
+        /* --- Info panel --- */
+        .panel {
+            border: 1px solid #444;
+            border-radius: 4px;
+            background-color: #1a1a1a;
+            padding: 10px 12px;
+            margin: 0 auto 10px auto;
+            max-width: 720px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .panel h3 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            color: #0f0;
+            font-weight: normal;
+            border-bottom: 1px solid #333;
+            padding-bottom: 4px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            row-gap: 4px;
+            column-gap: 8px;
+            font-size: 12px;
+        }
+        .info-grid .k { color: #888; }
+        .info-grid .v { color: #fff; }
+        .badge {
+            display: inline-block;
+            background-color: #333;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 1px 6px;
+            font-size: 11px;
+            color: #0f0;
+            margin-right: 4px;
+        }
+        .badge.warn { color: #fc0; border-color: #663; background-color: #2a2614; }
+        .badge.mock { color: #fa0; border-color: #743; background-color: #2a1f10; }
+
+        /* --- Convertible-to format chips --- */
+        .targets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .target-chip {
+            background-color: #2a2a2a;
+            border: 1px solid #555;
+            border-radius: 3px;
+            padding: 4px 10px;
+            font-size: 12px;
+            color: #ccc;
+            cursor: pointer;
+            user-select: none;
+        }
+        .target-chip:hover { border-color: #0f0; color: #0f0; }
+        .target-chip.selected {
+            background-color: #1a2a1a;
+            border-color: #0f0;
+            color: #0f0;
+        }
+        .target-chip .real-tag {
+            font-size: 9px;
+            color: #0f0;
+            margin-left: 4px;
+        }
+        .target-chip .mock-tag {
+            font-size: 9px;
+            color: #fa0;
+            margin-left: 4px;
+        }
+
+        /* --- Action row --- */
+        .action-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin: 12px 0;
+        }
+        button#download-btn, button#reset-btn {
+            background-color: #2a2a2a;
+            border: 1px solid #0f0;
+            color: #0f0;
+            padding: 8px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button#download-btn:disabled {
+            border-color: #555;
+            color: #555;
+            cursor: not-allowed;
+        }
+        button#download-btn:hover:not(:disabled) {
+            background-color: #1a2a1a;
+        }
+        button#reset-btn { border-color: #888; color: #888; }
+        button#reset-btn:hover { border-color: #ccc; color: #ccc; }
+
+        #status {
+            font-size: 12px;
+            color: #aaa;
+            text-align: center;
+            min-height: 16px;
+            margin-bottom: 8px;
+        }
+
+        /* --- Image preview (only shown for image uploads) --- */
+        #preview-wrap {
+            text-align: center;
+            margin: 8px 0;
+        }
+        #preview-img {
+            max-width: 280px;
+            max-height: 180px;
+            border: 1px solid #555;
+            border-radius: 3px;
+            background-color: #111;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top-level tabs (visual replica of base.html nav) -->
+    <header class="tab_00">
+        <div style="display: flex;">
+            <form><button type="button">Schedule</button></form>
+            <form><button type="button">Link</button></form>
+            <form><button type="button">Project</button></form>
+            <form><button type="button">Function</button></form>
+            <form><button type="button">To Do</button></form>
+            <form><button type="button">Diary/Memo</button></form>
+            <form><button type="button">3D Viewer</button></form>
+            <form><button type="button">Music</button></form>
+            <form><button type="button">Game</button></form>
+            <form><button type="button">Data</button></form>
+        </div>
+    </header>
+
+    <!-- Sub-tabs row -->
+    <div class="subtab_row">
+        <form><button type="button" style="color: #0f0;">Convert</button></form>
+        <form><button type="button">History</button></form>
+        <form><button type="button">Settings</button></form>
+    </div>
+
+    <!-- Title row -->
+    <div class="title_row">
+        <div class="title_00">File Converter</div>
+        <div id="today-label" class="title_00"></div>
+        <div id="clock-label" class="title_00"></div>
+    </div>
+
+    <!-- Main converter area -->
+    <main class="converter_main">
+        <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+            <div style="font-size: 16px; margin-bottom: 2px;">&#8659;</div>
+            <div>Drag a file here or click to select</div>
+            <div style="font-size: 11px; color: #666; margin-top: 2px;">Any file type accepted</div>
+        </div>
+        <input type="file" id="file-input" style="display:none;">
+
+        <!-- File info panel -->
+        <div class="panel" id="info-panel" style="display: none;">
+            <h3>Uploaded file</h3>
+            <div class="info-grid">
+                <div class="k">Name</div>            <div class="v" id="info-name"></div>
+                <div class="k">Size</div>            <div class="v" id="info-size"></div>
+                <div class="k">Category</div>        <div class="v" id="info-category"></div>
+                <div class="k">Format</div>          <div class="v" id="info-format"></div>
+                <div class="k">MIME type</div>       <div class="v" id="info-mime"></div>
+                <div class="k">Last modified</div>   <div class="v" id="info-modified"></div>
+            </div>
+            <div id="preview-wrap" style="display: none;">
+                <img id="preview-img" alt="preview">
+            </div>
+        </div>
+
+        <!-- Convertible-to panel -->
+        <div class="panel" id="targets-panel" style="display: none;">
+            <h3>Convert to &mdash; pick a target format</h3>
+            <div class="targets" id="targets-list"></div>
+            <div style="margin-top: 8px; font-size: 11px; color: #888;">
+                <span class="badge" style="color: #0f0;">real</span> = actually converted in your browser &nbsp;
+                <span class="badge mock">mock</span> = prototype only; downloads the original file unchanged
+            </div>
+            <div style="margin-top: 4px; font-size: 11px; color: #888;">
+                Image notes: PNG / JPG / WEBP / BMP / ICO use built-in encoders; GIF and TIFF lazy-load small libraries (omggif, UTIF.js) from unpkg on first use; AVIF needs Chrome 105+ for encoding; HEIC <i>input</i> is decoded via heic2any (lazy-loaded), HEIC <i>output</i> needs server-side libheif (planned for baby_bianca_00 integration).
+            </div>
+            <div style="margin-top: 4px; font-size: 11px; color: #888;">
+                Sound notes: WAV uses a built-in PCM encoder; MP3 uses lamejs (lazy-loaded, ~100 KB); FLAC / OGG / M4A / AAC / Opus need ffmpeg.wasm or server-side ffmpeg (planned for baby_bianca_00 integration). Decoding the input relies on the browser's native audio support.
+            </div>
+        </div>
+
+        <div class="action-row" id="action-row" style="display: none;">
+            <button id="download-btn" disabled>Download</button>
+            <button id="reset-btn">Reset</button>
+        </div>
+
+        <div id="status">Idle &mdash; drop a file or click the drop zone to begin.</div>
+    </main>
+
+    <script>
+        // ----- Today + clock -----
+        function pad(n) { return String(n).padStart(2, '0'); }
+        function updateClock() {
+            const d = new Date();
+            document.getElementById('today-label').textContent =
+                `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+            document.getElementById('clock-label').textContent =
+                `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // ----- Categorisation -----
+        // Each entry: ext -> { category, label }
+        const EXT_MAP = {
+            // Image
+            png: 'Image', jpg: 'Image', jpeg: 'Image', gif: 'Image', webp: 'Image',
+            bmp: 'Image', tif: 'Image', tiff: 'Image', svg: 'Image', heic: 'Image',
+            heif: 'Image', ico: 'Image', avif: 'Image',
+            // Sound
+            mp3: 'Sound', wav: 'Sound', flac: 'Sound', ogg: 'Sound', m4a: 'Sound',
+            aac: 'Sound', opus: 'Sound', wma: 'Sound', aiff: 'Sound', aif: 'Sound',
+            // Video
+            mp4: 'Video', mov: 'Video', avi: 'Video', mkv: 'Video', webm: 'Video',
+            flv: 'Video', wmv: 'Video', m4v: 'Video', mpeg: 'Video', mpg: 'Video',
+            '3gp': 'Video',
+            // 3D
+            stl: '3D', '3ds': '3D', obj: '3D', fbx: '3D', ply: '3D',
+            glb: '3D', gltf: '3D', dae: '3D', usd: '3D', usdz: '3D',
+            // Documents / specific applications
+            pdf: 'Document', doc: 'Document', docx: 'Document',
+            xls: 'Document', xlsx: 'Document',
+            ppt: 'Document', pptx: 'Document',
+            odt: 'Document', ods: 'Document', odp: 'Document',
+            rtf: 'Document', txt: 'Document', md: 'Document',
+            csv: 'Document', tsv: 'Document',
+            html: 'Document', htm: 'Document', xml: 'Document',
+            json: 'Document', yaml: 'Document', yml: 'Document',
+            // Archives
+            zip: 'Archive', tar: 'Archive', gz: 'Archive', bz2: 'Archive',
+            '7z': 'Archive', rar: 'Archive',
+        };
+
+        // Per-category candidate target formats.
+        // `real` means the prototype performs the conversion in-browser;
+        // `mock` means the Download button returns the original file unchanged.
+        const TARGETS = {
+            'Image':    { real: ['png', 'jpg', 'webp', 'bmp', 'gif', 'tiff', 'avif', 'ico', 'heic'], mock: [] },
+            'Sound':    { real: ['mp3', 'wav'], mock: ['flac', 'ogg', 'm4a', 'aac', 'opus'] },
+            'Video':    { real: [], mock: ['mp4', 'mov', 'webm', 'mkv', 'avi', 'gif (animated)', 'mp3 (audio only)'] },
+            '3D':       { real: [], mock: ['stl', 'obj', 'ply', 'glb', 'gltf', 'fbx', '3ds'] },
+            'Document': { real: [], mock: ['pdf', 'docx', 'txt', 'md', 'html', 'csv', 'json'] },
+            'Archive':  { real: [], mock: ['zip', 'tar', 'tar.gz', '7z'] },
+            'Other':    { real: [], mock: [] },
+        };
+
+        function categoryFor(ext) {
+            return EXT_MAP[ext] || 'Other';
+        }
+
+        function fmtBytes(n) {
+            if (n < 1024) return `${n} B`;
+            if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+            if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(2)} MB`;
+            return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+        }
+
+        // ----- DOM refs -----
+        const dropZone     = document.getElementById('drop-zone');
+        const fileInput    = document.getElementById('file-input');
+        const statusEl     = document.getElementById('status');
+        const infoPanel    = document.getElementById('info-panel');
+        const targetsPanel = document.getElementById('targets-panel');
+        const targetsList  = document.getElementById('targets-list');
+        const actionRow    = document.getElementById('action-row');
+        const downloadBtn  = document.getElementById('download-btn');
+        const resetBtn     = document.getElementById('reset-btn');
+        const previewWrap  = document.getElementById('preview-wrap');
+        const previewImg   = document.getElementById('preview-img');
+
+        let currentFile     = null;
+        let currentExt      = '';
+        let currentCategory = '';
+        let selectedTarget  = null;     // { format: 'png', mode: 'real' | 'mock' }
+
+        // ----- File handling -----
+        function handleFile(file) {
+            if (!file) return;
+            currentFile     = file;
+            currentExt      = (file.name.split('.').pop() || '').toLowerCase();
+            currentCategory = categoryFor(currentExt);
+            selectedTarget  = null;
+
+            // Populate info panel
+            document.getElementById('info-name').textContent     = file.name;
+            document.getElementById('info-size').textContent     = fmtBytes(file.size);
+            document.getElementById('info-category').innerHTML   =
+                `<span class="badge">${currentCategory} file</span>`;
+            document.getElementById('info-format').textContent   =
+                currentExt ? currentExt.toUpperCase() : '(unknown)';
+            document.getElementById('info-mime').textContent     = file.type || '(unknown)';
+            document.getElementById('info-modified').textContent =
+                new Date(file.lastModified).toLocaleString();
+
+            infoPanel.style.display = '';
+
+            // Image preview
+            if (currentCategory === 'Image' && file.type.startsWith('image/')) {
+                previewImg.src = URL.createObjectURL(file);
+                previewWrap.style.display = '';
+            } else {
+                previewWrap.style.display = 'none';
+                previewImg.src = '';
+            }
+
+            // Build target list
+            renderTargets();
+            statusEl.textContent = `Loaded: ${file.name} — pick a target format below.`;
+        }
+
+        function renderTargets() {
+            targetsList.innerHTML = '';
+            const t = TARGETS[currentCategory] || TARGETS['Other'];
+            const allTargets = [
+                ...t.real.map(f => ({ format: f, mode: 'real' })),
+                ...t.mock.map(f => ({ format: f, mode: 'mock' })),
+            ].filter(x => x.format.split(' ')[0].toLowerCase() !== currentExt);   // hide same-format
+
+            if (allTargets.length === 0) {
+                targetsList.innerHTML =
+                    '<span style="color: #888; font-size: 12px;">No target formats defined for this file type yet.</span>';
+                targetsPanel.style.display = '';
+                actionRow.style.display = '';
+                downloadBtn.disabled = true;
+                return;
+            }
+
+            allTargets.forEach(t => {
+                const chip = document.createElement('div');
+                chip.className = 'target-chip';
+                chip.dataset.format = t.format;
+                chip.dataset.mode   = t.mode;
+                chip.innerHTML = `${t.format.toUpperCase()}` +
+                    (t.mode === 'real'
+                        ? '<span class="real-tag">real</span>'
+                        : '<span class="mock-tag">mock</span>');
+                chip.addEventListener('click', () => selectTarget(chip, t));
+                targetsList.appendChild(chip);
+            });
+
+            targetsPanel.style.display = '';
+            actionRow.style.display = '';
+            downloadBtn.disabled = true;
+        }
+
+        function selectTarget(chipEl, target) {
+            document.querySelectorAll('.target-chip').forEach(c => c.classList.remove('selected'));
+            chipEl.classList.add('selected');
+            selectedTarget = target;
+            downloadBtn.disabled = false;
+            const tag = target.mode === 'real' ? '[real]' : '[mock]';
+            statusEl.textContent =
+                `Target: ${target.format.toUpperCase()} ${tag} — click Download to ${target.mode === 'real' ? 'convert and download' : 'download original (prototype mock)'}.`;
+        }
+
+        // ----- Conversion (Image targets — all are real in-browser) -----
+
+        // Lazy-load external scripts only on first use (GIF, TIFF).
+        const _loadedScripts = new Set();
+        function loadScriptOnce(url) {
+            if (_loadedScripts.has(url)) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = url;
+                s.onload  = () => { _loadedScripts.add(url); resolve(); };
+                s.onerror = () => reject(new Error(`Failed to load ${url}`));
+                document.head.appendChild(s);
+            });
+        }
+
+        // Detect HEIC/HEIF by extension or MIME (Safari sometimes leaves
+        // the MIME blank for HEIC files dragged from Finder).
+        function isHeicFile(file) {
+            const ext = (file.name.split('.').pop() || '').toLowerCase();
+            return ext === 'heic' || ext === 'heif'
+                || file.type === 'image/heic' || file.type === 'image/heif';
+        }
+
+        // Decode HEIC → PNG Blob using heic2any (lazy-loaded). The library may
+        // return Blob[] for multi-image HEICs; we use the first frame.
+        async function decodeHeicToPng(file) {
+            await loadScriptOnce('https://unpkg.com/heic2any/dist/heic2any.min.js');
+            let out = await heic2any({ blob: file, toType: 'image/png', quality: 0.95 });
+            if (Array.isArray(out)) out = out[0];
+            return out;
+        }
+
+        // Decode the uploaded image into a canvas. Paints a white background
+        // first for formats that have no alpha (JPG, BMP). HEIC inputs are
+        // pre-decoded to PNG via heic2any.
+        async function fileToCanvas(file, targetFormat) {
+            const sourceBlob = isHeicFile(file) ? await decodeHeicToPng(file) : file;
+            return await new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(sourceBlob);
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width  = img.naturalWidth;
+                    canvas.height = img.naturalHeight;
+                    const ctx = canvas.getContext('2d');
+                    if (targetFormat === 'jpg' || targetFormat === 'jpeg' || targetFormat === 'bmp') {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+                    ctx.drawImage(img, 0, 0);
+                    URL.revokeObjectURL(url);
+                    resolve(canvas);
+                };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+                img.src = url;
+            });
+        }
+
+        // canvas.toBlob with strict-MIME enforcement. Per spec, browsers may
+        // silently fall back to PNG for unsupported types — surface that.
+        function canvasToBlobNative(canvas, mime, quality) {
+            return new Promise((resolve, reject) => {
+                canvas.toBlob(blob => {
+                    if (!blob) return reject(new Error(`canvas.toBlob returned null for ${mime}`));
+                    if (mime === 'image/avif' && blob.type !== 'image/avif') {
+                        return reject(new Error(
+                            `This browser doesn't support AVIF encoding (it fell back to ${blob.type}). Try Chrome 105+.`
+                        ));
+                    }
+                    resolve(blob);
+                }, mime, quality);
+            });
+        }
+
+        // BMP encoder: 24-bit RGB, uncompressed, bottom-up rows, 4-byte aligned.
+        function canvasToBmpBlob(canvas) {
+            const w = canvas.width, h = canvas.height;
+            const rgba = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+            const rowPad   = (4 - ((w * 3) % 4)) % 4;
+            const rowBytes = w * 3 + rowPad;
+            const pixelDataSize = rowBytes * h;
+            const fileSize = 14 + 40 + pixelDataSize;
+
+            const buf = new ArrayBuffer(fileSize);
+            const dv  = new DataView(buf);
+            const u8  = new Uint8Array(buf);
+
+            // BITMAPFILEHEADER
+            u8[0] = 0x42; u8[1] = 0x4D;             // 'BM'
+            dv.setUint32(2,  fileSize, true);
+            dv.setUint32(6,  0,        true);
+            dv.setUint32(10, 14 + 40,  true);
+
+            // BITMAPINFOHEADER
+            dv.setUint32(14, 40, true);
+            dv.setInt32 (18, w,  true);
+            dv.setInt32 (22, h,  true);             // positive => bottom-up
+            dv.setUint16(26, 1,  true);
+            dv.setUint16(28, 24, true);             // bpp
+            dv.setUint32(30, 0,  true);             // BI_RGB
+            dv.setUint32(34, pixelDataSize, true);
+            dv.setUint32(38, 2835, true);           // ~72 dpi
+            dv.setUint32(42, 2835, true);
+            dv.setUint32(46, 0,    true);
+            dv.setUint32(50, 0,    true);
+
+            // Pixel data: BGR, bottom-up, padded
+            let off = 14 + 40;
+            for (let y = h - 1; y >= 0; y--) {
+                for (let x = 0; x < w; x++) {
+                    const i = (y * w + x) * 4;
+                    u8[off++] = rgba[i + 2];
+                    u8[off++] = rgba[i + 1];
+                    u8[off++] = rgba[i];
+                }
+                off += rowPad;
+            }
+            return new Blob([buf], { type: 'image/bmp' });
+        }
+
+        // ICO with a single PNG payload (the modern favicon format).
+        // Resizes to fit 256x256 if the source is larger.
+        async function canvasToIcoBlob(canvas) {
+            let work = canvas;
+            if (canvas.width > 256 || canvas.height > 256) {
+                const scale = Math.min(256 / canvas.width, 256 / canvas.height);
+                const tw = Math.max(1, Math.round(canvas.width  * scale));
+                const th = Math.max(1, Math.round(canvas.height * scale));
+                work = document.createElement('canvas');
+                work.width = tw; work.height = th;
+                work.getContext('2d').drawImage(canvas, 0, 0, tw, th);
+            }
+            const pngBlob  = await canvasToBlobNative(work, 'image/png');
+            const pngBytes = new Uint8Array(await pngBlob.arrayBuffer());
+
+            const w = work.width  >= 256 ? 0 : work.width;   // 0 means 256
+            const h = work.height >= 256 ? 0 : work.height;
+            const dataOffset = 6 + 16;
+            const buf = new ArrayBuffer(dataOffset + pngBytes.length);
+            const dv  = new DataView(buf);
+            const u8  = new Uint8Array(buf);
+
+            dv.setUint16(0, 0, true);                // ICONDIR.reserved
+            dv.setUint16(2, 1, true);                // ICONDIR.type = icon
+            dv.setUint16(4, 1, true);                // ICONDIR.count
+            u8[6]  = w; u8[7] = h;
+            u8[8]  = 0;                              // colors-in-palette (0 = >=256)
+            u8[9]  = 0;
+            dv.setUint16(10, 1,  true);              // planes
+            dv.setUint16(12, 32, true);              // bits per pixel
+            dv.setUint32(14, pngBytes.length, true);
+            dv.setUint32(18, dataOffset, true);
+            u8.set(pngBytes, dataOffset);
+            return new Blob([buf], { type: 'image/x-icon' });
+        }
+
+        // GIF via omggif (lazy-loaded). Uses 3:3:2 RGB quantisation — fine for
+        // diagrams / screenshots, lossy for photos.
+        async function canvasToGifBlob(canvas) {
+            await loadScriptOnce('https://unpkg.com/omggif@1.0.10/omggif.js');
+            const w = canvas.width, h = canvas.height;
+            const rgba = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+
+            const palette = new Array(256);
+            for (let i = 0; i < 256; i++) {
+                const r = (i & 0xE0);
+                const g = ((i & 0x1C) << 3) | ((i & 0x1C) >> 2);
+                const b = ((i & 0x03) << 6) | ((i & 0x03) << 4) | ((i & 0x03) << 2) | (i & 0x03);
+                palette[i] = (r << 16) | (g << 8) | b;
+            }
+            const indexed = new Uint8Array(w * h);
+            for (let i = 0, j = 0; i < rgba.length; i += 4, j++) {
+                indexed[j] = (rgba[i] & 0xE0) | ((rgba[i + 1] & 0xE0) >> 3) | ((rgba[i + 2] & 0xC0) >> 6);
+            }
+            const buf = new Uint8Array(w * h * 2 + 1024);
+            const writer = new GifWriter(buf, w, h, { palette: palette, loop: 0 });
+            writer.addFrame(0, 0, w, h, indexed);
+            const len = writer.end();
+            return new Blob([buf.subarray(0, len)], { type: 'image/gif' });
+        }
+
+        // TIFF via UTIF.js (lazy-loaded).
+        async function canvasToTiffBlob(canvas) {
+            await loadScriptOnce('https://unpkg.com/utif@3.1.0/UTIF.js');
+            const w = canvas.width, h = canvas.height;
+            const rgba = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+            const tiffBuf = UTIF.encodeImage(rgba.buffer, w, h);
+            return new Blob([tiffBuf], { type: 'image/tiff' });
+        }
+
+        // HEIC encoding is not feasible in pure browser JS — HEVC is patent-
+        // encumbered and no browser ships an HEIC encoder. Surfacing a clear
+        // message is more honest than silently falling back to PNG. Real HEIC
+        // output is planned via server-side libheif during the FastAPI
+        // integration into baby_bianca_00.
+        async function canvasToHeicBlob(canvas) {
+            throw new Error(
+                'Browser-side HEIC encoding is not available. Planned via ' +
+                'server-side libheif when this prototype is integrated into ' +
+                'baby_bianca_00. For similar compression today, try AVIF or WEBP.'
+            );
+        }
+
+        // Dispatcher
+        async function convertImageInBrowser(file, targetFormat) {
+            const canvas = await fileToCanvas(file, targetFormat);
+            switch (targetFormat) {
+                case 'png':  return canvasToBlobNative(canvas, 'image/png');
+                case 'jpg':
+                case 'jpeg': return canvasToBlobNative(canvas, 'image/jpeg', 0.92);
+                case 'webp': return canvasToBlobNative(canvas, 'image/webp', 0.92);
+                case 'avif': return canvasToBlobNative(canvas, 'image/avif', 0.92);
+                case 'bmp':  return canvasToBmpBlob(canvas);
+                case 'ico':  return canvasToIcoBlob(canvas);
+                case 'gif':  return canvasToGifBlob(canvas);
+                case 'tif':
+                case 'tiff': return canvasToTiffBlob(canvas);
+                case 'heic':
+                case 'heif': return canvasToHeicBlob(canvas);
+                default: throw new Error(`Unsupported image target: ${targetFormat}`);
+            }
+        }
+
+        // ----- Conversion (Sound targets — WAV and MP3 are real, rest are mock) -----
+
+        // Decode an audio file to an AudioBuffer using Web Audio API.
+        // Decoding works for any format the browser natively supports
+        // (mp3 / wav / aac / flac / ogg / opus in modern browsers).
+        async function audioFileToBuffer(file) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) throw new Error('Web Audio API not available in this browser.');
+            const arrayBuffer = await file.arrayBuffer();
+            const ctx = new AudioCtx();
+            try {
+                return await ctx.decodeAudioData(arrayBuffer.slice(0));
+            } catch (err) {
+                throw new Error(`Browser could not decode this audio file (${err.message}). Try MP3 or WAV input.`);
+            } finally {
+                ctx.close();
+            }
+        }
+
+        function floatToInt16(floats) {
+            const out = new Int16Array(floats.length);
+            for (let i = 0; i < floats.length; i++) {
+                const s = Math.max(-1, Math.min(1, floats[i]));
+                out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            return out;
+        }
+
+        // WAV encoder: 16-bit PCM, interleaved channels, standard RIFF header.
+        function audioBufferToWavBlob(audioBuffer) {
+            const numChannels = audioBuffer.numberOfChannels;
+            const sampleRate  = audioBuffer.sampleRate;
+            const bitDepth    = 16;
+            const numFrames   = audioBuffer.length;
+
+            // Interleave channels (LRLRLR...)
+            const interleaved = new Float32Array(numFrames * numChannels);
+            for (let ch = 0; ch < numChannels; ch++) {
+                const channelData = audioBuffer.getChannelData(ch);
+                for (let i = 0; i < numFrames; i++) {
+                    interleaved[i * numChannels + ch] = channelData[i];
+                }
+            }
+            const pcm = floatToInt16(interleaved);
+
+            const dataSize = pcm.byteLength;
+            const buf = new ArrayBuffer(44 + dataSize);
+            const dv  = new DataView(buf);
+            const writeStr = (offset, s) => {
+                for (let i = 0; i < s.length; i++) dv.setUint8(offset + i, s.charCodeAt(i));
+            };
+
+            // RIFF header
+            writeStr(0, 'RIFF');
+            dv.setUint32(4, 36 + dataSize, true);
+            writeStr(8, 'WAVE');
+            // fmt chunk
+            writeStr(12, 'fmt ');
+            dv.setUint32(16, 16, true);                                              // fmt chunk size
+            dv.setUint16(20, 1,  true);                                              // PCM
+            dv.setUint16(22, numChannels, true);
+            dv.setUint32(24, sampleRate, true);
+            dv.setUint32(28, sampleRate * numChannels * bitDepth / 8, true);         // byte rate
+            dv.setUint16(32, numChannels * bitDepth / 8, true);                      // block align
+            dv.setUint16(34, bitDepth, true);
+            // data chunk
+            writeStr(36, 'data');
+            dv.setUint32(40, dataSize, true);
+            new Int16Array(buf, 44).set(pcm);
+
+            return new Blob([buf], { type: 'audio/wav' });
+        }
+
+        // MP3 encoder via lamejs (lazy-loaded). MP3 supports max 2 channels;
+        // surround inputs are downmixed by taking the first two channels.
+        async function audioBufferToMp3Blob(audioBuffer, kbps = 192) {
+            await loadScriptOnce('https://unpkg.com/lamejs@1.2.1/lame.min.js');
+            const numChannels = Math.min(audioBuffer.numberOfChannels, 2);
+            const sampleRate  = audioBuffer.sampleRate;
+            const encoder = new lamejs.Mp3Encoder(numChannels, sampleRate, kbps);
+
+            const samplesL = floatToInt16(audioBuffer.getChannelData(0));
+            const samplesR = numChannels === 2 ? floatToInt16(audioBuffer.getChannelData(1)) : null;
+
+            const blockSize = 1152;
+            const chunks = [];
+            for (let i = 0; i < samplesL.length; i += blockSize) {
+                const left  = samplesL.subarray(i, i + blockSize);
+                const right = samplesR ? samplesR.subarray(i, i + blockSize) : null;
+                const mp3buf = right ? encoder.encodeBuffer(left, right) : encoder.encodeBuffer(left);
+                if (mp3buf.length > 0) chunks.push(mp3buf);
+            }
+            const flushed = encoder.flush();
+            if (flushed.length > 0) chunks.push(flushed);
+            return new Blob(chunks, { type: 'audio/mpeg' });
+        }
+
+        async function convertAudioInBrowser(file, targetFormat) {
+            const audioBuffer = await audioFileToBuffer(file);
+            switch (targetFormat) {
+                case 'wav': return audioBufferToWavBlob(audioBuffer);
+                case 'mp3': return audioBufferToMp3Blob(audioBuffer);
+                default: throw new Error(`Unsupported audio target: ${targetFormat}`);
+            }
+        }
+
+        function triggerDownload(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function nameWithoutExt(name) {
+            const i = name.lastIndexOf('.');
+            return i > 0 ? name.slice(0, i) : name;
+        }
+
+        downloadBtn.addEventListener('click', async () => {
+            if (!currentFile || !selectedTarget) return;
+
+            const base = nameWithoutExt(currentFile.name);
+            const target = selectedTarget;
+
+            if (target.mode === 'real') {
+                statusEl.textContent = `Converting to ${target.format.toUpperCase()}...`;
+                downloadBtn.disabled = true;
+                try {
+                    let blob;
+                    if (currentCategory === 'Image') {
+                        blob = await convertImageInBrowser(currentFile, target.format);
+                    } else if (currentCategory === 'Sound') {
+                        blob = await convertAudioInBrowser(currentFile, target.format);
+                    } else {
+                        throw new Error(`Real conversion not yet implemented for category: ${currentCategory}`);
+                    }
+                    const ext = target.format === 'jpg' ? 'jpg' : target.format;
+                    triggerDownload(blob, `${base}.${ext}`);
+                    statusEl.textContent =
+                        `Converted ${currentExt.toUpperCase()} → ${target.format.toUpperCase()} (${fmtBytes(blob.size)}). Downloaded as ${base}.${ext}.`;
+                } catch (err) {
+                    statusEl.textContent = `Conversion error: ${err.message}`;
+                    console.error(err);
+                } finally {
+                    downloadBtn.disabled = false;
+                }
+            } else {
+                // Mock: download the original file unchanged, with the target extension noted
+                const targetExtRaw = target.format.split(' ')[0];   // strip "(animated)" etc
+                const filename = `${base}.[mock-as-${targetExtRaw}].${currentExt}`;
+                triggerDownload(currentFile, filename);
+                statusEl.textContent =
+                    `[Mock] No real conversion performed. Downloaded the original file as ${filename}.`;
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            currentFile = null; currentExt = ''; currentCategory = ''; selectedTarget = null;
+            infoPanel.style.display    = 'none';
+            targetsPanel.style.display = 'none';
+            actionRow.style.display    = 'none';
+            previewWrap.style.display  = 'none';
+            previewImg.src = '';
+            fileInput.value = '';
+            statusEl.textContent = 'Idle — drop a file or click the drop zone to begin.';
+        });
+
+        // ----- Drop zone events -----
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        });
+
+        // Allow dropping anywhere on the page
+        document.body.addEventListener('dragover', (e) => e.preventDefault());
+        document.body.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
+        });
+    </script>
+</body>
+</html>

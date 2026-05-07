@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 12px;
+        box-sizing: border-box;
+        background-color: #222;
+        color: #ccc;
+    }
+    .layout {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 12px;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .col {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        overflow: hidden;
+    }
+    /* --- Drop zone (matches Music / file_converter) --- */
+    #drop-zone {
+        border: 1px solid #999;
+        border-radius: 5px;
+        padding: 12px 15px;
+        text-align: center;
+        color: #888;
+        font-size: 13px;
+        cursor: pointer;
+        margin: 0 0 10px 0;
+        user-select: none;
+        transition: border-color 0.2s, background-color 0.2s;
+    }
+    #drop-zone.drag-over { border-color: #0f0; background-color: #1a2a1a; color: #0f0; }
+    #drop-zone .hint { font-size: 11px; color: #666; margin-top: 4px; }
+
+    /* --- Panels --- */
+    .panel {
+        border: 1px solid #444;
+        border-radius: 4px;
+        background-color: #1a1a1a;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        font-size: 12px;
+        color: #aaa;
+    }
+    .panel h3 {
+        margin: 0 0 6px 0;
+        font-size: 13px;
+        color: #0f0;
+        font-weight: normal;
+        border-bottom: 1px solid #333;
+        padding-bottom: 4px;
+    }
+    .panel.flex {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .info-grid { display: grid; grid-template-columns: 110px 1fr; row-gap: 4px; column-gap: 8px; }
+    .info-grid .k { color: #888; }
+    .info-grid .v { color: #fff; }
+
+    /* --- Progress bar --- */
+    .progress-wrap { background: #333; border: 1px solid #555; border-radius: 3px; height: 14px; position: relative; overflow: hidden; }
+    .progress-bar  { background: #0a0; height: 100%; width: 0%; transition: width 0.2s; }
+    .progress-text { position: absolute; inset: 0; text-align: center; line-height: 14px; font-size: 11px; color: #fff; }
+
+    /* --- Buttons --- */
+    .action-row { display: flex; gap: 10px; align-items: center; margin: 8px 0; }
+    button.btn {
+        background-color: #2a2a2a;
+        border: 1px solid #0f0;
+        color: #0f0;
+        padding: 6px 16px;
+        font-size: 13px;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+    button.btn:disabled { border-color: #555; color: #555; cursor: not-allowed; }
+    button.btn:hover:not(:disabled) { background-color: #1a2a1a; }
+    button.btn.muted { border-color: #888; color: #888; }
+    button.btn.muted:hover:not(:disabled) { color: #ccc; border-color: #ccc; background: #2a2a2a; }
+
+    /* --- Mappings list --- */
+    #mappings-panel ul { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex: 1; }
+    #mappings-panel li {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        padding: 4px 6px;
+        border-bottom: 1px solid #2a2a2a;
+        font-size: 12px;
+    }
+    #mappings-panel .src { color: #fc0; }
+    #mappings-panel .tgt { color: #ccc; }
+    #mappings-panel .meta {
+        grid-column: 1 / -1;
+        font-size: 10px;
+        color: #666;
+    }
+    .badge { display: inline-block; padding: 0 5px; border: 1px solid #555; border-radius: 3px; font-size: 10px; margin-right: 4px; }
+    .badge.cache { color: #0f0; border-color: #062; }
+    .badge.argos { color: #fa0; border-color: #743; }
+    .badge.translit { color: #6cf; border-color: #267; }
+    .status-pill { display: inline-block; padding: 1px 8px; border-radius: 3px; font-size: 11px; }
+    .status-pill.queued    { background: #333; color: #ccc; }
+    .status-pill.processing{ background: #2a3a1a; color: #cf0; }
+    .status-pill.done      { background: #1a3a1a; color: #0f0; }
+    .status-pill.error     { background: #3a1a1a; color: #f66; }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex;">
+        <form action="/action/map/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'map' else '#aaa' }};">World Map</button>
+        </form>
+        <form action="/action/translator_on_drawings/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'translator_on_drawings' else '#aaa' }};">Translator on Drawings</button>
+        </form>
+        <form action="/action/periodic_table/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'periodic_table' else '#aaa' }};">Periodic Table</button>
+        </form>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">Function — Translator on Drawings</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_function" class="title_00" style="margin: 0;"></div>
+    </div>
+</header>
+
+<script>
+    function updateClockFunction() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('clock_function').textContent = `${h}:${m}:${s}`;
+    }
+    updateClockFunction();
+    setInterval(updateClockFunction, 1000);
+</script>
+
+<main class="tab_00">
+    <div class="layout">
+        <!-- Left: upload + job status -->
+        <div class="col">
+            <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+                <div style="font-size: 16px; margin-bottom: 4px;">&#8659;</div>
+                <div>Drag a Thai construction drawing PDF here, or click to select</div>
+                <div class="hint">Thai → English · vector PDF · layout preserved · powered by SQLite glossary + Argos Translate (offline)</div>
+            </div>
+            <input type="file" id="file-input" accept=".pdf" style="display:none;">
+
+            <div class="panel" id="job-panel" style="display:none;">
+                <h3>Job <span id="job-status" class="status-pill queued">queued</span></h3>
+                <div class="info-grid">
+                    <div class="k">File</div>             <div class="v" id="job-filename">—</div>
+                    <div class="k">Job ID</div>           <div class="v" id="job-id">—</div>
+                    <div class="k">Pages</div>            <div class="v" id="job-pages">—</div>
+                    <div class="k">Thai phrases</div>     <div class="v" id="job-text-count">—</div>
+                    <div class="k">Cache hits</div>       <div class="v" id="job-cache-hits">—</div>
+                    <div class="k">Argos calls</div>      <div class="v" id="job-api-calls">—</div>
+                    <div class="k">Duration</div>         <div class="v" id="job-duration">—</div>
+                </div>
+                <div style="margin-top: 8px;">
+                    <div id="job-message" style="font-size: 11px; color: #aaa; margin-bottom: 4px;">—</div>
+                    <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div><div class="progress-text" id="progress-text">0%</div></div>
+                </div>
+                <div class="action-row">
+                    <button class="btn" id="download-btn" disabled>Download translated PDF</button>
+                    <button class="btn muted" id="reset-btn">New job</button>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>How it works</h3>
+                <div>
+                    Each Thai phrase is looked up in a SQLite glossary first; cache misses fall through to
+                    a heuristic that transliterates personal names (Royal Thai General System), or to
+                    Argos Translate (offline) for general Thai. New API translations are written back to
+                    the glossary so the same phrase is free next time. Names and abbreviations are
+                    classified separately so they can be hand-curated.
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: mappings -->
+        <div class="col">
+            <div class="panel flex" id="mappings-panel">
+                <h3>Thai → English mappings used</h3>
+                <ul id="mappings-list"><li class="meta">No job yet — upload a drawing to see the mappings.</li></ul>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    const dropZone   = document.getElementById('drop-zone');
+    const fileInput  = document.getElementById('file-input');
+    const jobPanel   = document.getElementById('job-panel');
+    const statusPill = document.getElementById('job-status');
+    const progressBar  = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const messageEl  = document.getElementById('job-message');
+    const downloadBtn = document.getElementById('download-btn');
+    const resetBtn   = document.getElementById('reset-btn');
+    const mappingsList = document.getElementById('mappings-list');
+
+    let pollTimer = null;
+    let currentJobId = null;
+
+    function setText(id, val) { document.getElementById(id).textContent = (val == null ? '—' : val); }
+
+    function setStatusPill(status) {
+        statusPill.className = 'status-pill ' + status;
+        statusPill.textContent = status;
+    }
+
+    function fmtMs(ms) {
+        if (ms == null) return '—';
+        if (ms < 1000) return `${ms} ms`;
+        return `${(ms/1000).toFixed(1)} s`;
+    }
+
+    async function uploadFile(file) {
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            messageEl.textContent = `Not a PDF: ${file.name}`;
+            return;
+        }
+        // Reset UI
+        jobPanel.style.display = '';
+        setText('job-filename', file.name);
+        setText('job-id', '—'); setText('job-pages', '—'); setText('job-text-count', '—');
+        setText('job-cache-hits', '—'); setText('job-api-calls', '—'); setText('job-duration', '—');
+        progressBar.style.width = '0%'; progressText.textContent = '0%';
+        downloadBtn.disabled = true;
+        setStatusPill('queued');
+        messageEl.textContent = 'Uploading…';
+        mappingsList.innerHTML = '<li class="meta">Waiting for translation…</li>';
+
+        const fd = new FormData();
+        fd.append('pdf_file', file);
+        try {
+            const resp = await fetch('/action/translator_on_drawings/upload/', { method: 'POST', body: fd });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({}));
+                throw new Error(err.error || `Upload failed (${resp.status})`);
+            }
+            const data = await resp.json();
+            currentJobId = data.job_id;
+            setText('job-id', currentJobId);
+            messageEl.textContent = 'Queued.';
+            startPolling();
+        } catch (e) {
+            messageEl.textContent = `Upload error: ${e.message}`;
+            setStatusPill('error');
+        }
+    }
+
+    function startPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(pollOnce, 1500);
+        pollOnce();
+    }
+
+    async function pollOnce() {
+        if (!currentJobId) return;
+        try {
+            const resp = await fetch(`/action/translator_on_drawings/status/${currentJobId}`);
+            if (!resp.ok) return;
+            const job = await resp.json();
+            setStatusPill(job.status);
+            setText('job-pages',      job.page_count);
+            setText('job-text-count', job.text_count);
+            setText('job-cache-hits', job.cache_hits);
+            setText('job-api-calls',  job.api_calls);
+            setText('job-duration',   fmtMs(job.duration_ms));
+            const pct = job.progress_percent || 0;
+            progressBar.style.width = pct + '%';
+            progressText.textContent = pct + '%';
+            messageEl.textContent = job.progress_message || (job.error_message || '');
+            if (job.status === 'done') {
+                clearInterval(pollTimer); pollTimer = null;
+                downloadBtn.disabled = false;
+                renderMappings(job.mappings || []);
+            } else if (job.status === 'error') {
+                clearInterval(pollTimer); pollTimer = null;
+                messageEl.textContent = `Error: ${job.error_message || 'unknown'}`;
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderMappings(mappings) {
+        if (!mappings.length) {
+            mappingsList.innerHTML = '<li class="meta">No Thai phrases were detected in this PDF.</li>';
+            return;
+        }
+        // Deduplicate by source for a tidier list
+        const seen = new Map();
+        for (const m of mappings) {
+            const key = `${m.source}|${m.target}`;
+            if (!seen.has(key)) seen.set(key, { ...m, count: 0 });
+            seen.get(key).count++;
+        }
+        const items = [...seen.values()].sort((a, b) => b.count - a.count);
+        mappingsList.innerHTML = items.map(m => {
+            const badgeClass = m.via === 'cache' ? 'cache'
+                             : m.via === 'argos' ? 'argos'
+                             : m.via === 'transliterate' ? 'translit' : '';
+            return `
+                <li>
+                    <div class="src">${escapeHtml(m.source)}</div>
+                    <div class="tgt">${escapeHtml(m.target)}</div>
+                    <div class="meta">
+                        <span class="badge ${badgeClass}">${escapeHtml(m.via)}</span>
+                        <span class="badge">${escapeHtml(m.kind)}</span>
+                        used ${m.count}× · first on page ${m.page}
+                    </div>
+                </li>`;
+        }).join('');
+    }
+
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    // --- Drop zone wiring ---
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault(); dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files.length > 0) uploadFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) uploadFile(e.target.files[0]);
+    });
+
+    downloadBtn.addEventListener('click', () => {
+        if (!currentJobId) return;
+        window.location.href = `/action/translator_on_drawings/download/${currentJobId}`;
+    });
+
+    resetBtn.addEventListener('click', () => {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = null; currentJobId = null;
+        jobPanel.style.display = 'none';
+        fileInput.value = '';
+        mappingsList.innerHTML = '<li class="meta">No job yet — upload a drawing to see the mappings.</li>';
+    });
+</script>
+{% endblock %}

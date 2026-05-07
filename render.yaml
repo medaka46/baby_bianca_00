@@ -10,4 +10,4 @@ services:
     disk:
       name: baby-bianca-data
       mountPath: /var/data
-      sizeGB: 1 
+      sizeGB: 2

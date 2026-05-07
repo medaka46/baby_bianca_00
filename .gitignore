@@ -71,3 +71,6 @@ static/music/
 
 # Private data (cookies etc.)
 data/
+
+PDF files
+file_converter/sample_00.pdf
