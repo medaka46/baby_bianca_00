@@ -19,7 +19,9 @@ import json
 import logging
 import os
 import re
+import socket
 import sqlite3
+import sys
 import threading
 import time
 import uuid
@@ -34,6 +36,17 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 logger = logging.getLogger(__name__)
+
+
+def _log(msg: str) -> None:
+    """Print + flush so output appears in Render logs without buffering.
+
+    Render's Python runtime sometimes buffers stdout/stderr unless `flush=True`
+    is set. logger.info() also goes through buffered handlers in some configs.
+    Using print(..., flush=True) is the most reliable way to surface
+    diagnostic output from a background thread to Render's log panel.
+    """
+    print(f"[translator] {msg}", flush=True)
 
 # --------------------------------------------------------------------------------------
 # Paths and DB setup
@@ -309,31 +322,50 @@ def _ensure_argos() -> None:
     with _ARGOS_LOCK:
         if _ARGOS_READY:
             return
+        _log("_ensure_argos: entered")
         os.environ.setdefault("ARGOS_PACKAGES_DIR", ARGOS_MODELS_DIR)
+        _log(f"_ensure_argos: ARGOS_PACKAGES_DIR={ARGOS_MODELS_DIR}")
         import argostranslate.package as ap
         import argostranslate.translate as at
+        _log("_ensure_argos: argostranslate imported")
         installed = at.get_installed_languages()
         have_th_en = any(
             src.code == "th" and any(t.to_lang.code == "en" for t in src.translations_from)
             for src in installed
         )
+        _log(f"_ensure_argos: have_th_en_already_installed={have_th_en}")
         if not have_th_en:
-            logger.info("Argos: Thai→English model not installed; downloading…")
-            ap.update_package_index()
-            available = ap.get_available_packages()
-            pkg = next((p for p in available if p.from_code == "th" and p.to_code == "en"), None)
-            if pkg is None:
-                raise RuntimeError("Argos package index has no th→en pair available.")
-            path = pkg.download()
-            ap.install_from_path(path)
-            logger.info("Argos: Thai→English model installed.")
+            # Cap every HTTP call at 60 s so a hanging socket can't freeze the
+            # background thread indefinitely. Restored in `finally`.
+            old_timeout = socket.getdefaulttimeout()
+            socket.setdefaulttimeout(60)
+            try:
+                _log("_ensure_argos: calling update_package_index()…")
+                ap.update_package_index()
+                _log("_ensure_argos: update_package_index() returned")
+                available = ap.get_available_packages()
+                _log(f"_ensure_argos: {len(available)} packages available in index")
+                pkg = next((p for p in available if p.from_code == "th" and p.to_code == "en"), None)
+                if pkg is None:
+                    raise RuntimeError("Argos package index has no th→en pair available.")
+                _log(f"_ensure_argos: downloading th→en package (~150 MB)…")
+                path = pkg.download()
+                _log(f"_ensure_argos: download complete → {path}")
+                ap.install_from_path(path)
+                _log("_ensure_argos: install_from_path() returned — model installed")
+            finally:
+                socket.setdefaulttimeout(old_timeout)
         _ARGOS_READY = True
+        _log("_ensure_argos: ready")
 
 
 def _argos_translate(text: str) -> str:
     _ensure_argos()
     import argostranslate.translate as at
-    return at.translate(text, "th", "en")
+    _log(f"_argos_translate: translating {len(text)} chars: {text[:40]!r}…")
+    out = at.translate(text, "th", "en")
+    _log(f"_argos_translate: → {out[:60]!r}…")
+    return out
 
 
 _PYTHAINLP_LOCK = threading.Lock()
@@ -620,15 +652,21 @@ def run_job_in_background(job_id: str, input_path: str) -> None:
     """Kick off a background thread that runs the pipeline and updates the job row."""
 
     def _runner():
+        _log(f"_runner: thread started for job {job_id}")
         try:
+            _log("_runner: calling _update_job(status=processing)…")
             _update_job(job_id, status="processing", progress_percent=1,
                         progress_message="Starting…")
+            _log("_runner: status set to 'processing'")
             output_path = os.path.join(JOBS_DIR, f"{job_id}.translated.pdf")
 
             def cb(pct: int, msg: str):
+                _log(f"_runner: progress {pct}% — {msg}")
                 _update_job(job_id, progress_percent=pct, progress_message=msg)
 
+            _log(f"_runner: calling translate_pdf({input_path!r})…")
             stats = translate_pdf(input_path, output_path, progress_cb=cb)
+            _log(f"_runner: translate_pdf returned. stats={stats}")
             _update_job(
                 job_id,
                 status="done",
@@ -642,15 +680,19 @@ def run_job_in_background(job_id: str, input_path: str) -> None:
                 progress_percent=100,
                 progress_message="Done",
             )
+            _log(f"_runner: job {job_id} marked done")
         except Exception as e:
+            _log(f"_runner: EXCEPTION {type(e).__name__}: {e}")
             logger.exception("Translation job failed")
             _update_job(
                 job_id, status="error", error_message=f"{type(e).__name__}: {e}",
                 progress_percent=100, progress_message="Error",
             )
 
+    _log(f"run_job_in_background: starting thread for job {job_id}")
     t = threading.Thread(target=_runner, daemon=True)
     t.start()
+    _log(f"run_job_in_background: thread.start() returned")
 
 
 def save_uploaded_pdf(job_id: str, file_bytes: bytes) -> str:
