@@ -33,3 +33,4 @@ reportlab==4.5.0
 pythainlp==5.3.4
 argostranslate==1.11.0
 python-dotenv>=1.0.0
+anthropic>=0.100.0

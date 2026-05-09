@@ -1626,10 +1626,17 @@ async def translator_download(job_id: str):
     if not os.path.exists(job["output_path"]):
         return JSONResponse({"error": "Output file missing on disk."}, status_code=404)
     base = os.path.splitext(job.get("filename") or "translated")[0]
+    output_path = job["output_path"]
+    # Delete the translated PDF after FastAPI finishes streaming it back.
+    # The translation results live in the SQLite cache; the file is transient.
+    from starlette.background import BackgroundTask  # noqa: E402
     return FileResponse(
-        job["output_path"],
+        output_path,
         media_type="application/pdf",
         filename=f"{base}.translated.pdf",
+        background=BackgroundTask(
+            _translator.remove_output_after_download, job_id, output_path
+        ),
     )
 
 @app.get("/map/")
