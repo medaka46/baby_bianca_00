@@ -817,7 +817,8 @@ def translate_pdf(input_path: str, output_path: str, progress_cb=None) -> dict:
                 tr = _lookup_or_translate(span.text)
                 if tr.via == "cache":
                     stats["cache_hits"] += 1
-                elif tr.via == "argos":
+                elif tr.via in ("argos", "claude"):
+                    # Both engines count as paid/expensive lookups vs cache hits.
                     stats["api_calls"] += 1
                 elif tr.via == "transliterate":
                     stats["transliterations"] += 1
