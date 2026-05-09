@@ -1573,71 +1573,11 @@ async def action_map(request: Request):
         "today": datetime.today().strftime('%Y-%m-%d'),
     })
 
-@app.get("/action/translator_on_drawings/")
-async def action_translator_on_drawings(request: Request):
-    request.session['function_sub_tab_active'] = 'translator_on_drawings'
-    login_username = request.session.get('login_username')
-    time_zone = request.session.get('time_zone')
-    return templates.TemplateResponse("function_translator_on_drawings.html", {
-        "request": request,
-        "login_username": login_username,
-        "time_zone": time_zone,
-        "tab_page_active": "action",
-        "function_sub_tab_active": "translator_on_drawings",
-        "today": datetime.today().strftime('%Y-%m-%d'),
-    })
+# --- Translator on Drawings: page + upload + status + download routes ---
+# All four routes (and the pipeline) live in the dedicated package now.
+from translator_on_drawings.routes import router as _translator_router  # noqa: E402
+app.include_router(_translator_router)
 
-
-# --- Translator on Drawings: upload / status / download ---
-from api import translator_on_drawings as _translator  # noqa: E402
-
-
-@app.post("/action/translator_on_drawings/upload/")
-async def translator_upload(request: Request, pdf_file: UploadFile = File(...)):
-    """Accept a PDF, save it, kick off the background translation job, return job_id."""
-    if not pdf_file.filename or not pdf_file.filename.lower().endswith('.pdf'):
-        return JSONResponse({"error": "Please upload a PDF file."}, status_code=400)
-    user_id = request.session.get('id_user')
-    job_id = _translator.create_job(pdf_file.filename, user_id)
-    file_bytes = await pdf_file.read()
-    input_path = _translator.save_uploaded_pdf(job_id, file_bytes)
-    _translator.run_job_in_background(job_id, input_path)
-    return JSONResponse({"job_id": job_id})
-
-
-@app.get("/action/translator_on_drawings/status/{job_id}")
-async def translator_status(job_id: str):
-    job = _translator.get_job(job_id)
-    if not job:
-        return JSONResponse({"error": "Job not found."}, status_code=404)
-    # Trim mappings in the polling response — frontend can request the full list when done.
-    summary = {k: v for k, v in job.items() if k != "mappings"}
-    summary["mappings_count"] = len(job.get("mappings", []))
-    if job.get("status") == "done":
-        summary["mappings"] = job.get("mappings", [])
-    return JSONResponse(summary)
-
-
-@app.get("/action/translator_on_drawings/download/{job_id}")
-async def translator_download(job_id: str):
-    job = _translator.get_job(job_id)
-    if not job or job.get("status") != "done" or not job.get("output_path"):
-        return JSONResponse({"error": "Translated file not ready."}, status_code=404)
-    if not os.path.exists(job["output_path"]):
-        return JSONResponse({"error": "Output file missing on disk."}, status_code=404)
-    base = os.path.splitext(job.get("filename") or "translated")[0]
-    output_path = job["output_path"]
-    # Delete the translated PDF after FastAPI finishes streaming it back.
-    # The translation results live in the SQLite cache; the file is transient.
-    from starlette.background import BackgroundTask  # noqa: E402
-    return FileResponse(
-        output_path,
-        media_type="application/pdf",
-        filename=f"{base}.translated.pdf",
-        background=BackgroundTask(
-            _translator.remove_output_after_download, job_id, output_path
-        ),
-    )
 
 @app.get("/map/")
 async def map_index():
