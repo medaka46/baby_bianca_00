@@ -1,3 +1,8 @@
+# Load .env into os.environ before any other module reads env vars (RENDER, ANTHROPIC_API_KEY, etc.).
+# On Render, env vars are already in the process environment; load_dotenv() is a no-op there.
+from dotenv import load_dotenv
+load_dotenv()
+
 import logging
 from fastapi import FastAPI, Depends, Request, Form, Query, HTTPException, UploadFile, File, BackgroundTasks
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
