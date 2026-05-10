@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+    main.tab_00 {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+    }
+    #file-converter-frame {
+        flex: 1;
+        width: 100%;
+        border: none;
+        min-height: 0;
+    }
+</style>
+
+<header class="tab_00">
+    <div style="display: flex;">
+        <form action="/action/map/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'map' else '#aaa' }};">World Map</button>
+        </form>
+        <form action="/action/translator_on_drawings/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'translator_on_drawings' else '#aaa' }};">Translator on Drawings</button>
+        </form>
+        <form action="/action/file_converter/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'file_converter' else '#aaa' }};">File Converter</button>
+        </form>
+        <form action="/action/periodic_table/" method="get">
+            <button type="submit" style="background-color: #444; color: {{ '#0f0' if function_sub_tab_active == 'periodic_table' else '#aaa' }};">Periodic Table</button>
+        </form>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+        <div class="title_00" style="margin: 0;">Function — File Converter</div>
+        <div class="title_00" style="margin: 0;">{{ today }}</div>
+        <div id="clock_function" class="title_00" style="margin: 0;"></div>
+    </div>
+</header>
+
+<script>
+    function updateClockFunction() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('clock_function').textContent = `${h}:${m}:${s}`;
+    }
+    updateClockFunction();
+    setInterval(updateClockFunction, 1000);
+</script>
+
+<main class="tab_00">
+    <iframe id="file-converter-frame" src="/file_converter/"></iframe>
+</main>
+{% endblock %}
