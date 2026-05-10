@@ -7,6 +7,13 @@ services:
     envVars:
       - key: RENDER
         value: "true"
+      - key: TRANSLATOR_ENGINE
+        value: "claude"
+      # ANTHROPIC_API_KEY is intentionally NOT listed here.
+      # It must be added as a SECRET env var in the Render dashboard
+      # (Settings → Environment → Add Environment Variable) so it never
+      # lands in git. The translator dispatcher reads it via os.getenv at
+      # first translation; if missing, the job's error_message will say so.
     disk:
       name: baby-bianca-data
       mountPath: /var/data
