@@ -1538,6 +1538,8 @@ async def action(request: Request):
         return RedirectResponse(url="/action/periodic_table/")
     if last == 'translator_on_drawings':
         return RedirectResponse(url="/action/translator_on_drawings/")
+    if last == 'file_converter':
+        return RedirectResponse(url="/action/file_converter/")
     return RedirectResponse(url="/action/map/")
 
 @app.get("/action/periodic_table/")
@@ -1577,6 +1579,27 @@ async def action_map(request: Request):
 # All four routes (and the pipeline) live in the dedicated package now.
 from translator_on_drawings.routes import router as _translator_router  # noqa: E402
 app.include_router(_translator_router)
+
+
+# --- File Converter (sub-tab of Function) ---
+@app.get("/action/file_converter/")
+async def action_file_converter(request: Request):
+    request.session['function_sub_tab_active'] = 'file_converter'
+    login_username = request.session.get('login_username')
+    time_zone = request.session.get('time_zone')
+    return templates.TemplateResponse("function_file_converter.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": time_zone,
+        "tab_page_active": "action",
+        "function_sub_tab_active": "file_converter",
+        "today": datetime.today().strftime('%Y-%m-%d'),
+    })
+
+@app.get("/file_converter/")
+async def file_converter_index():
+    file_path = os.path.join(base_dir, "file_converter", "index.html")
+    return FileResponse(file_path, media_type="text/html")
 
 
 @app.get("/map/")
