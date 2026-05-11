@@ -1,3 +1,23 @@
-/usage
+/usage  
+indicate the status of usage against the limit.
 
-indicate the status of usage against thelimit.
+
+. Key Commands to Manage Usage
+Command	Effect
+/usage
+Shows current session/weekly usage + reset times
+/cost
+Shows running token spend (API users)
+/model
+See & switch models
+/context
+Inspect what's loaded into context
+/compact
+Summarize history → frees context space
+/clear
+Wipe conversation → start fresh (CLAUDE.md kept)
+Rule of thumb:
+
+/clear when switching tasks (most effective lever)
+/compact when continuing a long task
+
