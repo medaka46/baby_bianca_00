@@ -9,6 +9,7 @@ Mounted into the main FastAPI app via ``app.include_router(...)`` in ``api/main.
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 
@@ -91,3 +92,67 @@ async def translator_download(job_id: str):
             _translator.remove_output_after_download, job_id, output_path
         ),
     )
+
+
+@router.get("/action/translator_on_drawings/database/download/")
+async def translator_database_download():
+    path, filename = _translator.create_database_backup_file()
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename=filename,
+        background=BackgroundTask(_translator._safe_remove, path),
+    )
+
+
+@router.post("/action/translator_on_drawings/database/upload/")
+async def translator_database_upload(database_file: UploadFile = File(...)):
+    try:
+        result = _translator.replace_database_from_bytes(
+            await database_file.read(),
+            database_file.filename,
+        )
+        return JSONResponse({
+            "status": "ok",
+            "message": "Translator database replaced.",
+            "backup_filename": result.get("backup_filename"),
+            "database_path": result.get("database_path"),
+        })
+    except ValueError as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=500)
+
+
+@router.get("/action/translator_on_drawings/glossary/download/{file_format}")
+async def translator_glossary_download(file_format: str):
+    try:
+        path, filename, media_type = _translator.create_glossary_export_file(file_format)
+    except ValueError as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=400)
+    return FileResponse(
+        path,
+        media_type=media_type,
+        filename=filename,
+        background=BackgroundTask(_translator._safe_remove, path),
+    )
+
+
+@router.post("/action/translator_on_drawings/glossary/upload/")
+async def translator_glossary_upload(glossary_file: UploadFile = File(...)):
+    try:
+        result = _translator.import_glossary_from_bytes(
+            await glossary_file.read(),
+            glossary_file.filename,
+        )
+        return JSONResponse({
+            "status": "ok",
+            "message": f"Imported {result['imported']} glossary row(s).",
+            "imported": result["imported"],
+        })
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=400)
+    except ValueError as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=500)

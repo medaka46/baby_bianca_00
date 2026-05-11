@@ -15,6 +15,7 @@ job table, and lazy-loads heavy dependencies (Argos, pythainlp).
 from __future__ import annotations
 
 import io
+import csv
 import json
 import logging
 import os
@@ -22,6 +23,7 @@ import re
 import socket
 import sqlite3
 import sys
+import tempfile
 import threading
 import time
 import unicodedata
@@ -176,6 +178,17 @@ SEED_DICTIONARY = [
 
 _INIT_LOCK = threading.Lock()
 _INITIALIZED = False
+REQUIRED_DB_TABLES = {"translation_dictionary", "translation_jobs"}
+GLOSSARY_COLUMNS = [
+    "source_lang",
+    "target_lang",
+    "source_text",
+    "target_text",
+    "kind",
+    "source_kind",
+    "domain",
+    "notes",
+]
 
 
 def _connect() -> sqlite3.Connection:
@@ -211,6 +224,191 @@ def init_db() -> None:
                 )
             conn.commit()
         _INITIALIZED = True
+
+
+def _reset_db_initialization() -> None:
+    global _INITIALIZED
+    with _INIT_LOCK:
+        _INITIALIZED = False
+
+
+def _timestamp() -> str:
+    return datetime_now_safe().strftime("%Y%m%d_%H%M%S")
+
+
+def datetime_now_safe():
+    # Kept local to this module so routes do not need to own filename policy.
+    from datetime import datetime
+    return datetime.now()
+
+
+def _validate_sqlite_db(path: str) -> tuple[bool, str]:
+    try:
+        conn = sqlite3.connect(path)
+        try:
+            integrity = conn.execute("PRAGMA integrity_check").fetchone()
+            if not integrity or integrity[0] != "ok":
+                return False, f"SQLite integrity check failed: {integrity[0] if integrity else 'no result'}"
+            rows = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+            tables = {row[0] for row in rows}
+            missing = sorted(REQUIRED_DB_TABLES - tables)
+            if missing:
+                return False, f"Missing required table(s): {', '.join(missing)}"
+            return True, "ok"
+        finally:
+            conn.close()
+    except sqlite3.Error as e:
+        return False, f"Invalid SQLite database: {e}"
+
+
+def create_database_backup_file() -> tuple[str, str]:
+    """Create a consistent translator.db backup file and return (path, filename)."""
+    init_db()
+    filename = f"translator_backup_{_timestamp()}.db"
+    backup_path = os.path.join(JOBS_DIR, filename)
+    if os.path.exists(backup_path):
+        filename = f"translator_backup_{_timestamp()}_{uuid.uuid4().hex[:8]}.db"
+        backup_path = os.path.join(JOBS_DIR, filename)
+    source = sqlite3.connect(DB_PATH)
+    dest = sqlite3.connect(backup_path)
+    try:
+        source.backup(dest)
+    finally:
+        dest.close()
+        source.close()
+    return backup_path, filename
+
+
+def replace_database_from_bytes(file_bytes: bytes, original_filename: str | None) -> dict:
+    """Validate and replace translator.db, preserving a backup of the current DB."""
+    if not file_bytes:
+        raise ValueError("Uploaded database file is empty.")
+    filename = original_filename or ""
+    if not filename.lower().endswith((".db", ".sqlite", ".sqlite3")):
+        raise ValueError("Please upload a SQLite database file (.db, .sqlite, .sqlite3).")
+
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(JOBS_DIR, exist_ok=True)
+
+    fd, temp_path = tempfile.mkstemp(prefix="translator_upload_", suffix=".db", dir=JOBS_DIR)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(file_bytes)
+
+        ok, message = _validate_sqlite_db(temp_path)
+        if not ok:
+            raise ValueError(message)
+
+        backup_path = None
+        backup_filename = None
+        if os.path.exists(DB_PATH):
+            backup_path, backup_filename = create_database_backup_file()
+
+        for suffix in ("-wal", "-shm"):
+            sidecar = DB_PATH + suffix
+            if os.path.exists(sidecar):
+                os.remove(sidecar)
+
+        os.replace(temp_path, DB_PATH)
+        temp_path = None
+        _reset_db_initialization()
+        init_db()
+        return {
+            "backup_path": backup_path,
+            "backup_filename": backup_filename,
+            "database_path": DB_PATH,
+        }
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+
+
+def create_glossary_export_file(file_format: str) -> tuple[str, str, str]:
+    """Export translation_dictionary as csv or json and return path/filename/media."""
+    init_db()
+    fmt = file_format.lower()
+    if fmt not in ("csv", "json"):
+        raise ValueError("Glossary format must be csv or json.")
+
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT source_lang, target_lang, source_text, target_text, kind, "
+            "source_kind, domain, notes FROM translation_dictionary "
+            "ORDER BY source_text"
+        ).fetchall()
+    data = [dict(row) for row in rows]
+
+    if fmt == "csv":
+        fd, path = tempfile.mkstemp(prefix="translator_glossary_", suffix=".csv", dir=JOBS_DIR)
+        with os.fdopen(fd, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=GLOSSARY_COLUMNS)
+            writer.writeheader()
+            writer.writerows(data)
+        return path, f"translator_glossary_{_timestamp()}.csv", "text/csv"
+
+    fd, path = tempfile.mkstemp(prefix="translator_glossary_", suffix=".json", dir=JOBS_DIR)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    return path, f"translator_glossary_{_timestamp()}.json", "application/json"
+
+
+def import_glossary_from_bytes(file_bytes: bytes, original_filename: str | None) -> dict:
+    """Import/upsert glossary rows from CSV or JSON bytes."""
+    if not file_bytes:
+        raise ValueError("Uploaded glossary file is empty.")
+    filename = (original_filename or "").lower()
+    text = file_bytes.decode("utf-8-sig")
+
+    if filename.endswith(".json"):
+        loaded = json.loads(text)
+        if not isinstance(loaded, list):
+            raise ValueError("JSON glossary must be a list of row objects.")
+        rows = loaded
+    elif filename.endswith(".csv"):
+        rows = list(csv.DictReader(io.StringIO(text)))
+    else:
+        raise ValueError("Please upload a glossary CSV or JSON file.")
+
+    clean_rows = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        source_text = str(row.get("source_text") or "").strip()
+        target_text = _sanitize_translation_text(row.get("target_text") or "")
+        if not source_text or not target_text:
+            continue
+        kind = str(row.get("kind") or "phrase").strip().lower()
+        if kind not in ("phrase", "name", "abbrev"):
+            kind = "phrase"
+        clean_rows.append((
+            str(row.get("source_lang") or "th").strip() or "th",
+            str(row.get("target_lang") or "en").strip() or "en",
+            source_text,
+            target_text,
+            kind,
+            str(row.get("source_kind") or "manual").strip() or "manual",
+            str(row.get("domain") or "construction").strip() or "construction",
+            str(row.get("notes") or "").strip() or None,
+        ))
+
+    if not clean_rows:
+        raise ValueError("No valid glossary rows found.")
+
+    init_db()
+    with _connect() as conn:
+        conn.executemany(
+            "INSERT INTO translation_dictionary "
+            "(source_lang, target_lang, source_text, target_text, kind, source_kind, domain, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(source_lang, target_lang, source_text) DO UPDATE SET "
+            "target_text=excluded.target_text, kind=excluded.kind, "
+            "source_kind=excluded.source_kind, domain=excluded.domain, "
+            "notes=excluded.notes, updated_at=CURRENT_TIMESTAMP",
+            clean_rows,
+        )
+    return {"imported": len(clean_rows)}
 
 
 # --------------------------------------------------------------------------------------

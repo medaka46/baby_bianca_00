@@ -205,6 +205,22 @@
                     classified separately so they can be hand-curated.
                 </div>
             </div>
+
+            <div class="panel">
+                <h3>Translation data</h3>
+                <div class="action-row">
+                    <button class="btn" id="download-db-btn">Download DB</button>
+                    <button class="btn muted" id="upload-db-btn">Upload DB</button>
+                    <input type="file" id="db-input" accept=".db,.sqlite,.sqlite3" style="display:none;">
+                </div>
+                <div class="action-row">
+                    <button class="btn" id="download-glossary-csv-btn">Glossary CSV</button>
+                    <button class="btn" id="download-glossary-json-btn">Glossary JSON</button>
+                    <button class="btn muted" id="upload-glossary-btn">Upload glossary</button>
+                    <input type="file" id="glossary-input" accept=".csv,.json" style="display:none;">
+                </div>
+                <div id="data-message" style="font-size: 11px; color: #aaa;">—</div>
+            </div>
         </div>
 
         <!-- Right: mappings -->
@@ -228,6 +244,14 @@
     const downloadBtn = document.getElementById('download-btn');
     const resetBtn   = document.getElementById('reset-btn');
     const mappingsList = document.getElementById('mappings-list');
+    const downloadDbBtn = document.getElementById('download-db-btn');
+    const uploadDbBtn = document.getElementById('upload-db-btn');
+    const dbInput = document.getElementById('db-input');
+    const downloadGlossaryCsvBtn = document.getElementById('download-glossary-csv-btn');
+    const downloadGlossaryJsonBtn = document.getElementById('download-glossary-json-btn');
+    const uploadGlossaryBtn = document.getElementById('upload-glossary-btn');
+    const glossaryInput = document.getElementById('glossary-input');
+    const dataMessage = document.getElementById('data-message');
 
     let pollTimer = null;
     let currentJobId = null;
@@ -374,6 +398,62 @@
         jobPanel.style.display = 'none';
         fileInput.value = '';
         mappingsList.innerHTML = '<li class="meta">No job yet — upload a drawing to see the mappings.</li>';
+    });
+
+    downloadDbBtn.addEventListener('click', () => {
+        window.location.href = '/action/translator_on_drawings/database/download/';
+    });
+
+    uploadDbBtn.addEventListener('click', () => dbInput.click());
+    dbInput.addEventListener('change', async (e) => {
+        if (!e.target.files.length) return;
+        const file = e.target.files[0];
+        if (!confirm('Replace the translator database? A backup of the current database will be created first.')) {
+            dbInput.value = '';
+            return;
+        }
+        dataMessage.textContent = 'Uploading database...';
+        const fd = new FormData();
+        fd.append('database_file', file);
+        try {
+            const resp = await fetch('/action/translator_on_drawings/database/upload/', { method: 'POST', body: fd });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data.error || `Upload failed (${resp.status})`);
+            dataMessage.textContent = data.backup_filename
+                ? `Database replaced. Backup: ${data.backup_filename}`
+                : 'Database replaced.';
+        } catch (err) {
+            dataMessage.textContent = `Database upload error: ${err.message}`;
+        } finally {
+            dbInput.value = '';
+        }
+    });
+
+    downloadGlossaryCsvBtn.addEventListener('click', () => {
+        window.location.href = '/action/translator_on_drawings/glossary/download/csv';
+    });
+
+    downloadGlossaryJsonBtn.addEventListener('click', () => {
+        window.location.href = '/action/translator_on_drawings/glossary/download/json';
+    });
+
+    uploadGlossaryBtn.addEventListener('click', () => glossaryInput.click());
+    glossaryInput.addEventListener('change', async (e) => {
+        if (!e.target.files.length) return;
+        const file = e.target.files[0];
+        dataMessage.textContent = 'Uploading glossary...';
+        const fd = new FormData();
+        fd.append('glossary_file', file);
+        try {
+            const resp = await fetch('/action/translator_on_drawings/glossary/upload/', { method: 'POST', body: fd });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok) throw new Error(data.error || `Upload failed (${resp.status})`);
+            dataMessage.textContent = data.message || 'Glossary imported.';
+        } catch (err) {
+            dataMessage.textContent = `Glossary upload error: ${err.message}`;
+        } finally {
+            glossaryInput.value = '';
+        }
     });
 </script>
 {% endblock %}
