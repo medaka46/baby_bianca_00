@@ -10,9 +10,26 @@ class User(Base):
     password = Column(String)
     # country = Column(String)
     # language = Column(String)
-    
-    
-    
+
+
+class AllowedUser(Base):
+    """Pre-approved sign-up allowlist.
+
+    Admin pre-populates rows here (via SQLite CLI / DB browser) for each
+    user permitted to sign up. The /login_signup/add_user/ route accepts a
+    sign-up only if (username, email, password) all match a row in this table.
+
+    Passwords stored as plaintext for now (per agreed roadmap); a future step
+    will add a 'change my password' flow that re-hashes with bcrypt.
+    """
+    __tablename__ = "allowed_users"
+    id = Column(Integer, Sequence('allowed_user_id_seq'), primary_key=True, index=True)
+    username = Column(String, index=True)
+    email = Column(String, unique=True, index=True)
+    password = Column(String)
+
+
+
 class Link(Base):
     __tablename__ = "links"
 

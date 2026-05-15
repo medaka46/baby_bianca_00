@@ -406,7 +406,9 @@
     let _currentColumns = [];
     let _sortCol = null;
     let _sortDir = 1;           // 1 = asc, -1 = desc
-    let _filterConditions = {}; // { colName: { op, value, active } }
+    let _filterConditions = {}; // { colIndex: { op, value, active } }
+    const MAX_FILTER_CONDITIONS = 5;
+    let _filterJoinMode = sessionStorage.getItem('proj_filter_join_mode') || 'AND';
 
     // --- Drop zone ---
     const dropZone = document.getElementById('drop-zone');
@@ -504,6 +506,8 @@
         sessionStorage.removeItem('proj_rows');
         sessionStorage.removeItem('proj_hidden_cols');
         sessionStorage.removeItem('proj_filter_conditions');
+        sessionStorage.removeItem('proj_filter_join_mode');
+        _filterJoinMode = 'AND';
         sessionStorage.removeItem('proj_chart_open');
         sessionStorage.removeItem('proj_chart_axis_open');
         sessionStorage.removeItem('proj_chart_category');
@@ -567,6 +571,8 @@
                 if (data.error) { setStatus('Error: ' + data.error, '#f00'); return; }
                 sessionStorage.removeItem('proj_hidden_cols');
                 sessionStorage.removeItem('proj_filter_conditions');
+                sessionStorage.removeItem('proj_filter_join_mode');
+                _filterJoinMode = 'AND';
                 saveToSession(uploadedFile.name, (sessionStorage.getItem('proj_filetype') || ''), data.columns, data.rows);
                 showColumns(data.columns, data.rows);
             },
@@ -586,21 +592,47 @@
     function renderFilterConditions() {
         const area = document.getElementById('select-conditions');
         area.style.display = 'flex';
-        const ops = ['contains', '=', '!=', '>', '<', '>=', '<='];
-        const chips = Object.keys(_filterConditions).map(col => {
-            const c = _filterConditions[col];
+        const ops = ['contains', 'not contains', '=', '!=', '>', '<', '>=', '<='];
+        const filterKeys = Object.keys(_filterConditions).slice(0, MAX_FILTER_CONDITIONS);
+        const chips = filterKeys.map(key => {
+            const c = _filterConditions[key];
+            const colName = _currentColumns[parseInt(key)] || key;
             return `<div class="filter-chip">
-                <span class="filter-chip-name">${col}</span>
-                <select class="filter-op" data-col="${col}">
+                <span class="filter-chip-name">${colName}</span>
+                <select class="filter-op" data-filter-key="${key}">
                     ${ops.map(op => `<option${c.op === op ? ' selected' : ''}>${op}</option>`).join('')}
                 </select>
-                <input class="filter-val" type="text" data-col="${col}" value="${c.value.replace(/"/g,'&quot;')}" placeholder="value...">
-                <button class="filter-toggle ${c.active ? 'on' : 'off'}" data-col="${col}">${c.active ? 'ON' : 'OFF'}</button>
-                <button class="filter-remove" data-col="${col}">✕</button>
+                <input class="filter-val" type="text" data-filter-key="${key}" value="${c.value.replace(/"/g,'&quot;')}" placeholder="value...">
+                <button class="filter-toggle ${c.active ? 'on' : 'off'}" data-filter-key="${key}">${c.active ? 'ON' : 'OFF'}</button>
+                <button class="filter-remove" data-filter-key="${key}">✕</button>
             </div>`;
         }).join('');
-        area.innerHTML = chips +
+        area.innerHTML =
+            `<span style="color:#ff0; font-size:11px;">Filters ${filterKeys.length}/${MAX_FILTER_CONDITIONS}</span>` +
+            `<select id="filter-join-mode" class="filter-op" title="Filter join mode">
+                <option value="AND"${_filterJoinMode === 'AND' ? ' selected' : ''}>AND</option>
+                <option value="OR"${_filterJoinMode === 'OR' ? ' selected' : ''}>OR</option>
+            </select>` +
+            chips +
             `<button id="draw-chart-btn" class="proj-btn">Chart</button>`;
+    }
+
+    function matchFilter(row, col, cond) {
+        const cv = String(row[col] ?? '');
+        const fv = cond.value;
+        const n = parseFloat(cv), fn = parseFloat(fv);
+        const nums = !isNaN(n) && !isNaN(fn);
+        switch (cond.op) {
+            case 'contains': return cv.toLowerCase().includes(fv.toLowerCase());
+            case 'not contains': return !cv.toLowerCase().includes(fv.toLowerCase());
+            case '=':  return nums ? n === fn : cv === fv;
+            case '!=': return nums ? n !== fn : cv !== fv;
+            case '>':  return nums ? n >  fn : cv >  fv;
+            case '<':  return nums ? n <  fn : cv <  fv;
+            case '>=': return nums ? n >= fn : cv >= fv;
+            case '<=': return nums ? n <= fn : cv <= fv;
+        }
+        return true;
     }
 
     function applyFilters() {
@@ -609,24 +641,13 @@
         if (activeConds.length === 0) {
             _currentRows = _allRows.slice();
         } else {
-            _currentRows = _allRows.filter(row =>
-                activeConds.every(([col, cond]) => {
-                    const cv = String(row[col] ?? '');
-                    const fv = cond.value;
-                    const n = parseFloat(cv), fn = parseFloat(fv);
-                    const nums = !isNaN(n) && !isNaN(fn);
-                    switch (cond.op) {
-                        case 'contains': return cv.toLowerCase().includes(fv.toLowerCase());
-                        case '=':  return nums ? n === fn : cv === fv;
-                        case '!=': return nums ? n !== fn : cv !== fv;
-                        case '>':  return nums ? n >  fn : cv >  fv;
-                        case '<':  return nums ? n <  fn : cv <  fv;
-                        case '>=': return nums ? n >= fn : cv >= fv;
-                        case '<=': return nums ? n <= fn : cv <= fv;
-                    }
-                    return true;
-                })
-            );
+            _currentRows = _allRows.filter(row => {
+                const checks = activeConds.map(([key, cond]) => {
+                    const col = _currentColumns[parseInt(key)] || key;
+                    return matchFilter(row, col, cond);
+                });
+                return _filterJoinMode === 'OR' ? checks.some(Boolean) : checks.every(Boolean);
+            });
         }
         if (_sortCol) {
             _currentRows.sort(function(a, b) {
@@ -642,6 +663,7 @@
         document.getElementById('row-count').textContent =
             shown === total ? total + ' rows' : shown + ' / ' + total + ' rows';
         try { sessionStorage.setItem('proj_filter_conditions', JSON.stringify(_filterConditions)); } catch(e) {}
+        try { sessionStorage.setItem('proj_filter_join_mode', _filterJoinMode); } catch(e) {}
     }
 
     function renderBody() {
@@ -748,14 +770,19 @@
             tag.addEventListener('click', function(e) {
                 const idx = parseInt(tag.getAttribute('data-col'));
                 const colName = _currentColumns[idx];
+                const filterKey = String(idx);
 
                 if (e.shiftKey) {
                     // Toggle as filter column
-                    if (_filterConditions[colName]) {
-                        delete _filterConditions[colName];
+                    if (_filterConditions[filterKey]) {
+                        delete _filterConditions[filterKey];
                         tag.classList.remove('col-filter');
                     } else {
-                        _filterConditions[colName] = { op: 'contains', value: '', active: true };
+                        if (Object.keys(_filterConditions).length >= MAX_FILTER_CONDITIONS) {
+                            setStatus(`Maximum ${MAX_FILTER_CONDITIONS} filters can be selected.`, '#ff0');
+                            return;
+                        }
+                        _filterConditions[filterKey] = { op: 'contains', value: '', active: true };
                         tag.classList.add('col-filter');
                     }
                     renderFilterConditions();
@@ -956,13 +983,18 @@
         const condArea = document.getElementById('select-conditions');
         condArea.addEventListener('input', function(e) {
             if (e.target.classList.contains('filter-val')) {
-                _filterConditions[e.target.dataset.col].value = e.target.value;
+                _filterConditions[e.target.dataset.filterKey].value = e.target.value;
                 applyFilters();
             }
         });
         condArea.addEventListener('change', function(e) {
+            if (e.target.id === 'filter-join-mode') {
+                _filterJoinMode = e.target.value === 'OR' ? 'OR' : 'AND';
+                applyFilters();
+                return;
+            }
             if (e.target.classList.contains('filter-op')) {
-                _filterConditions[e.target.dataset.col].op = e.target.value;
+                _filterConditions[e.target.dataset.filterKey].op = e.target.value;
                 applyFilters();
             }
         });
@@ -979,18 +1011,18 @@
                 }
                 return;
             }
-            const col = e.target.dataset.col;
+            const filterKey = e.target.dataset.filterKey;
             if (e.target.classList.contains('filter-toggle')) {
-                const cond = _filterConditions[col];
+                const cond = _filterConditions[filterKey];
                 cond.active = !cond.active;
                 e.target.textContent = cond.active ? 'ON' : 'OFF';
                 e.target.className = 'filter-toggle ' + (cond.active ? 'on' : 'off');
                 applyFilters();
             }
             if (e.target.classList.contains('filter-remove')) {
-                delete _filterConditions[col];
+                delete _filterConditions[filterKey];
                 // Remove col-filter highlight from tag
-                const idx = _currentColumns.indexOf(col);
+                const idx = parseInt(filterKey);
                 if (idx >= 0) {
                     const tag = document.querySelector(`#columns-list .col-tag[data-col="${idx}"]`);
                     if (tag) tag.classList.remove('col-filter');
@@ -1026,9 +1058,21 @@
             const savedFilters = sessionStorage.getItem('proj_filter_conditions');
             if (savedFilters) {
                 _filterConditions = JSON.parse(savedFilters);
+                Object.keys(_filterConditions).forEach(function(key) {
+                    if (!/^\d+$/.test(key)) {
+                        const idx = columns.indexOf(key);
+                        if (idx >= 0 && !_filterConditions[String(idx)]) {
+                            _filterConditions[String(idx)] = _filterConditions[key];
+                        }
+                        delete _filterConditions[key];
+                    }
+                });
+                Object.keys(_filterConditions).slice(MAX_FILTER_CONDITIONS).forEach(function(col) {
+                    delete _filterConditions[col];
+                });
                 // Re-apply col-filter highlight on tags
-                Object.keys(_filterConditions).forEach(function(col) {
-                    const idx = columns.indexOf(col);
+                Object.keys(_filterConditions).forEach(function(key) {
+                    const idx = parseInt(key);
                     if (idx >= 0) {
                         const tag = document.querySelector(`#columns-list .col-tag[data-col="${idx}"]`);
                         if (tag) tag.classList.add('col-filter');

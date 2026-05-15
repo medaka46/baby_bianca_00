@@ -10,7 +10,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from api.database import SessionLocal, engine, Base, ENVIRONMENT # Use absolute import
-from api.models import User, Schedule, Link, Todo, Diary  # Use absolute import
+from api.models import User, AllowedUser, Schedule, Link, Todo, Diary  # Use absolute import
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -570,40 +570,74 @@ async def debug_info():
 
 @app.post("/login_signup/add_user/")
 async def add_user(request: Request, username: str = Form(...), email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
+    """Sign-up route, gated by the SQLite allowed_users allowlist.
+
+    Steps:
+      1. Reject if email already registered (existing users should log in).
+      2. Reject if (username, email, password) does not match a row in allowed_users.
+      3. INSERT into users (plaintext password for now per agreed roadmap).
+      4. Auto-login by rendering the time-zone selection page (same UX path the
+         normal log-in flow uses), so the user lands on the schedule page after
+         picking a time zone.
+    """
     try:
-        # Check if the user already exists
+        # 1. Email-uniqueness check on the actual users table.
+        #    If the email is already registered, the user should log in instead.
         db_user_check = db.query(User).filter(User.email == email).first()
         if db_user_check:
-            message = "Sign up failed. Email address is already used."
+            message = "This email is already registered. Please log in instead."
             message_color = "#f00"
-            return templates.TemplateResponse("login_signup.html", {"request": request, "message": message, "message_color": message_color})
+            return templates.TemplateResponse("login_signup.html", {
+                "request": request, "message": message,
+                "message_color": message_color, "condition": condition,
+            })
 
-        # Check if the user exists in the CSV file
-        df_user = pd.read_csv('user.csv')
-        df_user_check = df_user[(df_user['username'] == username) & (df_user['email'] == email)]
-        if not df_user_check.empty:
-            message = "Sign up was accepted. Please proceed to Log in."
-            message_color = "#0f0"
-
-            # Add the new user to the database
-            db_item = User(username=username, email=email, password=password)
-            try:
-                db.add(db_item)
-                db.commit()
-                db.refresh(db_item)
-            except Exception as e:
-                db.rollback()
-                message = f"An error occurred: {str(e)}"
-                message_color = "#f00"
-                logger.error(f"Database error: {str(e)}")
-
-            return templates.TemplateResponse("login_signup.html", {"request": request, "message": message, "message_color": message_color})
-        else:
+        # 2. Allowlist match — all three fields must match an allowed_users row.
+        allowed = db.query(AllowedUser).filter(
+            AllowedUser.username == username,
+            AllowedUser.email == email,
+            AllowedUser.password == password,
+        ).first()
+        if not allowed:
             message = "Sorry, but you are not authorized to sign up."
             message_color = "#f00"
-            return templates.TemplateResponse("login_signup.html", {"request": request, "message": message, "message_color": message_color})
+            return templates.TemplateResponse("login_signup.html", {
+                "request": request, "message": message,
+                "message_color": message_color, "condition": condition,
+            })
+
+        # 3. Create the actual user account (plaintext password for now).
+        new_user = User(username=username, email=email, password=password)
+        try:
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+        except Exception as e:
+            db.rollback()
+            logger.error(f"add_user: failed to insert User row: {e}")
+            message = f"Sign up failed: {e}"
+            message_color = "#f00"
+            return templates.TemplateResponse("login_signup.html", {
+                "request": request, "message": message,
+                "message_color": message_color, "condition": condition,
+            })
+
+        # 4. Auto-login — same template + flow as a successful /check_user/.
+        #    The user now picks a time zone, which finalises the session.
+        return templates.TemplateResponse("schedule_indicate_00.html", {
+            "request": request,
+            "dates": date_sequence,
+            "today": today_date,
+            "login_username": username,
+            "time_zone_message": "Sign-up complete — please select your time zone:",
+            "message_color": "#0f0",
+            "skip": 0,
+            "limit": 50,
+            "has_more": False,
+            "condition": condition,
+        })
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
+        logger.error(f"add_user: unexpected error: {e}")
         return HTMLResponse(content=f"An unexpected error occurred: {str(e)}", status_code=500)
     
 # --------------------
