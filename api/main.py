@@ -624,6 +624,7 @@ async def add_user(request: Request, username: str = Form(...), email: str = For
 
         # 4. Auto-login — same template + flow as a successful /check_user/.
         #    The user now picks a time zone, which finalises the session.
+        request.session['login_username'] = username
         return templates.TemplateResponse("schedule_indicate_00.html", {
             "request": request,
             "dates": date_sequence,
@@ -656,9 +657,10 @@ async def check_user(request: Request, date_sequence = date_sequence, today_date
     
     if db_user:
         login_username = username
+        request.session['login_username'] = username
         time_zone_message = "Please select Time zone :"
         message_color = "#f00"
-        
+
         return templates.TemplateResponse("schedule_indicate_00.html", {
             "request": request,
             "dates": date_sequence,
