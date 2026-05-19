@@ -819,8 +819,9 @@ async def get_schedule_data(db: Session = Depends(get_db)):
 
 
 @app.post("/schedule/select_time_zone/")
-async def select_time_zone(request: Request, login_username: str = Form(...), time_zone: str = Form(...), db: Session = Depends(get_db)):
-    request.session['login_username'] = login_username  # Save to session
+async def select_time_zone(request: Request, time_zone: str = Form(...), login_username: str = Form(""), db: Session = Depends(get_db)):
+    if login_username:
+        request.session['login_username'] = login_username  # Save to session
     request.session['time_zone'] = time_zone  # Save to session
 
     # Log the size of the response content
@@ -949,8 +950,12 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
 
 # async def create_item(name: str = Form(...), date1: str = Form(...), link: str = Form(...), tel: str = Form(...), db: Session = Depends(get_db)):
 # async def create_item(name: str = Form(...), date1: date1 = Form(...), link: str = Form(...), tel: str = Form(...), db: Session = Depends(get_db)):
-async def create_item(request: Request, name: str = Form(...), date1: str = Form(...), start_time: str = Form(...), end_time: str = Form(...), link: str = Form(None), category: str = Form(None), status: str = Form(None), username: str = Form(None), time_zone: str = Form(None), db: Session = Depends(get_db)):
+async def create_item(request: Request, name: str = Form(...), date1: str = Form(...), start_time: str = Form(None), end_time: str = Form(None), start_time_hour: str = Form(None), start_time_minute: str = Form(None), end_time_hour: str = Form(None), end_time_minute: str = Form(None), link: str = Form(None), category: str = Form(None), status: str = Form(None), username: str = Form(None), time_zone: str = Form(None), db: Session = Depends(get_db)):
 # async def create_item(request: Request, name: str = Form(...), date1: str = Form(...), start_time: str = Form(...), end_time: str = Form(...), link: str = Form(None), category: str = Form(None), status: str = Form(None), username: str = Form(None), local_time_zone = local_time_zone, db: Session = Depends(get_db)):
+    if start_time_hour is not None and start_time_minute is not None:
+        start_time = f"{start_time_hour}:{start_time_minute}"
+    if end_time_hour is not None and end_time_minute is not None:
+        end_time = f"{end_time_hour}:{end_time_minute}"
     date1 = datetime.strptime(date1, '%Y-%m-%d').date()
     if start_time == '00:00' and end_time == '00:00':
         start_time = "00:01"
@@ -1024,7 +1029,12 @@ async def create_item(request: Request, name: str = Form(...), date1: str = Form
 
 @app.post("/schedule/update_task/{item_id}")
 
-async def create_item(request: Request, item_id: int, action: str = Form(...), name: str = Form(...), date1: str = Form(...), start_time: str = Form(...), end_time: str = Form(...), link: str = Form(None), category: str = Form(None), status: str = Form(None), username: str = Form(None), time_zone: str = Form(None), db: Session = Depends(get_db)):
+async def create_item(request: Request, item_id: int, action: str = Form(...), name: str = Form(...), date1: str = Form(...), start_time: str = Form(None), end_time: str = Form(None), start_time_hour: str = Form(None), start_time_minute: str = Form(None), end_time_hour: str = Form(None), end_time_minute: str = Form(None), link: str = Form(None), category: str = Form(None), status: str = Form(None), username: str = Form(None), time_zone: str = Form(None), db: Session = Depends(get_db)):
+
+    if start_time_hour is not None and start_time_minute is not None:
+        start_time = f"{start_time_hour}:{start_time_minute}"
+    if end_time_hour is not None and end_time_minute is not None:
+        end_time = f"{end_time_hour}:{end_time_minute}"
 
     print(action)
     

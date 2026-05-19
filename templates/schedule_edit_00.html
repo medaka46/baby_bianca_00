@@ -61,9 +61,31 @@
 
 
 
-            <input type="time"; name="start_time" value="{{ selected_local_start_time }}";  style="background-color: #444; color: #fff;"
-                    onfocus="(this.type='time')">
-            <input type="time" name="end_time" value="{{ selected_local_end_time }}"   style="background-color: #444; color: #fff;">
+            {% set aligned_minutes = ['00','05','10','15','20','25','30','35','40','45','50','55'] %}
+            {% set selected_start_hour = selected_local_start_time.split(':')[0] %}
+            {% set selected_start_minute = selected_local_start_time.split(':')[1] %}
+            {% set selected_end_hour = selected_local_end_time.split(':')[0] %}
+            {% set selected_end_minute = selected_local_end_time.split(':')[1] %}
+            {% set start_minute_options = aligned_minutes if selected_start_minute in aligned_minutes else (aligned_minutes + [selected_start_minute])|sort %}
+            {% set end_minute_options = aligned_minutes if selected_end_minute in aligned_minutes else (aligned_minutes + [selected_end_minute])|sort %}
+            <select name="start_time_hour" style="background-color: #444; color: #fff;">
+                {% for h in range(24) %}
+                    <option value="{{ '%02d' % h }}" {% if '%02d' % h == selected_start_hour %}selected{% endif %}>{{ '%02d' % h }}</option>
+                {% endfor %}
+            </select>:<select name="start_time_minute" style="background-color: #444; color: #fff;">
+                {% for m in start_minute_options %}
+                    <option value="{{ m }}" {% if m == selected_start_minute %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+            <select name="end_time_hour" style="background-color: #444; color: #fff;">
+                {% for h in range(24) %}
+                    <option value="{{ '%02d' % h }}" {% if '%02d' % h == selected_end_hour %}selected{% endif %}>{{ '%02d' % h }}</option>
+                {% endfor %}
+            </select>:<select name="end_time_minute" style="background-color: #444; color: #fff;">
+                {% for m in end_minute_options %}
+                    <option value="{{ m }}" {% if m == selected_end_minute %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
 
 
 
@@ -149,11 +171,27 @@
             <label for="date1">Date:</label>
             <input type="date" id="date1" name="date1" value="{{ selected_local_start_date }}">
             
-            <label for="start_time">Start Time:</label>
-            <input type="time" id="start_time" name="start_time" value="{{ selected_local_start_time }}">
-            
-            <label for="end_time">End Time:</label>
-            <input type="time" id="end_time" name="end_time" value="{{ selected_local_end_time }}">
+            <label for="start_time_hour">Start Time:</label>
+            <select id="start_time_hour" name="start_time_hour">
+                {% for h in range(24) %}
+                    <option value="{{ '%02d' % h }}" {% if '%02d' % h == selected_start_hour %}selected{% endif %}>{{ '%02d' % h }}</option>
+                {% endfor %}
+            </select>:<select id="start_time_minute" name="start_time_minute">
+                {% for m in start_minute_options %}
+                    <option value="{{ m }}" {% if m == selected_start_minute %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="end_time_hour">End Time:</label>
+            <select id="end_time_hour" name="end_time_hour">
+                {% for h in range(24) %}
+                    <option value="{{ '%02d' % h }}" {% if '%02d' % h == selected_end_hour %}selected{% endif %}>{{ '%02d' % h }}</option>
+                {% endfor %}
+            </select>:<select id="end_time_minute" name="end_time_minute">
+                {% for m in end_minute_options %}
+                    <option value="{{ m }}" {% if m == selected_end_minute %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
             
             <label for="link">Link:</label>
             <input type="text" id="link" name="link" value="{{ item.link }}">
