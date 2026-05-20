@@ -23,6 +23,13 @@
         max-height: none;
         padding-bottom: 0;
     }
+    input[name="name"]::placeholder,
+    input[name="link"]::placeholder,
+    input[name="category"]::placeholder,
+    input[name="status"]::placeholder {
+        color: #aaa;
+        opacity: 1;
+    }
 </style>
 <header class="tab_00">
     <div style="display: flex;">
@@ -48,23 +55,23 @@
         <form action="/schedule/add_task/" method="post" style="display: flex; align-items: center; width: 100%;">
             <input type="hidden" name="time_zone" value="{{ time_zone }}">
             <input type="text" name="name" placeholder="Enter Name ..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
-            <input id="input_date" type="date" name="date1" placeholder="MM/DD/YYYY" style="background-color: #444; color: #888;" onfocus="(this.type='date')">
-            <span style="color: #888; padding: 0 5px;">from</span>
-            <select name="start_time_hour" style="background-color: #444; color: #888;">
+            <input id="input_date" type="date" name="date1" placeholder="MM/DD/YYYY" style="background-color: #444; color: #aaa;" onfocus="(this.type='date')">
+            <span style="color: #aaa; padding: 0 5px;">from</span>
+            <select name="start_time_hour" style="background-color: #444; color: #aaa;">
                 {% for h in range(24) %}
                     <option value="{{ '%02d' % h }}">{{ '%02d' % h }}</option>
                 {% endfor %}
-            </select>:<select name="start_time_minute" style="background-color: #444; color: #888;">
+            </select>:<select name="start_time_minute" style="background-color: #444; color: #aaa;">
                 {% for m in range(0, 60, 5) %}
                     <option value="{{ '%02d' % m }}">{{ '%02d' % m }}</option>
                 {% endfor %}
             </select>
-            <span style="color: #888; padding: 0 5px;">to</span>
-            <select name="end_time_hour" style="background-color: #444; color: #888;">
+            <span style="color: #aaa; padding: 0 5px;">to</span>
+            <select name="end_time_hour" style="background-color: #444; color: #aaa;">
                 {% for h in range(24) %}
                     <option value="{{ '%02d' % h }}">{{ '%02d' % h }}</option>
                 {% endfor %}
-            </select>:<select name="end_time_minute" style="background-color: #444; color: #888;">
+            </select>:<select name="end_time_minute" style="background-color: #444; color: #aaa;">
                 {% for m in range(0, 60, 5) %}
                     <option value="{{ '%02d' % m }}">{{ '%02d' % m }}</option>
                 {% endfor %}
