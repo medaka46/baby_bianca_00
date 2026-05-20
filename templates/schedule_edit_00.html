@@ -56,6 +56,7 @@
 
             <input id="input_date" type="date" name="date1" value="{{ selected_local_start_date }}" placeholder="MM/DD/YYYY"  style="background-color: #444; color: #fff;"
                     onfocus="(this.type='date')">
+            <span style="color: #fff; padding: 0 5px;">from</span>
 
 
 
@@ -77,6 +78,7 @@
                     <option value="{{ m }}" {% if m == selected_start_minute %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
             </select>
+            <span style="color: #fff; padding: 0 5px;">to</span>
             <select name="end_time_hour" style="background-color: #444; color: #fff;">
                 {% for h in range(24) %}
                     <option value="{{ '%02d' % h }}" {% if '%02d' % h == selected_end_hour %}selected{% endif %}>{{ '%02d' % h }}</option>
@@ -170,7 +172,8 @@
             
             <label for="date1">Date:</label>
             <input type="date" id="date1" name="date1" value="{{ selected_local_start_date }}">
-            
+            <span style="color: #fff; padding: 0 5px;">from</span>
+
             <label for="start_time_hour">Start Time:</label>
             <select id="start_time_hour" name="start_time_hour">
                 {% for h in range(24) %}
@@ -181,6 +184,7 @@
                     <option value="{{ m }}" {% if m == selected_start_minute %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
             </select>
+            <span style="color: #fff; padding: 0 5px;">to</span>
 
             <label for="end_time_hour">End Time:</label>
             <select id="end_time_hour" name="end_time_hour">
