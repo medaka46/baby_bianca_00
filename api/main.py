@@ -688,23 +688,22 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
     time_zone = request.session.get('time_zone', time_zone)
     logger.info(f"Time zone is {time_zone}")
 
-    # Fetch the tasks with pagination
+    # Fetch all tasks (regular + daily). Daily tasks have NULL start/end_datetime
+    # and a populated task_date — we handle them with a separate code path below
+    # because the pandas TZ pipeline chokes on NaT.
     tasks = db.query(Schedule).with_entities(
         Schedule.id,
         Schedule.name,
         Schedule.start_datetime,
         Schedule.end_datetime,
         Schedule.link,
-        
-        # Schedule.category,
-        # Schedule.status,
-        # Schedule.id_user
-    # ).order_by(Schedule.start_datetime).offset(skip).limit(limit).all()
+        Schedule.is_daily_task,
+        Schedule.task_date,
     ).order_by(Schedule.start_datetime).all()
-    # ).order_by(desc(Schedule.start_datetime)).offset(skip).limit(limit).all()
-    
-    # print('tasks[0]', tasks[0])
-    # print('tasks length', tasks[0])
+
+    # Split: daily tasks bypass the TZ pipeline entirely.
+    regular_tasks = [t for t in tasks if not t.is_daily_task]
+    daily_tasks_rows = [t for t in tasks if t.is_daily_task]
 
     # Check if there are more records to fetch
     total_tasks = db.query(Schedule).count()
@@ -720,56 +719,72 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
     today_date = datetime.today().astimezone(ZoneInfo(time_zone)).strftime('%Y-%m-%d')
     # today_date = datetime.today().strftime('%Y-%m-%d')
 
-    data = [{
-        'id': task.id,
-        'name': task.name,
-        # 'start_datetime': task.start_datetime.astimezone(ZoneInfo(time_zone)),
-        # 'end_datetime': task.end_datetime.astimezone(ZoneInfo(time_zone)),
-        'link': task.link,
-        
-        
-        'start_datetime': task.start_datetime,
-        'end_datetime': task.end_datetime,
-        # 'category': task.category,
-        # 'status': task.status,
-        # 'id_user': task.id_user
-    } for task in tasks]
+    df_combined_dict = []
+    local_start_date = None
+    local_start_time = None
 
-    df_tasks = pd.DataFrame(data)
-    df_tasks['start_datetime'] = pd.to_datetime(df_tasks['start_datetime']).dt.tz_localize('UTC')
-    df_tasks['end_datetime'] = pd.to_datetime(df_tasks['end_datetime']).dt.tz_localize('UTC')
+    if regular_tasks:
+        data = [{
+            'id': task.id,
+            'name': task.name,
+            'link': task.link,
+            'start_datetime': task.start_datetime,
+            'end_datetime': task.end_datetime,
+        } for task in regular_tasks]
 
-    local_start_dates = []
-    local_start_times = []
-    local_end_dates = []
-    local_end_times = []
+        df_tasks = pd.DataFrame(data)
+        df_tasks['start_datetime'] = pd.to_datetime(df_tasks['start_datetime']).dt.tz_localize('UTC')
+        df_tasks['end_datetime'] = pd.to_datetime(df_tasks['end_datetime']).dt.tz_localize('UTC')
 
-    for i in range(len(df_tasks)):
-        df_task = df_tasks.iloc[i]
-        local_start_datetime = df_task["start_datetime"].astimezone(ZoneInfo(time_zone))
-        local_start_date = local_start_datetime.date()
-        local_start_time = local_start_datetime.time().strftime("%H:%M")
-        local_start_dates.append(str(local_start_date))
-        local_start_times.append(str(local_start_time))
+        local_start_dates = []
+        local_start_times = []
+        local_end_dates = []
+        local_end_times = []
 
-        local_end_datetime = df_task["end_datetime"].astimezone(ZoneInfo(time_zone))
-        local_end_date = local_end_datetime.date()
-        local_end_time = local_end_datetime.time().strftime("%H:%M")
-        local_end_dates.append(str(local_end_date))
-        local_end_times.append(str(local_end_time))
+        for i in range(len(df_tasks)):
+            df_task = df_tasks.iloc[i]
+            local_start_datetime = df_task["start_datetime"].astimezone(ZoneInfo(time_zone))
+            local_start_date = local_start_datetime.date()
+            local_start_time = local_start_datetime.time().strftime("%H:%M")
+            local_start_dates.append(str(local_start_date))
+            local_start_times.append(str(local_start_time))
 
-    df_local_start_dates = pd.DataFrame(local_start_dates, columns=['local_start_date'])
-    df_local_start_times = pd.DataFrame(local_start_times, columns=['local_start_time'])
-    df_local_end_dates = pd.DataFrame(local_end_dates, columns=['local_end_date'])
-    df_local_end_times = pd.DataFrame(local_end_times, columns=['local_end_time'])
+            local_end_datetime = df_task["end_datetime"].astimezone(ZoneInfo(time_zone))
+            local_end_date = local_end_datetime.date()
+            local_end_time = local_end_datetime.time().strftime("%H:%M")
+            local_end_dates.append(str(local_end_date))
+            local_end_times.append(str(local_end_time))
 
-    df_combined = pd.concat([df_tasks, df_local_start_dates, df_local_start_times, df_local_end_dates, df_local_end_times], axis=1)
-    
-    # Convert Timestamp objects to strings
-    df_combined = df_combined.apply(lambda col: col.map(lambda x: x.isoformat() if isinstance(x, pd.Timestamp) else x))
-    
-    df_combined_dict = df_combined.to_dict(orient='records')
-    length_df_combined = len(df_combined)
+        df_local_start_dates = pd.DataFrame(local_start_dates, columns=['local_start_date'])
+        df_local_start_times = pd.DataFrame(local_start_times, columns=['local_start_time'])
+        df_local_end_dates = pd.DataFrame(local_end_dates, columns=['local_end_date'])
+        df_local_end_times = pd.DataFrame(local_end_times, columns=['local_end_time'])
+
+        df_combined = pd.concat([df_tasks, df_local_start_dates, df_local_start_times, df_local_end_dates, df_local_end_times], axis=1)
+        df_combined['is_daily_task'] = 0
+
+        # Convert Timestamp objects to strings
+        df_combined = df_combined.apply(lambda col: col.map(lambda x: x.isoformat() if isinstance(x, pd.Timestamp) else x))
+
+        df_combined_dict = df_combined.to_dict(orient='records')
+
+    # Append daily tasks as plain dicts with the date already in local form.
+    for t in daily_tasks_rows:
+        task_date_iso = t.task_date.isoformat() if t.task_date else None
+        df_combined_dict.append({
+            'id': t.id,
+            'name': t.name,
+            'link': t.link,
+            'start_datetime': None,
+            'end_datetime': None,
+            'local_start_date': task_date_iso,
+            'local_start_time': '',
+            'local_end_date': task_date_iso,
+            'local_end_time': '',
+            'is_daily_task': 1,
+        })
+
+    length_df_combined = len(df_combined_dict)
 
     time_zone_message = "Current time zone :"
     message_color = "#0f0"
@@ -839,22 +854,27 @@ async def select_time_zone(request: Request, time_zone: str = Form(...), login_u
 async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db), skip: int = Query(0), limit: int = Query(50)):
     # Fetch the task from the database
     db_item = db.query(Schedule).filter(Schedule.id == item_id).first()
-    
+
     # Check if the item exists
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
-    
-    # The timestamp to UTC
-    utc_start_datetime = pd.Timestamp(db_item.start_datetime).tz_localize("UTC")
-    utc_end_datetime = pd.Timestamp(db_item.end_datetime).tz_localize("UTC")
-    
+
     time_zone = request.session.get('time_zone', 'UTC')
-    local_start_datetime = utc_start_datetime.astimezone(ZoneInfo(time_zone))
-    local_end_datetime = utc_end_datetime.astimezone(ZoneInfo(time_zone))
-    
-    selected_local_start_date = local_start_datetime.date()
-    selected_local_start_time = local_start_datetime.time().strftime("%H:%M")
-    selected_local_end_time = local_end_datetime.time().strftime("%H:%M")
+
+    if db_item.is_daily_task:
+        # Daily task: date is TZ-independent, no time component.
+        selected_local_start_date = db_item.task_date
+        selected_local_start_time = "00:00"
+        selected_local_end_time = "00:00"
+    else:
+        # Regular task: convert UTC → local.
+        utc_start_datetime = pd.Timestamp(db_item.start_datetime).tz_localize("UTC")
+        utc_end_datetime = pd.Timestamp(db_item.end_datetime).tz_localize("UTC")
+        local_start_datetime = utc_start_datetime.astimezone(ZoneInfo(time_zone))
+        local_end_datetime = utc_end_datetime.astimezone(ZoneInfo(time_zone))
+        selected_local_start_date = local_start_datetime.date()
+        selected_local_start_time = local_start_datetime.time().strftime("%H:%M")
+        selected_local_end_time = local_end_datetime.time().strftime("%H:%M")
 
     # Generate date sequence for the template
     start_date_adjust = request.session.get('start_date_adjust', 0)
@@ -862,69 +882,78 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
     date_sequence = [str((start_date + timedelta(days=i)).strftime('%Y-%m-%d')) for i in range(7*50)]
     today_date = datetime.today().strftime('%Y-%m-%d')
 
-    # Fetch tasks with pagination
+    # Fetch tasks for the day-column preview (regular + daily, like /schedule/).
     tasks = db.query(Schedule).with_entities(
         Schedule.id,
         Schedule.name,
         Schedule.start_datetime,
         Schedule.end_datetime,
-        # Schedule.category,
-        # Schedule.status,
-        # Schedule.id_user
+        Schedule.link,
+        Schedule.is_daily_task,
+        Schedule.task_date,
     ).order_by(Schedule.start_datetime).all()
 
-    # Check if there are more records to fetch
+    regular_tasks = [t for t in tasks if not t.is_daily_task]
+    daily_tasks_rows = [t for t in tasks if t.is_daily_task]
+
     total_tasks = db.query(Schedule).count()
     has_more = skip + limit < total_tasks
-
-    # Calculate current page and total pages
     current_page = (skip // limit) + 1
     total_pages = (total_tasks // limit) + (1 if total_tasks % limit > 0 else 0)
 
-    data = [{
-        'id': task.id,
-        'name': task.name,
-        'start_datetime': task.start_datetime,
-        'end_datetime': task.end_datetime,
-        # 'category': task.category,
-        # 'status': task.status,
-        # 'id_user': task.id_user
-    } for task in tasks]
+    df_combined_dict = []
 
-    df_tasks = pd.DataFrame(data)
-    df_tasks['start_datetime'] = pd.to_datetime(df_tasks['start_datetime']).dt.tz_localize('UTC')
-    df_tasks['end_datetime'] = pd.to_datetime(df_tasks['end_datetime']).dt.tz_localize('UTC')
+    if regular_tasks:
+        data = [{
+            'id': task.id,
+            'name': task.name,
+            'link': task.link,
+            'start_datetime': task.start_datetime,
+            'end_datetime': task.end_datetime,
+        } for task in regular_tasks]
 
-    local_start_dates = []
-    local_start_times = []
-    local_end_dates = []
-    local_end_times = []
+        df_tasks = pd.DataFrame(data)
+        df_tasks['start_datetime'] = pd.to_datetime(df_tasks['start_datetime']).dt.tz_localize('UTC')
+        df_tasks['end_datetime'] = pd.to_datetime(df_tasks['end_datetime']).dt.tz_localize('UTC')
 
-    for i in range(len(df_tasks)):
-        df_task = df_tasks.iloc[i]
-        local_start_datetime = df_task["start_datetime"].astimezone(ZoneInfo(time_zone))
-        local_start_date = local_start_datetime.date()
-        local_start_time = local_start_datetime.time().strftime("%H:%M")
-        local_start_dates.append(str(local_start_date))
-        local_start_times.append(str(local_start_time))
+        local_start_dates = []
+        local_start_times = []
+        local_end_dates = []
+        local_end_times = []
 
-        local_end_datetime = df_task["end_datetime"].astimezone(ZoneInfo(time_zone))
-        local_end_date = local_end_datetime.date()
-        local_end_time = local_end_datetime.time().strftime("%H:%M")
-        local_end_dates.append(str(local_end_date))
-        local_end_times.append(str(local_end_time))
+        for i in range(len(df_tasks)):
+            df_task = df_tasks.iloc[i]
+            local_start_dt = df_task["start_datetime"].astimezone(ZoneInfo(time_zone))
+            local_end_dt = df_task["end_datetime"].astimezone(ZoneInfo(time_zone))
+            local_start_dates.append(str(local_start_dt.date()))
+            local_start_times.append(local_start_dt.time().strftime("%H:%M"))
+            local_end_dates.append(str(local_end_dt.date()))
+            local_end_times.append(local_end_dt.time().strftime("%H:%M"))
 
-    df_local_start_dates = pd.DataFrame(local_start_dates, columns=['local_start_date'])
-    df_local_start_times = pd.DataFrame(local_start_times, columns=['local_start_time'])
-    df_local_end_dates = pd.DataFrame(local_end_dates, columns=['local_end_date'])
-    df_local_end_times = pd.DataFrame(local_end_times, columns=['local_end_time'])
+        df_local_start_dates = pd.DataFrame(local_start_dates, columns=['local_start_date'])
+        df_local_start_times = pd.DataFrame(local_start_times, columns=['local_start_time'])
+        df_local_end_dates = pd.DataFrame(local_end_dates, columns=['local_end_date'])
+        df_local_end_times = pd.DataFrame(local_end_times, columns=['local_end_time'])
 
-    df_combined = pd.concat([df_tasks, df_local_start_dates, df_local_start_times, df_local_end_dates, df_local_end_times], axis=1)
-    
-    # Convert Timestamp objects to strings
-    df_combined = df_combined.apply(lambda col: col.map(lambda x: x.isoformat() if isinstance(x, pd.Timestamp) else x))
-    
-    df_combined_dict = df_combined.to_dict(orient='records')
+        df_combined = pd.concat([df_tasks, df_local_start_dates, df_local_start_times, df_local_end_dates, df_local_end_times], axis=1)
+        df_combined['is_daily_task'] = 0
+        df_combined = df_combined.apply(lambda col: col.map(lambda x: x.isoformat() if isinstance(x, pd.Timestamp) else x))
+        df_combined_dict = df_combined.to_dict(orient='records')
+
+    for t in daily_tasks_rows:
+        task_date_iso = t.task_date.isoformat() if t.task_date else None
+        df_combined_dict.append({
+            'id': t.id,
+            'name': t.name,
+            'link': t.link,
+            'start_datetime': None,
+            'end_datetime': None,
+            'local_start_date': task_date_iso,
+            'local_start_time': '',
+            'local_end_date': task_date_iso,
+            'local_end_time': '',
+            'is_daily_task': 1,
+        })
 
     # Render the template with the task data
     return templates.TemplateResponse("schedule_edit_00.html", {
@@ -1020,18 +1049,90 @@ async def create_item(request: Request, name: str = Form(...), date1: str = Form
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
-    
+
     return RedirectResponse("/schedule/", status_code=303)
-    
+
 
 # --------------------
 
-    
+@app.post("/schedule/add_daily_task/")
+async def add_daily_task(
+    request: Request,
+    name: str = Form(...),
+    date1: str = Form(...),
+    link: str = Form(None),
+    category: str = Form(None),
+    status: str = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Add a Schedule row that represents a daily task.
+
+    No time / time-zone conversion is performed — task_date is stored as-is so
+    the calendar day shown on the grid never shifts when the user picks a
+    different time zone.
+
+    start_datetime / end_datetime are NOT NULL in the legacy schedules schema,
+    so we fill them with UTC midnight of task_date as a sentinel. The new code
+    branches on is_daily_task, so these sentinel values are never displayed.
+    """
+    task_date_val = datetime.strptime(date1, "%Y-%m-%d").date()
+    sentinel_dt = datetime.combine(task_date_val, datetime.min.time())
+    db_item = Schedule(
+        name=name,
+        link=link,
+        category=category,
+        status=status,
+        start_datetime=sentinel_dt,
+        end_datetime=sentinel_dt,
+        is_daily_task=1,
+        task_date=task_date_val,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return RedirectResponse("/schedule/", status_code=303)
+
 # --------------------
 
 @app.post("/schedule/update_task/{item_id}")
 
 async def create_item(request: Request, item_id: int, action: str = Form(...), name: str = Form(...), date1: str = Form(...), start_time: str = Form(None), end_time: str = Form(None), start_time_hour: str = Form(None), start_time_minute: str = Form(None), end_time_hour: str = Form(None), end_time_minute: str = Form(None), link: str = Form(None), category: str = Form(None), status: str = Form(None), username: str = Form(None), time_zone: str = Form(None), db: Session = Depends(get_db)):
+
+    # Daily task: skip the TZ conversion entirely. Date is stored as-is.
+    # start/end_datetime are NOT NULL in the legacy schema → fill with sentinel
+    # = UTC midnight of task_date. The new template branches on is_daily_task,
+    # so the sentinel datetime is never shown.
+    db_item_check = db.query(Schedule).filter(Schedule.id == item_id).first()
+    if db_item_check and db_item_check.is_daily_task:
+        new_task_date = datetime.strptime(date1, "%Y-%m-%d").date()
+        sentinel_dt = datetime.combine(new_task_date, datetime.min.time())
+        if action == "update":
+            db_item_check.name = name
+            db_item_check.task_date = new_task_date
+            db_item_check.link = link
+            db_item_check.category = category
+            db_item_check.status = status
+            db_item_check.start_datetime = sentinel_dt
+            db_item_check.end_datetime = sentinel_dt
+            db.commit()
+            db.refresh(db_item_check)
+            return RedirectResponse("/schedule/", status_code=303)
+        else:
+            # Duplicate a daily task.
+            db_item_new = Schedule(
+                name=name,
+                link=link,
+                category=category,
+                status=status,
+                start_datetime=sentinel_dt,
+                end_datetime=sentinel_dt,
+                is_daily_task=1,
+                task_date=new_task_date,
+            )
+            db.add(db_item_new)
+            db.commit()
+            db.refresh(db_item_new)
+            return RedirectResponse("/schedule/", status_code=303)
 
     if start_time_hour is not None and start_time_minute is not None:
         start_time = f"{start_time_hour}:{start_time_minute}"
@@ -1039,10 +1140,10 @@ async def create_item(request: Request, item_id: int, action: str = Form(...), n
         end_time = f"{end_time_hour}:{end_time_minute}"
 
     print(action)
-    
+
     # if action == "update":
-    
-    
+
+
     date1 = datetime.strptime(date1, '%Y-%m-%d').date()
     login_username = request.session.get('login_username')# login_username
     time_zone = request.session.get('time_zone')# login_username

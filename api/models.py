@@ -48,18 +48,23 @@ class Schedule(Base):
 
     # id = Column(Integer, primary_key=True, index=True)
     id = Column(Integer, Sequence('meeting_id_seq'), primary_key=True, index=True)
-    
-    
+
+
     name = Column(String, index=True)
     link = Column(String, index=True)
     category = Column(String, index=True)
     status = Column(String, index=True)
-    
+
     start_datetime = Column(DateTime)
     end_datetime = Column(DateTime)
     # start_datetime = Column(DateTime, nullable=False)
     # end_datetime = Column(DateTime, nullable=False)
-    
+
+    # Daily-task fields. is_daily_task=1 means the row has no clock time;
+    # task_date is the fixed calendar date (TZ-independent) shown on the grid.
+    is_daily_task = Column(Integer, default=0, index=True)
+    task_date = Column(Date, index=True)
+
     id_user = Column(Integer)
     
 class Project(Base):

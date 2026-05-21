@@ -80,7 +80,8 @@
             <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
             <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
             <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
-        
+            <button type="submit" formaction="/schedule/add_daily_task/" style="background-color: #444; color: #0f0; margin-left: 5px;">Add Daily Task</button>
+
         </form>
         <div class="live-update-indicator">
             <div class="antenna">
@@ -128,13 +129,8 @@
                             </div>
                             {% for item in df_combined %}
                                 {% if dates[i+ii*7] == item["local_start_date"] %}
-                                    <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')"> 
-                                        {% set start_time_parts = item.local_start_time.split(':') %}
-                                        {% set start_time_minute = start_time_parts[1] %}
-                                        {% set end_time_parts = item.local_end_time.split(':') %}
-                                        {% set end_time_minute = end_time_parts[1] %}
-
-                                        {% if start_time_minute == '01' and end_time_minute == '01' %}
+                                    <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
+                                        {% if item.is_daily_task %}
                                             {{ '🟩 ' ~item.name }}
                                         {% else %}
                                             {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}

@@ -63,6 +63,9 @@
 
             <input id="input_date" type="date" name="date1" value="{{ selected_local_start_date }}" placeholder="MM/DD/YYYY"  style="background-color: #444; color: #fff;"
                     onfocus="(this.type='date')">
+            {% if item.is_daily_task %}
+                <span style="color: #0f0; padding: 0 5px;">🟩 Daily Task (no time)</span>
+            {% else %}
             <span style="color: #fff; padding: 0 5px;">from</span>
 
 
@@ -95,7 +98,7 @@
                     <option value="{{ m }}" {% if m == selected_end_minute %}selected{% endif %}>{{ m }}</option>
                 {% endfor %}
             </select>
-
+            {% endif %}
 
 
 
@@ -138,18 +141,8 @@
                             </div>
                             {% for item in df_combined %}
                                 {% if dates[i+ii*7] == item["local_start_date"] %}
-                                    <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')"> 
-                                        <!-- {% if item.local_start_time == '00:00' and item.local_end_time == '00:00' %}
-                                            {{ '🟩 ' ~item.name }}
-                                        {% else %}
-                                            {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
-                                        {% endif %} -->
-                                        {% set start_time_parts = item.local_start_time.split(':') %}
-                                        {% set start_time_minute = start_time_parts[1] %}
-                                        {% set end_time_parts = item.local_end_time.split(':') %}
-                                        {% set end_time_minute = end_time_parts[1] %}
-
-                                        {% if start_time_minute == '01' and end_time_minute == '01' %}
+                                    <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
+                                        {% if item.is_daily_task %}
                                             {{ '🟩 ' ~item.name }}
                                         {% else %}
                                             {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
