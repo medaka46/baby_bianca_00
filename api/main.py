@@ -87,12 +87,14 @@ async def login_signup(request: Request):
     print(test_date)
     
     request.session['link_tab_page_active'] = "link_001"
-    
+
     request.session['project_chart_switch'] = 1
-    
+
     request.session['project_button_serect'] = "ID"
-    
+
     request.session['project_id_order'] = 1
+
+    request.session['schedule_view_mode'] = 'A'
     
     
     print(condition)
@@ -682,10 +684,22 @@ async def check_user(request: Request, date_sequence = date_sequence, today_date
     
 # --------------------
 
+@app.post("/schedule/view_mode/")
+async def schedule_view_mode(request: Request, mode: str = Form(...)):
+    """Toggle the Schedule grid layout between View A (current uniform 7-day
+    grid) and View B (Today-focused first row, Mon-Fri narrow, Sat/Sun split).
+
+    Choice persists in session under 'schedule_view_mode'. Default is 'A'.
+    """
+    request.session['schedule_view_mode'] = 'B' if mode == 'B' else 'A'
+    return RedirectResponse("/schedule/", status_code=303)
+
+
 @app.get("/schedule/")
 async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depends(get_db), skip: int = Query(0), limit: int = Query(200)):
     login_username = request.session.get('login_username')
     time_zone = request.session.get('time_zone', time_zone)
+    schedule_view_mode = request.session.get('schedule_view_mode', 'A')
     logger.info(f"Time zone is {time_zone}")
 
     # Fetch all tasks (regular + daily). Daily tasks have NULL start/end_datetime
@@ -814,8 +828,9 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
         "next_skip": skip + limit if has_more else None,
         "current_page": current_page,
         "total_pages": total_pages,
-        "condition": condition
-        
+        "condition": condition,
+        "schedule_view_mode": schedule_view_mode,
+
     })
 
 

@@ -30,6 +30,42 @@
         color: #aaa;
         opacity: 1;
     }
+
+    /* View B — column-of-weekday layout (Today column spans full height) */
+    .day_group_b > .day_group_today,
+    .day_group_b > .day_group_normal { flex: 1 !important; }
+    .day_group_b > .day_group_weekend { flex: 0.8 !important; }
+
+    .scrollable_b_grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 0.8fr;
+        grid-template-rows: repeat(50, auto);
+        gap: 5px;
+        padding: 5px;
+    }
+    .scrollable_b_grid > .day_today_vfull {
+        grid-column: 1;
+        grid-row: 1 / span 50;
+        border-color: #999;
+    }
+    .scrollable_b_grid > .day_b_weekend_cell {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    /* Neutralise the .day / .day_active margins inside the grid — gap handles spacing. */
+    .scrollable_b_grid .day,
+    .scrollable_b_grid .day_active {
+        margin-left: 0;
+        margin-bottom: 0;
+    }
+    /* Issue #2 — zero the default browser margin/padding on the inner <ul>,
+       matching the `.screen div ul` rule that View A inherits from base.html
+       (which View B's grid layout otherwise doesn't match). */
+    .scrollable_b_grid ul {
+        margin: 0;
+        padding: 0;
+    }
 </style>
 <header class="tab_00">
     <div style="display: flex;">
@@ -92,7 +128,10 @@
             <span>Live Updating</span>
         </div>
 
-
+        <form action="/schedule/view_mode/" method="post" style="margin-left: 10px;">
+            <input type="hidden" name="mode" value="{{ 'B' if schedule_view_mode == 'A' else 'A' }}">
+            <button type="submit" style="background-color: #444; color: #0f0;">{{ 'View B' if schedule_view_mode == 'A' else 'View A' }}</button>
+        </form>
 
         {% if condition == "Production" %}
         <form action="/download_db/" method="get" style="margin-left: 10px;">
@@ -109,6 +148,7 @@
 </header>
 
 <main class="tab_00">
+    {% if schedule_view_mode != 'B' %}
     <div class="day_group">
         <div>Mon.</div>
         <div>Tue.</div>
@@ -116,7 +156,7 @@
         <div>Thu.</div>
         <div>Fri.</div>
         <div>Sat.</div>
-        <div>Sun.</div> 
+        <div>Sun.</div>
     </div>
     <div class="scrollable-content">
         {% for ii in range(50) %}
@@ -144,6 +184,86 @@
             </div>
         {% endfor %}
     </div>
+    {% else %}
+    {# View B — column-of-weekday layout: Today (1 tall cell) | Mon | Tue | Wed | Thu | Fri | Sat/Sun (narrower, split) #}
+    <div class="day_group day_group_b">
+        <div class="day_group_today">Today</div>
+        <div class="day_group_normal">Mon.</div>
+        <div class="day_group_normal">Tue.</div>
+        <div class="day_group_normal">Wed.</div>
+        <div class="day_group_normal">Thu.</div>
+        <div class="day_group_normal">Fri.</div>
+        <div class="day_group_weekend">Sat./Sun.</div>
+    </div>
+    <div class="scrollable-content scrollable_b_grid">
+        {# Today cell — col 1, spans all rows (grid-row: 1 / -1) #}
+        <div class="day_active day_today_vfull">
+            <ul class="ul">
+                <div id="dateClick" style="color: #0f0;" data-date1='{{ today }}' onclick="onclickDate('{{ today }}')">
+                    {{ today }} (Today)
+                </div>
+                {% for item in df_combined %}
+                    {% if today == item["local_start_date"] %}
+                        <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
+                            {% if item.is_daily_task %}
+                                {{ '🟩 ' ~item.name }}
+                            {% else %}
+                                {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
+                            {% endif %}
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        {# Auto-placed cells: for each of 50 weeks, Mon Tue Wed Thu Fri followed by Sat/Sun pair.
+           The grid auto-placement algorithm skips col 1 (occupied by Today) and fills cols 2-7. #}
+        {% for ii in range(50) %}
+            {% for i in range(5) %}
+                <div class="{{ 'day_active' if dates[i+ii*7] == today else 'day' }}">
+                    <ul class="ul">
+                        <div id="dateClick" style="color: #0f0;" data-date1='{{ dates[i+ii*7] }}' onclick="onclickDate('{{ dates[i+ii*7] }}')">
+                            {{ dates[i+ii*7] }}
+                        </div>
+                        {% for item in df_combined %}
+                            {% if dates[i+ii*7] == item["local_start_date"] %}
+                                <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
+                                    {% if item.is_daily_task %}
+                                        {{ '🟩 ' ~item.name }}
+                                    {% else %}
+                                        {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
+                                    {% endif %}
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endfor %}
+            {# Sat/Sun pair — one grid cell containing both halves stacked vertically #}
+            <div class="day_b_weekend_cell">
+                {% for i in [5, 6] %}
+                    <div class="{{ 'day_active' if dates[i+ii*7] == today else 'day' }}">
+                        <ul class="ul">
+                            <div id="dateClick" style="color: #0f0;" data-date1='{{ dates[i+ii*7] }}' onclick="onclickDate('{{ dates[i+ii*7] }}')">
+                                {{ dates[i+ii*7] }}
+                            </div>
+                            {% for item in df_combined %}
+                                {% if dates[i+ii*7] == item["local_start_date"] %}
+                                    <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
+                                        {% if item.is_daily_task %}
+                                            {{ '🟩 ' ~item.name }}
+                                        {% else %}
+                                            {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
+                                        {% endif %}
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     <!-- <div class="pagination-controls">
         {% if skip > 0 %}
             <button onclick="loadPage({{ skip - limit }})">Previous</button>
