@@ -115,8 +115,34 @@
             <input type="text" name="link" placeholder="Enter link..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
             <input type="text" name="category" placeholder="Enter category..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
             <input type="text" name="status" placeholder="Enter status..." style="background-color: #444; color: #fff;" oninput="this.style.backgroundColor = this.value ? '#444' : '#fff'; this.style.color = '#999'">
+            {# Repeat-task selectors — only consumed by the Add Repeat Task button. #}
+            <select name="repeat_type" id="repeat_type_select"
+                    style="background-color: #444; color: #aaa;"
+                    onchange="document.getElementById('repeat_weekdays_group').style.display = (this.value === 'every_specific_weekday') ? 'inline-block' : 'none';">
+                <option value="every_day">Every day</option>
+                <option value="every_weekday">Every weekday (Mon–Fri)</option>
+                <option value="every_specific_weekday">Every specific weekday</option>
+            </select>
+            <span id="repeat_weekdays_group" style="display: none; color: #aaa; padding: 0 5px;">
+                {% for label, val in [('Mon','0'),('Tue','1'),('Wed','2'),('Thu','3'),('Fri','4'),('Sat','5'),('Sun','6')] %}
+                    <label style="margin-right: 4px;">
+                        <input type="checkbox" name="repeat_weekdays" value="{{ val }}">{{ label }}
+                    </label>
+                {% endfor %}
+            </span>
+            <select name="repeat_range" id="repeat_range_select"
+                    style="background-color: #444; color: #aaa;"
+                    onchange="document.getElementById('repeat_range_end_group').style.display = (this.value === 'until_date') ? 'inline-block' : 'none';">
+                <option value="this_month">This month</option>
+                <option value="this_week">This week</option>
+                <option value="until_date">Until date…</option>
+            </select>
+            <span id="repeat_range_end_group" style="display: none;">
+                <input type="date" name="repeat_range_end_date" style="background-color: #444; color: #aaa;">
+            </span>
             <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
             <button type="submit" formaction="/schedule/add_daily_task/" style="background-color: #444; color: #0f0; margin-left: 5px;">Add Daily Task</button>
+            <button type="submit" formaction="/schedule/add_repeat_task/" style="background-color: #444; color: #0f0; margin-left: 5px;">Add Repeat Task</button>
 
         </form>
         <div class="live-update-indicator">
