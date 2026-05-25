@@ -65,6 +65,19 @@ class Schedule(Base):
     is_daily_task = Column(Integer, default=0, index=True)
     task_date = Column(Date, index=True)
 
+    # Repeat-task fields. is_repeat_task=1 means the row is a template that
+    # expands to multiple occurrences between range_start and range_end. The
+    # Today area reads templates and decides whether today matches the pattern;
+    # no per-occurrence rows are written.
+    #   repeat_type: 'every_day' | 'every_weekday' | 'every_specific_weekday'
+    #   repeat_weekdays: CSV of Python weekday ints, e.g. '0,2,4' (Mon=0..Sun=6)
+    #     — only used when repeat_type='every_specific_weekday'.
+    is_repeat_task = Column(Integer, default=0, index=True)
+    repeat_type = Column(String, index=True)
+    repeat_weekdays = Column(String)
+    range_start = Column(Date, index=True)
+    range_end = Column(Date, index=True)
+
     id_user = Column(Integer)
     
 class Project(Base):
