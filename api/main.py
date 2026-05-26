@@ -1129,6 +1129,85 @@ async def add_daily_task(
     db.refresh(db_item)
     return RedirectResponse("/schedule/", status_code=303)
 
+
+@app.post("/schedule/add_repeat_task/")
+async def add_repeat_task(
+    request: Request,
+    name: str = Form(...),
+    date1: str = Form(...),                      # used only as a fallback range_start
+    repeat_type: str = Form(...),                # 'every_day' | 'every_weekday' | 'every_specific_weekday'
+    repeat_range: str = Form(...),               # 'this_month' | 'this_week' | 'until_date'
+    repeat_weekdays: list[str] = Form([]),       # multi-checkbox; empty unless type='every_specific_weekday'
+    repeat_range_end_date: str = Form(None),     # required only when repeat_range='until_date'
+    link: str = Form(None),
+    category: str = Form(None),
+    status: str = Form(None),
+    db: Session = Depends(get_db),
+):
+    """Add a Schedule row representing a repeat-task template.
+
+    Stored shape (one row, expanded on read in /schedule/):
+      is_repeat_task = 1
+      repeat_type    = 'every_day' | 'every_weekday' | 'every_specific_weekday'
+      repeat_weekdays = CSV, only when type='every_specific_weekday'
+      range_start, range_end = date window
+    """
+    # range_start: the date the user picked in the form (falls back to today).
+    if date1:
+        range_start_val = datetime.strptime(date1, "%Y-%m-%d").date()
+    else:
+        range_start_val = datetime.today().date()
+
+    # range_end: derived from the repeat_range choice.
+    if repeat_range == "this_week":
+        # End of the week starting Mon → Sun.
+        days_until_sun = 6 - range_start_val.weekday()
+        range_end_val = range_start_val + timedelta(days=days_until_sun)
+    elif repeat_range == "this_month":
+        # Last day of the month containing range_start.
+        if range_start_val.month == 12:
+            first_next = range_start_val.replace(year=range_start_val.year + 1, month=1, day=1)
+        else:
+            first_next = range_start_val.replace(month=range_start_val.month + 1, day=1)
+        range_end_val = first_next - timedelta(days=1)
+    elif repeat_range == "until_date":
+        if not repeat_range_end_date:
+            raise HTTPException(status_code=400, detail="repeat_range_end_date required when repeat_range='until_date'")
+        range_end_val = datetime.strptime(repeat_range_end_date, "%Y-%m-%d").date()
+    else:
+        raise HTTPException(status_code=400, detail=f"unknown repeat_range: {repeat_range!r}")
+
+    # Normalise weekdays: only meaningful for 'every_specific_weekday'.
+    weekdays_csv = None
+    if repeat_type == "every_specific_weekday":
+        valid = [w for w in repeat_weekdays if w in {"0","1","2","3","4","5","6"}]
+        if not valid:
+            raise HTTPException(status_code=400, detail="every_specific_weekday requires at least one weekday")
+        weekdays_csv = ",".join(sorted(set(valid), key=int))
+
+    # NOT NULL sentinel for start/end_datetime.
+    sentinel_dt = datetime.combine(range_start_val, datetime.min.time())
+
+    db_item = Schedule(
+        name=name,
+        link=link,
+        category=category,
+        status=status,
+        start_datetime=sentinel_dt,
+        end_datetime=sentinel_dt,
+        is_daily_task=0,
+        task_date=None,
+        is_repeat_task=1,
+        repeat_type=repeat_type,
+        repeat_weekdays=weekdays_csv,
+        range_start=range_start_val,
+        range_end=range_end_val,
+    )
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return RedirectResponse("/schedule/", status_code=303)
+
 # --------------------
 
 @app.post("/schedule/update_task/{item_id}")
