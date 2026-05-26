@@ -5,7 +5,7 @@ Pure functions only — no DB or HTTP — so this can be smoke-checked in a REPL
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Iterable
 
 
