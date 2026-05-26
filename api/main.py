@@ -1177,6 +1177,9 @@ async def add_repeat_task(
     else:
         raise HTTPException(status_code=400, detail=f"unknown repeat_range: {repeat_range!r}")
 
+    if repeat_type not in {"every_day", "every_weekday", "every_specific_weekday"}:
+        raise HTTPException(status_code=400, detail=f"unknown repeat_type: {repeat_type!r}")
+
     # Normalise weekdays: only meaningful for 'every_specific_weekday'.
     weekdays_csv = None
     if repeat_type == "every_specific_weekday":
