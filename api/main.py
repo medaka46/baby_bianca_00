@@ -713,11 +713,17 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
         Schedule.link,
         Schedule.is_daily_task,
         Schedule.task_date,
+        Schedule.is_repeat_task,
+        Schedule.repeat_type,
+        Schedule.repeat_weekdays,
+        Schedule.range_start,
+        Schedule.range_end,
     ).order_by(Schedule.start_datetime).all()
 
     # Split: daily tasks bypass the TZ pipeline entirely.
-    regular_tasks = [t for t in tasks if not t.is_daily_task]
-    daily_tasks_rows = [t for t in tasks if t.is_daily_task]
+    regular_tasks = [t for t in tasks if not t.is_daily_task and not t.is_repeat_task]
+    daily_tasks_rows = [t for t in tasks if t.is_daily_task and not t.is_repeat_task]
+    repeat_templates = [t for t in tasks if t.is_repeat_task]
 
     # Check if there are more records to fetch
     total_tasks = db.query(Schedule).count()
@@ -797,6 +803,11 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
             'local_end_time': '',
             'is_daily_task': 1,
         })
+
+    # Expand repeat templates into virtual per-date dicts within the visible window.
+    from .repeat_tasks import expand_template  # local import keeps top-of-file tidy
+    for t in repeat_templates:
+        df_combined_dict.extend(expand_template(t, date_sequence))
 
     length_df_combined = len(df_combined_dict)
 
@@ -906,10 +917,16 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
         Schedule.link,
         Schedule.is_daily_task,
         Schedule.task_date,
+        Schedule.is_repeat_task,
+        Schedule.repeat_type,
+        Schedule.repeat_weekdays,
+        Schedule.range_start,
+        Schedule.range_end,
     ).order_by(Schedule.start_datetime).all()
 
-    regular_tasks = [t for t in tasks if not t.is_daily_task]
-    daily_tasks_rows = [t for t in tasks if t.is_daily_task]
+    regular_tasks = [t for t in tasks if not t.is_daily_task and not t.is_repeat_task]
+    daily_tasks_rows = [t for t in tasks if t.is_daily_task and not t.is_repeat_task]
+    repeat_templates = [t for t in tasks if t.is_repeat_task]
 
     total_tasks = db.query(Schedule).count()
     has_more = skip + limit < total_tasks
@@ -969,6 +986,11 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
             'local_end_time': '',
             'is_daily_task': 1,
         })
+
+    # Expand repeat templates into virtual per-date dicts within the visible window.
+    from .repeat_tasks import expand_template  # local import keeps top-of-file tidy
+    for t in repeat_templates:
+        df_combined_dict.extend(expand_template(t, date_sequence))
 
     # Render the template with the task data
     return templates.TemplateResponse("schedule_edit_00.html", {

@@ -1,0 +1,74 @@
+"""Expand a Schedule template row (is_repeat_task=1) into virtual per-date dicts
+that match the daily-task render shape consumed by schedule_indicate_00.html.
+
+Pure functions only — no DB or HTTP — so this can be smoke-checked in a REPL.
+"""
+from __future__ import annotations
+
+from datetime import date, datetime, timedelta
+from typing import Iterable
+
+
+def parse_weekdays_csv(csv: str | None) -> set[int]:
+    """'0,2,4' -> {0, 2, 4}.  Empty / None -> empty set."""
+    if not csv:
+        return set()
+    out: set[int] = set()
+    for part in csv.split(","):
+        part = part.strip()
+        if part.isdigit():
+            n = int(part)
+            if 0 <= n <= 6:
+                out.add(n)
+    return out
+
+
+def date_matches_template(
+    d: date,
+    repeat_type: str,
+    weekdays: set[int],
+    range_start: date | None,
+    range_end: date | None,
+) -> bool:
+    if range_start and d < range_start:
+        return False
+    if range_end and d > range_end:
+        return False
+    if repeat_type == "every_day":
+        return True
+    if repeat_type == "every_weekday":
+        return d.weekday() < 5  # Mon=0 … Fri=4
+    if repeat_type == "every_specific_weekday":
+        return d.weekday() in weekdays
+    return False
+
+
+def expand_template(row, visible_dates: Iterable[str]) -> list[dict]:
+    """Return one virtual dict per visible date the template matches.
+
+    `row` is a SQLAlchemy Schedule row (or any object with the same attribute
+    names). `visible_dates` is the date_sequence already built by the caller —
+    we only emit occurrences within the window the UI actually renders.
+    """
+    weekdays = parse_weekdays_csv(row.repeat_weekdays)
+    out: list[dict] = []
+    for iso in visible_dates:
+        d = datetime.strptime(iso, "%Y-%m-%d").date()
+        if not date_matches_template(
+            d, row.repeat_type or "", weekdays, row.range_start, row.range_end
+        ):
+            continue
+        out.append({
+            "id": row.id,
+            "name": row.name,
+            "link": row.link,
+            "start_datetime": None,
+            "end_datetime": None,
+            "local_start_date": iso,
+            "local_start_time": "",
+            "local_end_date": iso,
+            "local_end_time": "",
+            "is_daily_task": 1,        # render with the 🟩 prefix
+            "is_repeat_task": 1,       # for future code that needs to distinguish
+        })
+    return out
