@@ -66,6 +66,22 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def today_in_session_tz(request: Request) -> str:
+    """Today's date as 'YYYY-MM-DD' in the user's selected session time zone.
+
+    The server runs in UTC on Render, so a naive datetime.today() reads one day
+    behind for UTC+ users until their local midnight is reached (e.g. before
+    08:00 in UTC+8). Resolving against the session time zone keeps the displayed
+    date correct on every tab, matching the Schedule tab's behaviour.
+    """
+    tz = request.session.get('time_zone') or 'UTC'
+    try:
+        zone = ZoneInfo(tz)
+    except Exception:
+        zone = ZoneInfo('UTC')
+    return datetime.now(zone).strftime('%Y-%m-%d')
 # --------------------
 
 @app.get("/", response_class=HTMLResponse)
@@ -656,7 +672,8 @@ today_date = datetime.today().strftime('%Y-%m-%d')
 @app.post("/login_signup/check_user/")
 async def check_user(request: Request, date_sequence = date_sequence, today_date = today_date, username: str = Form(...), email: str = Form(...), password: str = Form(None), db: Session = Depends(get_db), skip: int = Query(0), limit: int = Query(50)):
     db_user = db.query(User).filter(User.username == username, User.email == email, User.password == password).first()
-    
+    today_date = today_in_session_tz(request)
+
     if db_user:
         login_username = username
         request.session['login_username'] = username
@@ -909,7 +926,7 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
     start_date_adjust = request.session.get('start_date_adjust', 0)
     start_date = datetime.today() - timedelta(days=datetime.today().weekday() + start_date_adjust)
     date_sequence = [str((start_date + timedelta(days=i)).strftime('%Y-%m-%d')) for i in range(7*50)]
-    today_date = datetime.today().strftime('%Y-%m-%d')
+    today_date = today_in_session_tz(request)
 
     # Fetch tasks for the day-column preview (regular + daily, like /schedule/).
     tasks = db.query(Schedule).with_entities(
@@ -1447,7 +1464,7 @@ async def get_tasks(request: Request, time_zone: str = "UTC", db: Session = Depe
     # (was previously frozen at server-start via module-level defaults).
     _start_date = datetime.today() - timedelta(days=datetime.today().weekday())
     date_sequence = [str((_start_date + timedelta(days=i)).strftime('%Y-%m-%d')) for i in range(7 * 10)]
-    today_date = datetime.today().strftime('%Y-%m-%d')
+    today_date = today_in_session_tz(request)
     
     # tasks = db.query(Meeting).order_by(Meeting.name).all()
     tasks = db.query(Link).order_by(Link.id).all()
@@ -1545,6 +1562,7 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
     login_username = request.session.get('login_username')# login_username
     time_zone = request.session.get('time_zone')# login_username
     # df_combined = request.session.get('df_combined')# login_username
+    today_date = today_in_session_tz(request)
     print("user :", login_username)
     print("time_zone :", time_zone)
 
@@ -1755,7 +1773,7 @@ async def music(request: Request):
         "time_zone": time_zone,
         "tab_page_active": tab_page_active,
         "music_tab_active": music_tab_active,
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 @app.post("/music/upload_cookies/")
@@ -1842,7 +1860,7 @@ async def action_periodic_table(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "action",
         "function_sub_tab_active": "periodic_table",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 @app.get("/table/")
@@ -1861,7 +1879,7 @@ async def action_map(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "action",
         "function_sub_tab_active": "map",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 # --- Translator on Drawings: page + upload + status + download routes ---
@@ -1882,7 +1900,7 @@ async def action_file_converter(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "action",
         "function_sub_tab_active": "file_converter",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 @app.get("/file_converter/")
@@ -1920,7 +1938,7 @@ async def sqlite_page(request: Request):
         "login_username": login_username,
         "time_zone": time_zone,
         "tab_page_active": "sqlite",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "condition": condition,
     })
 
@@ -1933,7 +1951,7 @@ async def viewer_3d(request: Request):
         "login_username": login_username,
         "time_zone": time_zone,
         "tab_page_active": "3d",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 @app.get("/game/")
@@ -1947,7 +1965,7 @@ async def game(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "game",
         "game_tab_active": "invader",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 @app.get("/game/invader/")
@@ -1961,7 +1979,7 @@ async def game_invader(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "game",
         "game_tab_active": "invader",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 @app.get("/game/game01/")
@@ -1975,7 +1993,7 @@ async def game_game01(request: Request):
         "time_zone": time_zone,
         "tab_page_active": "game",
         "game_tab_active": "game01",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 @app.get("/project/")
@@ -1990,7 +2008,7 @@ async def project(request: Request):
         "tab_page_active": "project",
         "message_color": message_color,
         "project_sub_tab_active": "sort_select",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
     })
 
 @app.get("/project/edit/")
@@ -2005,7 +2023,7 @@ async def project_edit(request: Request):
         "tab_page_active": "project",
         "message_color": message_color,
         "project_sub_tab_active": "edit",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "condition": condition,
     })
 
@@ -2160,7 +2178,7 @@ async def todo_list(request: Request, db: Session = Depends(get_db)):
         "time_zone": time_zone,
         "tab_page_active": "todo",
         "todo_sub_tab_active": "sort_select",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "todos": todos_data,
         "todos_json": json.dumps(todos_json_list),
     })
@@ -2184,7 +2202,7 @@ async def todo_edit(request: Request, db: Session = Depends(get_db)):
         "time_zone": time_zone,
         "tab_page_active": "todo",
         "todo_sub_tab_active": "edit",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "todos": todos,
         "item": None,
     })
@@ -2214,7 +2232,7 @@ async def todo_edit_task(item_id: int, request: Request, db: Session = Depends(g
         "time_zone": time_zone,
         "tab_page_active": "todo",
         "todo_sub_tab_active": "edit",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "todos": todos,
         "item": db_item,
     })
@@ -2376,7 +2394,7 @@ async def diary_list(request: Request, type: str | None = Query(None), db: Sessi
         "time_zone": time_zone,
         "tab_page_active": "diary",
         "diary_sub_tab_active": "sort_select",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "entries": entries_data,
         "entries_json": json.dumps(entries_json_list),
         "current_type": current_type,
@@ -2421,7 +2439,7 @@ async def diary_edit(request: Request, type: str | None = Query(None), db: Sessi
         "time_zone": time_zone,
         "tab_page_active": "diary",
         "diary_sub_tab_active": "edit",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "entries": entries_filtered,
         "item": None,
         "titles_json": json.dumps(_diary_titles_index(all_entries)),
@@ -2463,7 +2481,7 @@ async def diary_edit_task(item_id: int, request: Request, type: str | None = Que
         "time_zone": time_zone,
         "tab_page_active": "diary",
         "diary_sub_tab_active": "edit",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "entries": entries_filtered,
         "item": db_item,
         "titles_json": json.dumps(_diary_titles_index(all_entries)),
@@ -2583,7 +2601,7 @@ async def diary_view(request: Request, type: str | None = Query(None), db: Sessi
         "time_zone": time_zone,
         "tab_page_active": "diary",
         "diary_sub_tab_active": "view",
-        "today": datetime.today().strftime('%Y-%m-%d'),
+        "today": today_in_session_tz(request),
         "entries": entries_filtered,
         "titles_json": json.dumps(_diary_titles_index(all_entries)),
         "current_type": current_type,
