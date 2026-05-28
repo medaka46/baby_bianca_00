@@ -719,6 +719,8 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
         Schedule.range_start,
         Schedule.range_end,
         Schedule.today_only,
+        Schedule.repeat_start_time,
+        Schedule.repeat_end_time,
     ).order_by(Schedule.start_datetime).all()
 
     # Split: daily tasks bypass the TZ pipeline entirely.
@@ -924,6 +926,8 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
         Schedule.range_start,
         Schedule.range_end,
         Schedule.today_only,
+        Schedule.repeat_start_time,
+        Schedule.repeat_end_time,
     ).order_by(Schedule.start_datetime).all()
 
     regular_tasks = [t for t in tasks if not t.is_daily_task and not t.is_repeat_task]
@@ -1142,6 +1146,10 @@ async def add_repeat_task(
     repeat_weekdays: list[str] = Form([]),       # multi-checkbox; empty unless type='every_specific_weekday'
     repeat_range_end_date: str = Form(None),     # required only when repeat_range='until_date'
     today_only: int = Form(0),                   # 1 = show only in the Today area
+    start_time_hour: str = Form(None),           # time-of-day selectors (shared form)
+    start_time_minute: str = Form(None),
+    end_time_hour: str = Form(None),
+    end_time_minute: str = Form(None),
     link: str = Form(None),
     category: str = Form(None),
     status: str = Form(None),
@@ -1195,6 +1203,14 @@ async def add_repeat_task(
     # NOT NULL sentinel for start/end_datetime.
     sentinel_dt = datetime.combine(range_start_val, datetime.min.time())
 
+    # Time-of-day (TZ-independent). Stored as 'HH:MM'; blank/00:00 hidden on read.
+    repeat_start_time = None
+    repeat_end_time = None
+    if start_time_hour is not None and start_time_minute is not None:
+        repeat_start_time = f"{start_time_hour}:{start_time_minute}"
+    if end_time_hour is not None and end_time_minute is not None:
+        repeat_end_time = f"{end_time_hour}:{end_time_minute}"
+
     db_item = Schedule(
         name=name,
         link=link,
@@ -1210,6 +1226,8 @@ async def add_repeat_task(
         range_start=range_start_val,
         range_end=range_end_val,
         today_only=1 if today_only else 0,
+        repeat_start_time=repeat_start_time,
+        repeat_end_time=repeat_end_time,
     )
     db.add(db_item)
     db.commit()

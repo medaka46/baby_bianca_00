@@ -143,7 +143,7 @@
                                 {% if dates[i+ii*7] == item["local_start_date"] %}
                                     <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
                                         {% if item.is_repeat_task %}
-                                            <span style="color: #0f0;">▶︎</span> {{ item.name }}
+                                            <span style="color: #0f0;">▶︎</span> {% if item.local_start_time %}{{ item.local_start_time }}-{{ item.local_end_time }} {% endif %}{{ item.name }}
                                         {% elif item.is_daily_task %}
                                             {{ '🟩 ' ~item.name }}
                                         {% else %}

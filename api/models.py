@@ -78,6 +78,8 @@ class Schedule(Base):
     range_start = Column(Date, index=True)
     range_end = Column(Date, index=True)
     today_only = Column(Integer, default=0, index=True)
+    repeat_start_time = Column(String)
+    repeat_end_time = Column(String)
 
     id_user = Column(Integer)
     

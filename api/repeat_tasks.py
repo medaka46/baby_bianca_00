@@ -56,6 +56,11 @@ def expand_template(row, visible_dates: Iterable[str], today: str | None = None)
     """
     weekdays = parse_weekdays_csv(row.repeat_weekdays)
     today_only = bool(getattr(row, "today_only", 0))
+    # Time-of-day (TZ-independent). Treat blank / 00:00 sentinel as "no time".
+    start_t = getattr(row, "repeat_start_time", None) or ""
+    end_t = getattr(row, "repeat_end_time", None) or ""
+    if start_t in ("", "00:00") and end_t in ("", "00:00"):
+        start_t = end_t = ""
     out: list[dict] = []
     for iso in visible_dates:
         if today_only and iso != today:
@@ -72,9 +77,9 @@ def expand_template(row, visible_dates: Iterable[str], today: str | None = None)
             "start_datetime": None,
             "end_datetime": None,
             "local_start_date": iso,
-            "local_start_time": "",
+            "local_start_time": start_t,
             "local_end_date": iso,
-            "local_end_time": "",
+            "local_end_time": end_t,
             "is_daily_task": 1,        # render with the 🟩 prefix
             "is_repeat_task": 1,       # for future code that needs to distinguish
             "today_only": 1 if today_only else 0,
