@@ -140,6 +140,9 @@
             <span id="repeat_range_end_group" style="display: none;">
                 <input type="date" name="repeat_range_end_date" style="background-color: #444; color: #aaa;">
             </span>
+            <label style="color: #aaa; padding: 0 5px;">
+                <input type="checkbox" name="today_only" value="1"> Today only
+            </label>
             <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
             <button type="submit" formaction="/schedule/add_daily_task/" style="background-color: #444; color: #0f0; margin-left: 5px;">Add Daily Task</button>
             <button type="submit" formaction="/schedule/add_repeat_task/" style="background-color: #444; color: #0f0; margin-left: 5px;">Add Repeat Task</button>
@@ -196,7 +199,9 @@
                             {% for item in df_combined %}
                                 {% if dates[i+ii*7] == item["local_start_date"] %}
                                     <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
-                                        {% if item.is_daily_task %}
+                                        {% if item.is_repeat_task %}
+                                            <span style="color: #0f0;">▶︎</span> {{ item.name }}
+                                        {% elif item.is_daily_task %}
                                             {{ '🟩 ' ~item.name }}
                                         {% else %}
                                             {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
@@ -231,7 +236,9 @@
                 {% for item in df_combined %}
                     {% if today == item["local_start_date"] %}
                         <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
-                            {% if item.is_daily_task %}
+                            {% if item.is_repeat_task %}
+                                <span style="color: #0f0;">▶︎</span> {{ item.name }}
+                            {% elif item.is_daily_task %}
                                 {{ '🟩 ' ~item.name }}
                             {% else %}
                                 {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
@@ -251,9 +258,11 @@
                             {{ dates[i+ii*7] }}
                         </div>
                         {% for item in df_combined %}
-                            {% if dates[i+ii*7] == item["local_start_date"] %}
+                            {% if dates[i+ii*7] == item["local_start_date"] and not (item.is_repeat_task and item.today_only) %}
                                 <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
-                                    {% if item.is_daily_task %}
+                                    {% if item.is_repeat_task %}
+                                        <span style="color: #0f0;">▶︎</span> {{ item.name }}
+                                    {% elif item.is_daily_task %}
                                         {{ '🟩 ' ~item.name }}
                                     {% else %}
                                         {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}
@@ -273,9 +282,11 @@
                                 {{ dates[i+ii*7] }}
                             </div>
                             {% for item in df_combined %}
-                                {% if dates[i+ii*7] == item["local_start_date"] %}
+                                {% if dates[i+ii*7] == item["local_start_date"] and not (item.is_repeat_task and item.today_only) %}
                                     <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
-                                        {% if item.is_daily_task %}
+                                        {% if item.is_repeat_task %}
+                                            <span style="color: #0f0;">▶︎</span> {{ item.name }}
+                                        {% elif item.is_daily_task %}
                                             {{ '🟩 ' ~item.name }}
                                         {% else %}
                                             {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}

@@ -43,16 +43,23 @@ def date_matches_template(
     return False
 
 
-def expand_template(row, visible_dates: Iterable[str]) -> list[dict]:
+def expand_template(row, visible_dates: Iterable[str], today: str | None = None) -> list[dict]:
     """Return one virtual dict per visible date the template matches.
 
     `row` is a SQLAlchemy Schedule row (or any object with the same attribute
     names). `visible_dates` is the date_sequence already built by the caller —
     we only emit occurrences within the window the UI actually renders.
+
+    `today` is the caller's local-TZ today as ISO 'YYYY-MM-DD'. When the row's
+    `today_only` flag is set, only that date is emitted (and only if the
+    repeat pattern matches it).
     """
     weekdays = parse_weekdays_csv(row.repeat_weekdays)
+    today_only = bool(getattr(row, "today_only", 0))
     out: list[dict] = []
     for iso in visible_dates:
+        if today_only and iso != today:
+            continue
         d = datetime.strptime(iso, "%Y-%m-%d").date()
         if not date_matches_template(
             d, row.repeat_type or "", weekdays, row.range_start, row.range_end
@@ -70,5 +77,6 @@ def expand_template(row, visible_dates: Iterable[str]) -> list[dict]:
             "local_end_time": "",
             "is_daily_task": 1,        # render with the 🟩 prefix
             "is_repeat_task": 1,       # for future code that needs to distinguish
+            "today_only": 1 if today_only else 0,
         })
     return out

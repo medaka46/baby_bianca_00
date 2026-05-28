@@ -142,7 +142,9 @@
                             {% for item in df_combined %}
                                 {% if dates[i+ii*7] == item["local_start_date"] %}
                                     <li class="li" onclick="onclickItem('{{ item.id }}', '{{ item.link }}')">
-                                        {% if item.is_daily_task %}
+                                        {% if item.is_repeat_task %}
+                                            <span style="color: #0f0;">▶︎</span> {{ item.name }}
+                                        {% elif item.is_daily_task %}
                                             {{ '🟩 ' ~item.name }}
                                         {% else %}
                                             {{ item.local_start_time~ '-' ~item.local_end_time~ ' ' ~item.name }}

@@ -3,7 +3,7 @@ services:
     name: baby-bianca-app
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python -m scripts.migrate_daily_tasks && python -m scripts.migrate_repeat_tasks && uvicorn api.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: RENDER
         value: "true"

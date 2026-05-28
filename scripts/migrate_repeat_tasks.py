@@ -1,11 +1,12 @@
 """One-off migration: add repeat-task columns to the schedules table.
 
-Adds five columns used by the Repeat Task feature:
+Adds six columns used by the Repeat Task feature:
   is_repeat_task   INTEGER DEFAULT 0
   repeat_type      TEXT       -- 'every_day' | 'every_weekday' | 'every_specific_weekday'
   repeat_weekdays  TEXT       -- CSV of Python weekday ints, e.g. '0,2,4' (Mon=0..Sun=6)
   range_start      DATE
   range_end        DATE
+  today_only       INTEGER DEFAULT 0  -- 1 = show occurrence only in Today area
 
 Run once, locally and on Render.
 
@@ -37,6 +38,7 @@ def add_columns(conn: sqlite3.Connection) -> None:
         ("repeat_weekdays", "TEXT"),
         ("range_start", "DATE"),
         ("range_end", "DATE"),
+        ("today_only", "INTEGER DEFAULT 0"),
     ]
     for name, sql_type in specs:
         if not column_exists(conn, "schedules", name):

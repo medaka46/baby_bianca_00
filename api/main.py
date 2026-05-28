@@ -718,6 +718,7 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
         Schedule.repeat_weekdays,
         Schedule.range_start,
         Schedule.range_end,
+        Schedule.today_only,
     ).order_by(Schedule.start_datetime).all()
 
     # Split: daily tasks bypass the TZ pipeline entirely.
@@ -807,7 +808,7 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
     # Expand repeat templates into virtual per-date dicts within the visible window.
     from .repeat_tasks import expand_template  # local import keeps top-of-file tidy
     for t in repeat_templates:
-        df_combined_dict.extend(expand_template(t, date_sequence))
+        df_combined_dict.extend(expand_template(t, date_sequence, today=today_date))
 
     length_df_combined = len(df_combined_dict)
 
@@ -922,6 +923,7 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
         Schedule.repeat_weekdays,
         Schedule.range_start,
         Schedule.range_end,
+        Schedule.today_only,
     ).order_by(Schedule.start_datetime).all()
 
     regular_tasks = [t for t in tasks if not t.is_daily_task and not t.is_repeat_task]
@@ -990,7 +992,7 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
     # Expand repeat templates into virtual per-date dicts within the visible window.
     from .repeat_tasks import expand_template  # local import keeps top-of-file tidy
     for t in repeat_templates:
-        df_combined_dict.extend(expand_template(t, date_sequence))
+        df_combined_dict.extend(expand_template(t, date_sequence, today=today_date))
 
     # Render the template with the task data
     return templates.TemplateResponse("schedule_edit_00.html", {
@@ -1139,6 +1141,7 @@ async def add_repeat_task(
     repeat_range: str = Form(...),               # 'this_month' | 'this_week' | 'until_date'
     repeat_weekdays: list[str] = Form([]),       # multi-checkbox; empty unless type='every_specific_weekday'
     repeat_range_end_date: str = Form(None),     # required only when repeat_range='until_date'
+    today_only: int = Form(0),                   # 1 = show only in the Today area
     link: str = Form(None),
     category: str = Form(None),
     status: str = Form(None),
@@ -1151,6 +1154,7 @@ async def add_repeat_task(
       repeat_type    = 'every_day' | 'every_weekday' | 'every_specific_weekday'
       repeat_weekdays = CSV, only when type='every_specific_weekday'
       range_start, range_end = date window
+      today_only     = 1 → occurrence emitted only when iterated date == today
     """
     # range_start: the date the user picked in the form (falls back to today).
     if date1:
@@ -1205,6 +1209,7 @@ async def add_repeat_task(
         repeat_weekdays=weekdays_csv,
         range_start=range_start_val,
         range_end=range_end_val,
+        today_only=1 if today_only else 0,
     )
     db.add(db_item)
     db.commit()

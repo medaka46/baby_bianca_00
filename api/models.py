@@ -77,6 +77,7 @@ class Schedule(Base):
     repeat_weekdays = Column(String)
     range_start = Column(Date, index=True)
     range_end = Column(Date, index=True)
+    today_only = Column(Integer, default=0, index=True)
 
     id_user = Column(Integer)
     
