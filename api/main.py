@@ -82,6 +82,24 @@ def today_in_session_tz(request: Request) -> str:
     except Exception:
         zone = ZoneInfo('UTC')
     return datetime.now(zone).strftime('%Y-%m-%d')
+
+
+def _schedule_sort_key(item):
+    """Display order within a day cell:
+      0) daily tasks (no time), 1) repeat tasks with no time,
+      2) ordinary + timed repeat tasks sorted by start time
+         (ordinary before repeat when start times are equal).
+    The sort is stable, so insertion order is preserved within groups 0 and 1.
+    """
+    is_repeat = bool(item.get('is_repeat_task'))
+    is_daily = bool(item.get('is_daily_task')) and not is_repeat
+    start_time = item.get('local_start_time') or ''
+    if is_daily:
+        return (0, '', 0)
+    if is_repeat and not start_time:
+        return (1, '', 0)
+    type_rank = 1 if is_repeat else 0
+    return (2, start_time, type_rank)
 # --------------------
 
 @app.get("/", response_class=HTMLResponse)
@@ -829,6 +847,10 @@ async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depen
     for t in repeat_templates:
         df_combined_dict.extend(expand_template(t, date_sequence, today=today_date))
 
+    # Order each day cell: daily tasks, then timeless repeat tasks, then ordinary
+    # + timed repeat tasks merged and sorted by start time.
+    df_combined_dict.sort(key=_schedule_sort_key)
+
     length_df_combined = len(df_combined_dict)
 
     time_zone_message = "Current time zone :"
@@ -1014,6 +1036,10 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
     from .repeat_tasks import expand_template  # local import keeps top-of-file tidy
     for t in repeat_templates:
         df_combined_dict.extend(expand_template(t, date_sequence, today=today_date))
+
+    # Order each day cell: daily tasks, then timeless repeat tasks, then ordinary
+    # + timed repeat tasks merged and sorted by start time.
+    df_combined_dict.sort(key=_schedule_sort_key)
 
     # Render the template with the task data
     return templates.TemplateResponse("schedule_edit_00.html", {
