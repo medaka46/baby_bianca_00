@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from api.database import SessionLocal, engine, Base, ENVIRONMENT # Use absolute import
 from api.models import User, AllowedUser, Schedule, Link, Todo, Diary  # Use absolute import
+from api.permissions import allowed_tabs_for, tab_guard
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -49,6 +50,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Set up Jinja2 templates
 templates = Jinja2Templates(directory="templates")
+# Make the allowed-tab resolver callable from templates (base.html).
+templates.env.globals["allowed_tabs_for"] = allowed_tabs_for
 templates.env.globals['ENVIRONMENT'] = ENVIRONMENT
 
 # Create the database tables if they don't exist
@@ -733,6 +736,9 @@ async def schedule_view_mode(request: Request, mode: str = Form(...)):
 @app.get("/schedule/")
 async def schedule(request: Request, time_zone: str = "UTC", db: Session = Depends(get_db), skip: int = Query(0), limit: int = Query(200)):
     login_username = request.session.get('login_username')
+    guard = tab_guard(request, "schedule")
+    if guard:
+        return guard
     time_zone = request.session.get('time_zone', time_zone)
     schedule_view_mode = request.session.get('schedule_view_mode', 'A')
     logger.info(f"Time zone is {time_zone}")
@@ -1483,6 +1489,9 @@ async def get_tasks_002(request: Request):
 @app.get("/link_00/")
 async def get_tasks(request: Request, time_zone: str = "UTC", db: Session = Depends(get_db)):
     login_username = request.session.get('login_username')
+    guard = tab_guard(request, "link_00")
+    if guard:
+        return guard
     time_zone = request.session.get('time_zone')
     print(f"time_zone is {time_zone}")
 
@@ -1789,6 +1798,9 @@ async def music_editor(request: Request):
 @app.get("/music/")
 async def music(request: Request):
     login_username = request.session.get('login_username')
+    guard = tab_guard(request, "music")
+    if guard:
+        return guard
     time_zone = request.session.get('time_zone')
     music_tab_active = request.session.get('music_tab_active', 'downloader')
     tab_page_active = "music"
@@ -1866,6 +1878,9 @@ async def music_serve_file(filename: str):
 
 @app.get("/action/")
 async def action(request: Request):
+    guard = tab_guard(request, "action")
+    if guard:
+        return guard
     last = request.session.get('function_sub_tab_active', 'map')
     if last == 'periodic_table':
         return RedirectResponse(url="/action/periodic_table/")
@@ -1955,9 +1970,23 @@ async def map_countries():
     file_path = os.path.join(base_dir, "map", "countries-110m.json")
     return FileResponse(file_path, media_type="application/json")
 
+@app.get("/no_access/")
+async def no_access(request: Request):
+    login_username = request.session.get('login_username')
+    return templates.TemplateResponse("no_access.html", {
+        "request": request,
+        "login_username": login_username,
+        "time_zone": request.session.get('time_zone'),
+        "tab_page_active": "",
+        "today": today_in_session_tz(request),
+    })
+
 @app.get("/sqlite/")
 async def sqlite_page(request: Request):
     login_username = request.session.get('login_username')
+    guard = tab_guard(request, "sqlite")
+    if guard:
+        return guard
     time_zone = request.session.get('time_zone')
     return templates.TemplateResponse("sqlite_00.html", {
         "request": request,
@@ -1971,6 +2000,9 @@ async def sqlite_page(request: Request):
 @app.get("/3d/")
 async def viewer_3d(request: Request):
     login_username = request.session.get('login_username')
+    guard = tab_guard(request, "3d")
+    if guard:
+        return guard
     time_zone = request.session.get('time_zone')
     return templates.TemplateResponse("3d_00.html", {
         "request": request,
@@ -1983,6 +2015,9 @@ async def viewer_3d(request: Request):
 @app.get("/game/")
 async def game(request: Request):
     login_username = request.session.get('login_username')
+    guard = tab_guard(request, "game")
+    if guard:
+        return guard
     time_zone = request.session.get('time_zone')
     request.session['game_tab_active'] = 'invader'
     return templates.TemplateResponse("game_00.html", {
@@ -2025,6 +2060,9 @@ async def game_game01(request: Request):
 @app.get("/project/")
 async def project(request: Request):
     login_username = request.session.get('login_username')
+    guard = tab_guard(request, "project")
+    if guard:
+        return guard
     time_zone = request.session.get('time_zone')
     message_color = "#0f0"
     return templates.TemplateResponse("project_00.html", {
@@ -2175,6 +2213,9 @@ def _todo_effective_status(t: "Todo", today_d) -> str:
 
 @app.get("/todo/")
 async def todo_list(request: Request, db: Session = Depends(get_db)):
+    guard = tab_guard(request, "todo")
+    if guard:
+        return guard
     login_username, id_user = _todo_resolve_user(request, db)
     time_zone = request.session.get('time_zone')
     today_d = datetime.today().date()
@@ -2391,6 +2432,9 @@ def _diary_query_for_user(db: Session, login_username: str, id_user):
 
 @app.get("/diary/")
 async def diary_list(request: Request, type: str | None = Query(None), db: Session = Depends(get_db)):
+    guard = tab_guard(request, "diary")
+    if guard:
+        return guard
     login_username, id_user = _todo_resolve_user(request, db)
     time_zone = request.session.get('time_zone')
     current_type = _diary_resolve_type(request, type)
