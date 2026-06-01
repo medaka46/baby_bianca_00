@@ -516,56 +516,76 @@
 <header class="tab_00">
     <body class="ok">
         <div style="display: flex;">
+            {% set allowed_tabs = allowed_tabs_for(request) %}
+            {% if "schedule" in allowed_tabs %}
             <form action="/schedule/" method="get">
-                
+
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "schedule" else "#aaa" }};">Schedule</button>
                 <!-- <button type="submit" style="background-color: #444; color: #aaa;">Schedule</button> -->
             </form>
+            {% endif %}
+            {% if "link_00" in allowed_tabs %}
             <form action="/link_00/" method="get">
-                
+
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "link_00" else "#aaa" }};">Link</button>
             </form>
-           
-            
+            {% endif %}
+
+            {% if "project" in allowed_tabs %}
             <form action="/project/" method="get">
-                
+
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "project" else "#aaa" }};">Project</button>
             </form>
+            {% endif %}
 
+            {% if "action" in allowed_tabs %}
             <form action="/action/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "action" else "#aaa" }};">Function</button>
             </form>
+            {% endif %}
 
+            {% if "todo" in allowed_tabs %}
             <form action="/todo/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "todo" else "#aaa" }};">To Do</button>
             </form>
+            {% endif %}
 
+            {% if "diary" in allowed_tabs %}
             <form action="/diary/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "diary" else "#aaa" }};">Diary/Memo</button>
             </form>
+            {% endif %}
 
+            {% if "3d" in allowed_tabs %}
             <form action="/3d/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "3d" else "#aaa" }};">3D Viewer</button>
             </form>
+            {% endif %}
 
+            {% if "music" in allowed_tabs %}
             <form action="/music/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "music" else "#aaa" }};">Music</button>
             </form>
+            {% endif %}
 
+            {% if "game" in allowed_tabs %}
             <form action="/game/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#0f0" if tab_page_active == "game" else "#aaa" }};">Game</button>
             </form>
+            {% endif %}
 
+            {% if "sqlite" in allowed_tabs %}
             <form action="/sqlite/" method="get">
 
                 <button type="submit" style="background-color: #444; color: {{ "#f00" if tab_page_active == "sqlite" else "#aaa" }};">Data</button>
             </form>
+            {% endif %}
 
             
 
