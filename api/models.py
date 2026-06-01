@@ -8,6 +8,9 @@ class User(Base):
     username = Column(String, index=True)
     email = Column(String, unique=True, index=True)
     password = Column(String)
+    # tab_group: which permission group this user belongs to (e.g. 'a').
+    # NULL/empty means the user is allowed NO tabs (default deny).
+    tab_group = Column(String, index=True)
     # country = Column(String)
     # language = Column(String)
 
@@ -28,6 +31,21 @@ class AllowedUser(Base):
     email = Column(String, unique=True, index=True)
     password = Column(String)
 
+
+class TabGroup(Base):
+    """Defines, per group, which top-bar tabs are allowed.
+
+    group_key : short id stored on users.tab_group, e.g. 'a', 'b', 'c'.
+    group_name: optional human label, e.g. 'Full access', 'Site staff'.
+    tab_keys  : CSV of allowed tab keys, using the same identifiers as
+                tab_page_active in templates/base.html, e.g.
+                'schedule,project,todo'. Empty means no tabs.
+    """
+    __tablename__ = "tab_group"
+    id = Column(Integer, Sequence('tab_group_id_seq'), primary_key=True, index=True)
+    group_key = Column(String, unique=True, index=True)
+    group_name = Column(String)
+    tab_keys = Column(String)
 
 
 class Link(Base):
