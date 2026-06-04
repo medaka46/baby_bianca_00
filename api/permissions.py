@@ -47,3 +47,14 @@ def tab_guard(request: Request, tab_key: str):
     if tab_key in allowed_tabs_for(request):
         return None
     return RedirectResponse(url="/no_access/", status_code=303)
+
+
+def require_admin(request: Request):
+    """Return a redirect to /no_access/ unless the session user has the 'admin' tab.
+
+    Used as the first line of every admin route (defense in depth: hiding the
+    Admin button in base.html is not sufficient on its own).
+    """
+    if "admin" in allowed_tabs_for(request):
+        return None
+    return RedirectResponse(url="/no_access/", status_code=303)

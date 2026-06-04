@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api.database import get_database_path  # noqa: E402
 
-ALL_TABS = "schedule,link_00,project,action,todo,diary,3d,music,game,sqlite"
+ALL_TABS = "schedule,link_00,project,action,todo,diary,3d,music,game,sqlite,admin"
 
 
 def column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
