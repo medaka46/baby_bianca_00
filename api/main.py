@@ -1927,6 +1927,8 @@ async def action_map(request: Request):
 # All four routes (and the pipeline) live in the dedicated package now.
 from translator_on_drawings.routes import router as _translator_router  # noqa: E402
 app.include_router(_translator_router)
+from api.admin import router as _admin_router  # noqa: E402
+app.include_router(_admin_router)
 
 
 # --- File Converter (sub-tab of Function) ---

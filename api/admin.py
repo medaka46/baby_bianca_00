@@ -63,3 +63,46 @@ def build_tab_keys(selected) -> str:
     return ",".join(
         key for key, _label in TAB_DEFS if key in chosen and key in ALL_TAB_KEYS
     )
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+router = APIRouter()
+
+
+def _render_admin(request: Request, db: Session,
+                  message: str = "", message_color: str = "#0f0"):
+    """Render the admin landing page with all three panels."""
+    allowed_users = db.query(AllowedUser).order_by(AllowedUser.id).all()
+    users = db.query(User).order_by(User.username).all()
+    groups = db.query(TabGroup).order_by(TabGroup.group_key).all()
+    # Per group, the set of allowed keys — used to pre-check the checkboxes.
+    group_keysets = {g.id: parse_tab_keys(g.tab_keys) for g in groups}
+    return templates.TemplateResponse("admin_00.html", {
+        "request": request,
+        "login_username": request.session.get("login_username"),
+        "time_zone": request.session.get("time_zone"),
+        "tab_page_active": "admin",
+        "today": "",
+        "allowed_users": allowed_users,
+        "users": users,
+        "groups": groups,
+        "group_keysets": group_keysets,
+        "tab_defs": TAB_DEFS,
+        "message": message,
+        "message_color": message_color,
+    })
+
+
+@router.get("/admin/")
+async def admin_home(request: Request, db: Session = Depends(get_db)):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    return _render_admin(request, db)
