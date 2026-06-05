@@ -646,7 +646,10 @@ async def add_user(request: Request, username: str = Form(...), email: str = For
             })
 
         # 3. Create the actual user account (plaintext password for now).
-        new_user = User(username=username, email=email, password=password)
+        #    Inherit the tab_group chosen by the admin on the allowlist row, so
+        #    the new user lands on usable tabs at first login (not /no_access/).
+        new_user = User(username=username, email=email, password=password,
+                        tab_group=allowed.tab_group)
         try:
             db.add(new_user)
             db.commit()

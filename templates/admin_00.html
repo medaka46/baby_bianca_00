@@ -8,7 +8,8 @@
     .admin_msg { margin: 8px 0; font-size: 13px; }
     .admin_wrap form { margin: 0 0 6px; }
     .admin_wrap input[type="text"],
-    .admin_wrap input[type="email"] {
+    .admin_wrap input[type="email"],
+    .admin_wrap select {
         background-color: #333; color: #eee; border: 1px solid #555;
         padding: 3px 5px; font-size: 12px; margin: 0 2px;
     }
@@ -35,6 +36,13 @@
         <input type="text"  name="username" value="{{ au.username or '' }}" placeholder="username" required>
         <input type="email" name="email"    value="{{ au.email or '' }}"    placeholder="email" required>
         <input type="text"  name="password" value="{{ au.password or '' }}" placeholder="password" required>
+        group:
+        <select name="tab_group">
+            <option value="" {% if not au.tab_group %}selected{% endif %}>(none)</option>
+            {% for g in groups %}
+            <option value="{{ g.group_key }}" {% if au.tab_group == g.group_key %}selected{% endif %}>{{ g.group_key }}{% if g.group_name %} ({{ g.group_name }}){% endif %}</option>
+            {% endfor %}
+        </select>
         <button type="submit">Save</button>
         <button type="submit" formaction="/admin/allowed_users/delete/"
                 onclick="return confirm('Delete allowed user {{ au.username }}?');">Delete</button>
@@ -45,6 +53,13 @@
         <input type="text"  name="username" placeholder="username" required>
         <input type="email" name="email"    placeholder="email" required>
         <input type="text"  name="password" placeholder="password" required>
+        group:
+        <select name="tab_group">
+            <option value="" selected>(none)</option>
+            {% for g in groups %}
+            <option value="{{ g.group_key }}">{{ g.group_key }}{% if g.group_name %} ({{ g.group_name }}){% endif %}</option>
+            {% endfor %}
+        </select>
         <button type="submit">Add</button>
     </form>
 

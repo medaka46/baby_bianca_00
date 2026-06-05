@@ -115,6 +115,7 @@ async def allowed_users_add(request: Request,
                             username: str = Form(...),
                             email: str = Form(...),
                             password: str = Form(...),
+                            tab_group: str = Form(""),
                             db: Session = Depends(get_db)):
     guard = require_admin(request)
     if guard:
@@ -124,7 +125,8 @@ async def allowed_users_add(request: Request,
                              message=f"An allowed user with email {email} already exists.",
                              message_color="#f00")
     try:
-        db.add(AllowedUser(username=username, email=email, password=password))
+        db.add(AllowedUser(username=username, email=email, password=password,
+                           tab_group=tab_group.strip()))
         db.commit()
     except Exception as e:
         db.rollback()
@@ -138,6 +140,7 @@ async def allowed_users_edit(request: Request,
                              username: str = Form(...),
                              email: str = Form(...),
                              password: str = Form(...),
+                             tab_group: str = Form(""),
                              db: Session = Depends(get_db)):
     guard = require_admin(request)
     if guard:
@@ -156,6 +159,7 @@ async def allowed_users_edit(request: Request,
         row.username = username
         row.email = email
         row.password = password
+        row.tab_group = tab_group.strip()
         db.commit()
     except Exception as e:
         db.rollback()

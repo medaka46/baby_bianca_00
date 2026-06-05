@@ -30,6 +30,10 @@ class AllowedUser(Base):
     username = Column(String, index=True)
     email = Column(String, unique=True, index=True)
     password = Column(String)
+    # tab_group: which permission group the user will be placed in when they
+    # sign up. NULL/empty means the new account starts with no tabs (default
+    # deny) until an admin assigns one. Decided by the admin at approval time.
+    tab_group = Column(String)
 
 
 class TabGroup(Base):
