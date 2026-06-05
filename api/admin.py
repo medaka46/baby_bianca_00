@@ -175,3 +175,33 @@ async def allowed_users_delete(request: Request,
         db.delete(row)
         db.commit()
     return RedirectResponse(url="/admin/", status_code=303)
+
+
+# ----------------------- Users -----------------------
+
+@router.post("/admin/users/set_group/")
+async def users_set_group(request: Request,
+                          user_id: int = Form(...),
+                          tab_group: str = Form(""),
+                          db: Session = Depends(get_db)):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        return _render_admin(request, db, message="User not found.", message_color="#f00")
+    new_group = tab_group.strip()
+    # Lock-out protection: the current admin must not move THEMSELVES into a
+    # group that lacks the 'admin' tab (or clear their group entirely).
+    if user.username == request.session.get("login_username"):
+        target_keys = set()
+        if new_group:
+            g = db.query(TabGroup).filter(TabGroup.group_key == new_group).first()
+            target_keys = parse_tab_keys(g.tab_keys) if g else set()
+        if "admin" not in target_keys:
+            return _render_admin(request, db,
+                                 message="Refused: that change would remove your own admin access.",
+                                 message_color="#f00")
+    user.tab_group = new_group  # '' clears => default deny (soft-suspend)
+    db.commit()
+    return RedirectResponse(url="/admin/", status_code=303)
