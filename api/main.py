@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from api.database import SessionLocal, engine, Base, ENVIRONMENT # Use absolute import
 from api.models import User, AllowedUser, Schedule, Link, Todo, Diary  # Use absolute import
-from api.permissions import allowed_tabs_for, tab_guard
+from api.permissions import allowed_tabs_for, tab_guard, landing_url_for
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -667,6 +667,12 @@ async def add_user(request: Request, username: str = Form(...), email: str = For
         # 4. Auto-login — same template + flow as a successful /check_user/.
         #    The user now picks a time zone, which finalises the session.
         request.session['login_username'] = username
+
+        # Respect tab permissions: if the inherited group doesn't allow
+        # Schedule, land on the first allowed tab (or /no_access/) instead.
+        if "schedule" not in allowed_tabs_for(request):
+            return RedirectResponse(landing_url_for(request), status_code=303)
+
         return templates.TemplateResponse("schedule_indicate_00.html", {
             "request": request,
             "dates": date_sequence,
@@ -703,6 +709,12 @@ async def check_user(request: Request, date_sequence = date_sequence, today_date
         request.session['login_username'] = username
         time_zone_message = "Please select Time zone :"
         message_color = "#f00"
+
+        # Respect tab permissions: only land on Schedule if the user's group
+        # allows it; otherwise send them to their first allowed tab (or
+        # /no_access/). Prevents showing Schedule to users without it.
+        if "schedule" not in allowed_tabs_for(request):
+            return RedirectResponse(landing_url_for(request), status_code=303)
 
         return templates.TemplateResponse("schedule_indicate_00.html", {
             "request": request,
@@ -923,7 +935,9 @@ async def select_time_zone(request: Request, time_zone: str = Form(...), login_u
     response_size = len(response_content)
     logger.info(f"Time zone: {time_zone}, Response size: {response_size} bytes")
 
-    return RedirectResponse("/schedule/", status_code=303)
+    # Land on the user's first allowed tab (Schedule when permitted), not a
+    # hardcoded /schedule/ that would bounce a non-schedule user to /no_access/.
+    return RedirectResponse(landing_url_for(request), status_code=303)
 
 # --------------------
 

@@ -58,3 +58,34 @@ def require_admin(request: Request):
     if "admin" in allowed_tabs_for(request):
         return None
     return RedirectResponse(url="/no_access/", status_code=303)
+
+
+# Ordered (tab_key, landing URL). The order defines the priority used to pick a
+# user's first allowed tab after login. Keys match tab_page_active in base.html.
+TAB_LANDING = [
+    ("schedule", "/schedule/"),
+    ("link_00", "/link_00/"),
+    ("project", "/project/"),
+    ("action", "/action/"),
+    ("todo", "/todo/"),
+    ("diary", "/diary/"),
+    ("3d", "/3d/"),
+    ("music", "/music/"),
+    ("game", "/game/"),
+    ("sqlite", "/sqlite/"),
+    ("admin", "/admin/"),
+]
+
+
+def landing_url_for(request: Request) -> str:
+    """Return the landing URL of the first tab the user may access.
+
+    Used right after login/sign-up/time-zone selection so a user is sent to a
+    tab they are actually allowed to see, instead of always the Schedule page.
+    Falls back to /no_access/ when the user has no allowed tabs (default deny).
+    """
+    allowed = allowed_tabs_for(request)
+    for key, url in TAB_LANDING:
+        if key in allowed:
+            return url
+    return "/no_access/"
