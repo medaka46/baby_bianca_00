@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .admin_wrap { padding: 16px; font-family: Arial, sans-serif; color: #ccc; background-color: #222; }
+    .admin_wrap h1 { color: #0f0; font-size: 18px; margin: 0 0 8px; }
+    .admin_wrap h2 { color: #0f0; font-size: 15px; margin: 18px 0 6px; border-bottom: 1px solid #333; padding-bottom: 3px; }
+    .admin_wrap h3 { color: #0f0; font-size: 13px; margin: 10px 0 4px; }
+    .admin_msg { margin: 8px 0; font-size: 13px; }
+    .admin_wrap form { margin: 0 0 6px; }
+    .admin_wrap input[type="text"],
+    .admin_wrap input[type="email"] {
+        background-color: #333; color: #eee; border: 1px solid #555;
+        padding: 3px 5px; font-size: 12px; margin: 0 2px;
+    }
+    .admin_wrap button {
+        background-color: #444; color: #aaa; border: 1px solid #555;
+        padding: 3px 8px; font-size: 12px; cursor: pointer; margin-left: 4px;
+    }
+    .admin_wrap button:hover { color: #0f0; }
+    .row_id { color: #666; font-size: 11px; }
+    .tabbox { display: inline-block; margin-right: 10px; font-size: 11px; white-space: nowrap; }
+    .group_block { border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; }
+</style>
+
+<div class="admin_wrap">
+    <h1>Admin</h1>
+    {% if message %}<div class="admin_msg" style="color: {{ message_color }};">{{ message }}</div>{% endif %}
+
+    <!-- ===================== Panel 1: Allowed Users ===================== -->
+    <h2>Allowed Users (sign-up allowlist)</h2>
+    {% for au in allowed_users %}
+    <form action="/admin/allowed_users/edit/" method="post">
+        <span class="row_id">#{{ au.id }}</span>
+        <input type="hidden" name="row_id" value="{{ au.id }}">
+        <input type="text"  name="username" value="{{ au.username or '' }}" placeholder="username" required>
+        <input type="email" name="email"    value="{{ au.email or '' }}"    placeholder="email" required>
+        <input type="text"  name="password" value="{{ au.password or '' }}" placeholder="password" required>
+        <button type="submit">Save</button>
+        <button type="submit" formaction="/admin/allowed_users/delete/"
+                onclick="return confirm('Delete allowed user {{ au.username }}?');">Delete</button>
+    </form>
+    {% endfor %}
+    <h3>Add allowed user</h3>
+    <form action="/admin/allowed_users/add/" method="post">
+        <input type="text"  name="username" placeholder="username" required>
+        <input type="email" name="email"    placeholder="email" required>
+        <input type="text"  name="password" placeholder="password" required>
+        <button type="submit">Add</button>
+    </form>
+
+    <!-- ===================== Panel 2: Users ===================== -->
+    <h2>Users (assign / clear tab group)</h2>
+    {% for u in users %}
+    <form action="/admin/users/set_group/" method="post">
+        <span class="row_id">#{{ u.id }}</span>
+        <input type="hidden" name="user_id" value="{{ u.id }}">
+        <strong>{{ u.username }}</strong>
+        <span style="color:#888;">&lt;{{ u.email or '' }}&gt;</span>
+        &nbsp;group:
+        <input type="text" name="tab_group" value="{{ u.tab_group or '' }}" placeholder="(none = no access)">
+        <button type="submit">Set group</button>
+    </form>
+    {% endfor %}
+
+    <!-- ===================== Panel 3: Tab Groups ===================== -->
+    <h2>Tab Groups</h2>
+    {% for g in groups %}
+    <form action="/admin/tab_group/edit/" method="post" class="group_block">
+        <span class="row_id">#{{ g.id }}</span>
+        key: <strong style="color:#0f0;">{{ g.group_key }}</strong>
+        <input type="hidden" name="row_id" value="{{ g.id }}">
+        &nbsp;name: <input type="text" name="group_name" value="{{ g.group_name or '' }}">
+        <div style="margin:4px 0;">
+            {% for key, label in tab_defs %}
+            <label class="tabbox">
+                <input type="checkbox" name="tabs" value="{{ key }}"
+                       {% if key in group_keysets[g.id] %}checked{% endif %}> {{ label }}
+            </label>
+            {% endfor %}
+        </div>
+        <button type="submit">Save group</button>
+        <button type="submit" formaction="/admin/tab_group/delete/"
+                onclick="return confirm('Delete group {{ g.group_key }}?');">Delete group</button>
+    </form>
+    {% endfor %}
+
+    <h3>Add a new group</h3>
+    <form action="/admin/tab_group/add/" method="post">
+        key: <input type="text" name="group_key" placeholder="e.g. b" required>
+        &nbsp;name: <input type="text" name="group_name" placeholder="e.g. Site staff">
+        <div style="margin:4px 0;">
+            {% for key, label in tab_defs %}
+            <label class="tabbox">
+                <input type="checkbox" name="tabs" value="{{ key }}"> {{ label }}
+            </label>
+            {% endfor %}
+        </div>
+        <button type="submit">Add group</button>
+    </form>
+</div>
+{% endblock %}
