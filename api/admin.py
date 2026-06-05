@@ -106,3 +106,72 @@ async def admin_home(request: Request, db: Session = Depends(get_db)):
     if guard:
         return guard
     return _render_admin(request, db)
+
+
+# ----------------------- Allowed Users -----------------------
+
+@router.post("/admin/allowed_users/add/")
+async def allowed_users_add(request: Request,
+                            username: str = Form(...),
+                            email: str = Form(...),
+                            password: str = Form(...),
+                            db: Session = Depends(get_db)):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    if db.query(AllowedUser).filter(AllowedUser.email == email).first():
+        return _render_admin(request, db,
+                             message=f"An allowed user with email {email} already exists.",
+                             message_color="#f00")
+    try:
+        db.add(AllowedUser(username=username, email=email, password=password))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return _render_admin(request, db, message=f"Add failed: {e}", message_color="#f00")
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+@router.post("/admin/allowed_users/edit/")
+async def allowed_users_edit(request: Request,
+                             row_id: int = Form(...),
+                             username: str = Form(...),
+                             email: str = Form(...),
+                             password: str = Form(...),
+                             db: Session = Depends(get_db)):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    row = db.query(AllowedUser).filter(AllowedUser.id == row_id).first()
+    if not row:
+        return _render_admin(request, db, message="Allowed user not found.", message_color="#f00")
+    clash = db.query(AllowedUser).filter(
+        AllowedUser.email == email, AllowedUser.id != row_id
+    ).first()
+    if clash:
+        return _render_admin(request, db,
+                             message=f"Email {email} is already used by another row.",
+                             message_color="#f00")
+    try:
+        row.username = username
+        row.email = email
+        row.password = password
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return _render_admin(request, db, message=f"Edit failed: {e}", message_color="#f00")
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+@router.post("/admin/allowed_users/delete/")
+async def allowed_users_delete(request: Request,
+                               row_id: int = Form(...),
+                               db: Session = Depends(get_db)):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    row = db.query(AllowedUser).filter(AllowedUser.id == row_id).first()
+    if row:
+        db.delete(row)
+        db.commit()
+    return RedirectResponse(url="/admin/", status_code=303)
