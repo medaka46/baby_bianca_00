@@ -205,3 +205,84 @@ async def users_set_group(request: Request,
     user.tab_group = new_group  # '' clears => default deny (soft-suspend)
     db.commit()
     return RedirectResponse(url="/admin/", status_code=303)
+
+
+# ----------------------- Tab Groups -----------------------
+
+@router.post("/admin/tab_group/add/")
+async def tab_group_add(request: Request,
+                        group_key: str = Form(...),
+                        group_name: str = Form(""),
+                        tabs: list[str] = Form(default=[]),
+                        db: Session = Depends(get_db)):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    key = group_key.strip()
+    if not key:
+        return _render_admin(request, db, message="Group key is required.", message_color="#f00")
+    if db.query(TabGroup).filter(TabGroup.group_key == key).first():
+        return _render_admin(request, db, message=f"Group '{key}' already exists.", message_color="#f00")
+    try:
+        db.add(TabGroup(group_key=key, group_name=group_name.strip(),
+                        tab_keys=build_tab_keys(tabs)))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return _render_admin(request, db, message=f"Add failed: {e}", message_color="#f00")
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+@router.post("/admin/tab_group/edit/")
+async def tab_group_edit(request: Request,
+                         row_id: int = Form(...),
+                         group_name: str = Form(""),
+                         tabs: list[str] = Form(default=[]),
+                         db: Session = Depends(get_db)):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    group = db.query(TabGroup).filter(TabGroup.id == row_id).first()
+    if not group:
+        return _render_admin(request, db, message="Group not found.", message_color="#f00")
+    new_keys = build_tab_keys(tabs)
+    # Lock-out protection: if this is the current admin's own group, the
+    # 'admin' tab must remain in it.
+    me = db.query(User).filter(
+        User.username == request.session.get("login_username")
+    ).first()
+    if me and me.tab_group == group.group_key and "admin" not in parse_tab_keys(new_keys):
+        return _render_admin(request, db,
+                             message="Refused: that change would remove your own admin access.",
+                             message_color="#f00")
+    group.group_name = group_name.strip()
+    group.tab_keys = new_keys
+    db.commit()
+    return RedirectResponse(url="/admin/", status_code=303)
+
+
+@router.post("/admin/tab_group/delete/")
+async def tab_group_delete(request: Request,
+                           row_id: int = Form(...),
+                           db: Session = Depends(get_db)):
+    guard = require_admin(request)
+    if guard:
+        return guard
+    group = db.query(TabGroup).filter(TabGroup.id == row_id).first()
+    if not group:
+        return _render_admin(request, db, message="Group not found.", message_color="#f00")
+    me = db.query(User).filter(
+        User.username == request.session.get("login_username")
+    ).first()
+    if me and me.tab_group == group.group_key:
+        return _render_admin(request, db,
+                             message="Refused: you cannot delete the group you belong to.",
+                             message_color="#f00")
+    assigned = db.query(User).filter(User.tab_group == group.group_key).count()
+    if assigned > 0:
+        return _render_admin(request, db,
+                             message=f"Refused: {assigned} user(s) still assigned to '{group.group_key}'.",
+                             message_color="#f00")
+    db.delete(group)
+    db.commit()
+    return RedirectResponse(url="/admin/", status_code=303)
