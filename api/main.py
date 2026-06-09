@@ -9,9 +9,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, File
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
-from api.database import SessionLocal, engine, Base, ENVIRONMENT # Use absolute import
+from api.database import SessionLocal, engine, Base, ENVIRONMENT, get_database_path # Use absolute import
 from api.models import User, AllowedUser, Schedule, Link, Todo, Diary  # Use absolute import
 from api.permissions import allowed_tabs_for, tab_guard, landing_url_for
+from api.schema_check import missing_schema, format_warning, is_missing_schema_error, MIGRATION_COMMAND
+from sqlalchemy.exc import OperationalError
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -56,6 +58,39 @@ templates.env.globals['ENVIRONMENT'] = ENVIRONMENT
 
 # Create the database tables if they don't exist
 Base.metadata.create_all(bind=engine)
+
+# Startup schema guard: create_all() above adds missing TABLES but never adds a
+# missing COLUMN to an existing table, so a schema-change deploy whose migration
+# was not run (Render does not auto-apply render.yaml startCommand changes) would
+# otherwise crash every authenticated page with a cryptic 500. Surface it loudly.
+_schema_gaps = missing_schema(get_database_path())
+if _schema_gaps:
+    logger.error("\n" + format_warning(_schema_gaps))
+else:
+    logger.info("Schema guard: database schema is up to date.")
+
+
+@app.exception_handler(OperationalError)
+async def _operational_error_handler(request: Request, exc: OperationalError):
+    """Turn a stale-schema crash into a clear 'migration needed' page.
+
+    Only the missing-column/table case gets the friendly page; any other
+    OperationalError (e.g. a locked DB) falls through to a normal 500 so we do
+    not mask unrelated problems.
+    """
+    message = str(getattr(exc, "orig", exc))
+    if is_missing_schema_error(message):
+        logger.error("\n" + format_warning(missing_schema(get_database_path())))
+        return HTMLResponse(
+            "<h1>Database migration needed</h1>"
+            "<p>The app was deployed with new code but its database schema is "
+            "out of date, so this page cannot load.</p>"
+            "<p>Run this once in the Render Shell (safe to re-run), then reload:</p>"
+            f"<pre>{MIGRATION_COMMAND}</pre>"
+            f"<p style='color:#888'>Detail: {message}</p>",
+            status_code=503,
+        )
+    return HTMLResponse("Internal server error", status_code=500)
 
 # Set condition based on environment
 if ENVIRONMENT == 'production':
