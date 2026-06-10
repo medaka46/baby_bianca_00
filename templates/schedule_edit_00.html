@@ -30,6 +30,22 @@
         color: #aaa;
         opacity: 1;
     }
+    /* Unify the look of every control in the edit form so the time dropdowns
+       match the text/date boxes: same border, padding, height and corners.
+       Presentation only — no change to behaviour. */
+    header.tab_00 form input[type="text"],
+    header.tab_00 form input[type="date"],
+    header.tab_00 form select {
+        background-color: #444;
+        color: #fff;
+        border: 1px solid #666;
+        border-radius: 4px;
+        padding: 4px 8px;
+        height: 30px;
+        font-size: 14px;
+        box-sizing: border-box;
+        vertical-align: middle;
+    }
 </style>
 <header class="tab_00">
     <!-- ... existing code ... -->

@@ -12,6 +12,7 @@ from sqlalchemy import desc
 from api.database import SessionLocal, engine, Base, ENVIRONMENT, get_database_path # Use absolute import
 from api.models import User, AllowedUser, Schedule, Link, Todo, Diary  # Use absolute import
 from api.permissions import allowed_tabs_for, tab_guard, landing_url_for
+from api.edit_time_fields import edit_form_time_fields
 from api.schema_check import missing_schema, format_warning, is_missing_schema_error, MIGRATION_COMMAND
 from sqlalchemy.exc import OperationalError
 import pandas as pd
@@ -987,20 +988,11 @@ async def edit_task(item_id: int, request: Request, db: Session = Depends(get_db
 
     time_zone = request.session.get('time_zone', 'UTC')
 
-    if db_item.is_daily_task:
-        # Daily task: date is TZ-independent, no time component.
-        selected_local_start_date = db_item.task_date
-        selected_local_start_time = "00:00"
-        selected_local_end_time = "00:00"
-    else:
-        # Regular task: convert UTC → local.
-        utc_start_datetime = pd.Timestamp(db_item.start_datetime).tz_localize("UTC")
-        utc_end_datetime = pd.Timestamp(db_item.end_datetime).tz_localize("UTC")
-        local_start_datetime = utc_start_datetime.astimezone(ZoneInfo(time_zone))
-        local_end_datetime = utc_end_datetime.astimezone(ZoneInfo(time_zone))
-        selected_local_start_date = local_start_datetime.date()
-        selected_local_start_time = local_start_datetime.time().strftime("%H:%M")
-        selected_local_end_time = local_end_datetime.time().strftime("%H:%M")
+    # Daily, repeat and regular tasks each derive the form's pre-selected
+    # date/times differently; the helper keeps that logic in one tested place.
+    selected_local_start_date, selected_local_start_time, selected_local_end_time = (
+        edit_form_time_fields(db_item, time_zone)
+    )
 
     # Generate date sequence for the template
     start_date_adjust = request.session.get('start_date_adjust', 0)
