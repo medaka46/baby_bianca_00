@@ -13,6 +13,7 @@ from api.database import SessionLocal, engine, Base, ENVIRONMENT, get_database_p
 from api.models import User, AllowedUser, Schedule, Link, Todo, Diary  # Use absolute import
 from api.permissions import allowed_tabs_for, tab_guard, landing_url_for
 from api.edit_time_fields import edit_form_time_fields
+from api.repeat_task_update import apply_repeat_update
 from api.schema_check import missing_schema, format_warning, is_missing_schema_error, MIGRATION_COMMAND
 from sqlalchemy.exc import OperationalError
 import pandas as pd
@@ -1368,6 +1369,27 @@ async def create_item(request: Request, item_id: int, action: str = Form(...), n
             db.commit()
             db.refresh(db_item_new)
             return RedirectResponse("/schedule/", status_code=303)
+
+    # Repeat task: time-of-day lives in repeat_start_time/repeat_end_time, not in
+    # start/end_datetime. The regular path below writes the wrong columns, so
+    # persist the edit here. (The duplicate action keeps its existing behaviour.)
+    if db_item_check and db_item_check.is_repeat_task and action == "update":
+        new_start_time = (
+            f"{start_time_hour}:{start_time_minute}"
+            if start_time_hour is not None and start_time_minute is not None else None
+        )
+        new_end_time = (
+            f"{end_time_hour}:{end_time_minute}"
+            if end_time_hour is not None and end_time_minute is not None else None
+        )
+        apply_repeat_update(
+            db_item_check,
+            name=name, link=link, category=category, status=status,
+            date1=date1, start_time=new_start_time, end_time=new_end_time,
+        )
+        db.commit()
+        db.refresh(db_item_check)
+        return RedirectResponse("/schedule/", status_code=303)
 
     if start_time_hour is not None and start_time_minute is not None:
         start_time = f"{start_time_hour}:{start_time_minute}"

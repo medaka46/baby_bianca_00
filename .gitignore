@@ -8,6 +8,10 @@
 test.db
 database.db
 
+# Database backups (e.g. test.db.bak-20260611-074738)
+*.db.bak*
+test.db.bak*
+
 # Python
 __pycache__/
 *.py[cod]

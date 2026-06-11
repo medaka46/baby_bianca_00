@@ -143,9 +143,10 @@
             <label style="color: #aaa; padding: 0 5px;">
                 <input type="checkbox" name="today_only" value="1"> Today only
             </label>
-            <button type="submit" style="background-color: #444; color: #0f0;">Add Task</button>
+            <button type="submit" data-validate-times="1" style="background-color: #444; color: #0f0;">Add Task</button>
             <button type="submit" formaction="/schedule/add_daily_task/" style="background-color: #444; color: #0f0; margin-left: 5px;">Add Daily Task</button>
             <button type="submit" formaction="/schedule/add_repeat_task/" style="background-color: #444; color: #0f0; margin-left: 5px;">Add Repeat Task</button>
+            <span class="time-order-warning" style="display: none; color: #f00; padding: 0 8px;">⚠ Start time is after end time — please fix before saving.</span>
 
         </form>
         <div class="live-update-indicator">
@@ -394,4 +395,5 @@
         }
     }
 </script>
+<script src="/static/schedule_time_validation.js"></script>
 {% endblock %}
