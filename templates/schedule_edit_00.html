@@ -121,8 +121,8 @@
             <input type="text" name="link" value="{{ item.link }}" placeholder="Enter link..." style="background-color: #444; color: #fff;">
             <input type="text" name="category" value="{{ item.category }}" placeholder="Enter cTEGORY..." style="background-color: #444; color: #fff;">
             <input type="text" name="status" value="{{ item.status }}" placeholder="Enter STATUS..." style="background-color: #444; color: #fff;">
-            <button type="submit" name="action" value="update" {% if not item.is_daily_task and not item.is_repeat_task %}data-validate-times="1"{% endif %} style="background-color: #444; color: #0f0;">Update Task</button>
-            <button type="submit" name="action" value="deplicate" {% if not item.is_daily_task and not item.is_repeat_task %}data-validate-times="1"{% endif %} style="background-color: #444; color: #0f0; ">Deplicate Task</button>
+            <button type="submit" name="action" value="update" {% if not item.is_daily_task %}data-validate-times="1"{% endif %} style="background-color: #444; color: #0f0;">Update Task</button>
+            <button type="submit" name="action" value="deplicate" {% if not item.is_daily_task %}data-validate-times="1"{% endif %} style="background-color: #444; color: #0f0; ">Deplicate Task</button>
             <span class="time-order-warning" style="display: none; color: #f00; padding: 0 8px;">⚠ Start time is after end time — please fix before saving.</span>
         </form>
         
